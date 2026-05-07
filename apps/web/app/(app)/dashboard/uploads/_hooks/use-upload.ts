@@ -2,7 +2,7 @@
 
 import { uploadsApi } from "@workspace/api-client"
 import type { UploadSummary } from "@workspace/types"
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
@@ -15,6 +15,20 @@ type InFlightUpload = {
   progress: number
   createdAt: string
   status: UploadSummary["status"]
+}
+
+type ProcessingStage = "TRANSCRIBE" | "DIARIZE" | "ANALYZE" | "EMBED"
+type ProcessingEventPayload = {
+  meetingStatus?: UploadSummary["status"] | null
+  stage?: ProcessingStage
+  status?: "STARTED" | "SUCCEEDED" | "FAILED"
+}
+
+const STAGE_PROGRESS: Record<ProcessingStage, number> = {
+  TRANSCRIBE: 35,
+  DIARIZE: 55,
+  ANALYZE: 75,
+  EMBED: 90,
 }
 
 function deriveTitle(fileName: string): string {
@@ -33,6 +47,87 @@ export function useUpload() {
 
   // ✅ Client-side ephemeral state
   const [inFlight, setInFlight] = useState<Record<string, InFlightUpload>>({})
+  const [stageByMeetingId, setStageByMeetingId] = useState<
+    Record<string, ProcessingStage>
+  >({})
+
+  useEffect(() => {
+    const pendingMeetingIds = uploads
+      .filter((upload) => !["SUMMARIZED", "FAILED"].includes(upload.status))
+      .map((upload) => upload.meetingId)
+
+    if (pendingMeetingIds.length === 0) return
+
+    const baseApiUrl = "/api"
+
+    const streams = pendingMeetingIds.map((meetingId) => {
+      const source = new EventSource(
+        `${baseApiUrl}/meetings/${meetingId}/events`
+      )
+
+      source.addEventListener("processing.event", (event) => {
+        const payload = JSON.parse(
+          (event as MessageEvent).data
+        ) as ProcessingEventPayload
+
+        if (payload.stage && payload.status === "STARTED") {
+          setStageByMeetingId((prev) => ({
+            ...prev,
+            [meetingId]: payload.stage!,
+          }))
+        }
+
+        if (payload.status === "SUCCEEDED" && payload.stage === "EMBED") {
+          setStageByMeetingId((prev) => {
+            const next = { ...prev }
+            delete next[meetingId]
+            return next
+          })
+        }
+
+        if (payload.status === "FAILED") {
+          setStageByMeetingId((prev) => {
+            const next = { ...prev }
+            delete next[meetingId]
+            return next
+          })
+        }
+
+        if (!payload.meetingStatus) return
+
+        queryClient.setQueryData<UploadSummary[]>(["uploads"], (current = []) =>
+          current.map((upload) =>
+            upload.meetingId === meetingId
+              ? {
+                  ...upload,
+                  status: payload.meetingStatus as UploadSummary["status"],
+                }
+              : upload
+          )
+        )
+      })
+
+      return source
+    })
+
+    return () => {
+      for (const source of streams) source.close()
+    }
+  }, [queryClient, uploads])
+
+  useEffect(() => {
+    const hasPending = uploads.some(
+      (upload) => !["SUMMARIZED", "FAILED"].includes(upload.status)
+    )
+    if (!hasPending) return
+
+    const timer = window.setInterval(() => {
+      // Safety net in case SSE is interrupted by the network/proxy.
+      queryClient.invalidateQueries({ queryKey: ["uploads"] })
+    }, 8000)
+
+    return () => window.clearInterval(timer)
+  }, [queryClient, uploads])
 
   const handleUploadFile = useCallback(
     async (file: File) => {
@@ -152,13 +247,19 @@ export function useUpload() {
     for (const item of Object.values(inFlight)) {
       map[item.meetingId] = item.progress
     }
+    for (const [meetingId, stage] of Object.entries(stageByMeetingId)) {
+      if (map[meetingId] == null) {
+        map[meetingId] = STAGE_PROGRESS[stage]
+      }
+    }
     return map
-  }, [inFlight])
+  }, [inFlight, stageByMeetingId])
 
   return {
     handleUploadFile,
     displayUploads,
     progressByMeetingId,
+    stageByMeetingId,
     loading: isLoading,
   }
 }

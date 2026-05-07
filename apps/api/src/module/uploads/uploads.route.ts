@@ -52,7 +52,8 @@ export const uploadsRoutes: FastifyPluginAsyncZod = async (app) => {
       preHandler: [app.verifySession, app.requireWorkspace],
       schema: {
         tags: ["Uploads"],
-        summary: "Finalize the upload, flip meeting to UPLOADED, enqueue transcribe",
+        summary:
+          "Finalize the upload, flip meeting to UPLOADED, enqueue transcribe",
         params: completeUploadParamsSchema,
         response: {
           200: completeUploadResponseSchema,

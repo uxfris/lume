@@ -38,13 +38,25 @@ export function RecentUploadItem({
   item,
   className,
   progress,
+  stage,
 }: {
   item: UploadSummary
   className?: string
   progress?: number
+  stage?: "TRANSCRIBE" | "DIARIZE" | "ANALYZE" | "EMBED"
 }) {
   const { title, status, fileSize, createdAt, fileType } = item
   const kind = getKindFromMime(fileType)
+  const statusText =
+    stage === "DIARIZE"
+      ? "Diarizing..."
+      : stage === "EMBED"
+        ? "Embedding..."
+        : stage === "ANALYZE"
+          ? "Analyzing..."
+          : stage === "TRANSCRIBE"
+            ? "Transcribing..."
+            : null
 
   const cancelUpload = () => {
     toast("Upload cancelled", {
@@ -83,18 +95,31 @@ export function RecentUploadItem({
               {formatBytes(fileSize)} •{" "}
               {status === "PENDING_UPLOAD" && "Uploading..."}
               {status === "UPLOADED" && "Queued..."}
-              {status === "TRANSCRIBING" && "Transcribing..."}
-              {status === "ANALYZING" && "Analyzing..."}
+              {(status === "TRANSCRIBING" || status === "ANALYZING") &&
+                (statusText ??
+                  (status === "TRANSCRIBING"
+                    ? "Transcribing..."
+                    : "Analyzing..."))}
               {status !== "PENDING_UPLOAD" &&
                 status !== "UPLOADED" &&
                 status !== "TRANSCRIBING" &&
                 status !== "ANALYZING" &&
                 formatTimeAgoIntl(createdAt)}
             </span>
-            {(status === "ANALYZING" || status === "TRANSCRIBING" || progress) && (
+            {(status === "ANALYZING" ||
+              status === "TRANSCRIBING" ||
+              progress) && (
               <span className="text-xs font-semibold text-primary">
                 {status === "ANALYZING" || status === "TRANSCRIBING"
-                  ? "Processing"
+                  ? stage === "DIARIZE"
+                    ? "Diarizing"
+                    : stage === "EMBED"
+                      ? "Embedding"
+                      : stage === "ANALYZE"
+                        ? "Analyzing"
+                        : stage === "TRANSCRIBE"
+                          ? "Transcribing"
+                          : "Processing"
                   : progress
                     ? `${progress}%`
                     : ""}
@@ -125,13 +150,13 @@ export function RecentUploadItem({
         status !== "PENDING_UPLOAD" &&
         status !== "UPLOADED" &&
         status !== "TRANSCRIBING" && (
-        <Badge variant="outline" className="w-fit px-1 md:px-2">
-          <span>
-            <CheckCircle />
-          </span>
-          <span className="hidden capitalize md:block">{status}</span>
-        </Badge>
-      )}
+          <Badge variant="outline" className="w-fit px-1 md:px-2">
+            <span>
+              <CheckCircle />
+            </span>
+            <span className="hidden capitalize md:block">{status}</span>
+          </Badge>
+        )}
     </div>
   )
 }

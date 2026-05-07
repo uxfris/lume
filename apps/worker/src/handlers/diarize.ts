@@ -2,6 +2,7 @@ import type { Job } from "bullmq"
 import { prisma } from "@workspace/database"
 import { QueueName, getQueue, type DiarizeJobPayload } from "@workspace/queue"
 import { logger } from "../logger"
+import { createProcessingEventAndPublish } from "../lib/processing-events"
 import { createPresignedAudioDownload } from "../lib/s3-presign"
 import { diarizeAudio, type DiarizeWindow } from "../lib/pyannote"
 
@@ -32,12 +33,10 @@ export async function diarizeHandler(
   log.info("diarize job received")
 
   try {
-    await prisma.processingEvent.create({
-      data: {
-        meetingId,
-        stage: "DIARIZE",
-        status: "STARTED",
-      },
+    await createProcessingEventAndPublish({
+      meetingId,
+      stage: "DIARIZE",
+      status: "STARTED",
     })
 
     const audioUrl = await createPresignedAudioDownload(audioKey)
@@ -93,15 +92,13 @@ export async function diarizeHandler(
     // Execute all updates in a single transaction
     await prisma.$transaction(updates)
 
-    await prisma.processingEvent.create({
-      data: {
-        meetingId,
-        stage: "DIARIZE",
-        status: "SUCCEEDED",
-        metadata: {
-          diarizationWindowCount: windows.length,
-          transcriptSegmentCount: segments.length,
-        },
+    await createProcessingEventAndPublish({
+      meetingId,
+      stage: "DIARIZE",
+      status: "SUCCEEDED",
+      metadata: {
+        diarizationWindowCount: windows.length,
+        transcriptSegmentCount: segments.length,
       },
     })
 
@@ -120,17 +117,13 @@ export async function diarizeHandler(
 
     log.error({ err }, "diarize job failed")
 
-    await prisma.processingEvent
-      .create({
-        data: {
-          meetingId,
-          stage: "DIARIZE",
-          status: "FAILED",
-          message: (err as Error).message,
-          metadata: { error: (err as Error).message },
-        },
-      })
-      .catch(() => {})
+    await createProcessingEventAndPublish({
+      meetingId,
+      stage: "DIARIZE",
+      status: "FAILED",
+      message: (err as Error).message,
+      metadata: { error: (err as Error).message },
+    }).catch(() => {})
 
     // Avoid automatic retries for heavy diarization requests.
     return { meetingId }

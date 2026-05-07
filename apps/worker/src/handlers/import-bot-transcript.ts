@@ -6,6 +6,7 @@ import {
   type ImportBotTranscriptJobPayload,
 } from "@workspace/queue"
 import { logger } from "../logger"
+import { createProcessingEventAndPublish } from "../lib/processing-events"
 import { saveRawTranscriptJson } from "../lib/s3-presign"
 import {
   downloadTranscriptJson,
@@ -160,13 +161,11 @@ export async function importBotTranscriptHandler(
       return { meetingId }
     }
 
-    await prisma.processingEvent.create({
-      data: {
-        meetingId,
-        stage: "TRANSCRIBE",
-        status: "STARTED",
-        message: "importing diarized transcript from Recall",
-      },
+    await createProcessingEventAndPublish({
+      meetingId,
+      stage: "TRANSCRIBE",
+      status: "STARTED",
+      message: "importing diarized transcript from Recall",
     })
 
     const startedAt = Date.now()
@@ -296,22 +295,20 @@ export async function importBotTranscriptHandler(
       })
     })
 
-    await prisma.processingEvent.create({
-      data: {
-        meetingId,
-        stage: "TRANSCRIBE",
-        status: "SUCCEEDED",
-        message: `imported ${segments.length} segments in ${Math.round(
-          durationMs / 1000
-        )}s`,
-        metadata: {
-          source: "recall",
-          externalBotId,
-          transcriptId: transcriptId ?? null,
-          transcriptBackupKey,
-          segmentCount: segments.length,
-          durationMs,
-        },
+    await createProcessingEventAndPublish({
+      meetingId,
+      stage: "TRANSCRIBE",
+      status: "SUCCEEDED",
+      message: `imported ${segments.length} segments in ${Math.round(
+        durationMs / 1000
+      )}s`,
+      metadata: {
+        source: "recall",
+        externalBotId,
+        transcriptId: transcriptId ?? null,
+        transcriptBackupKey,
+        segmentCount: segments.length,
+        durationMs,
       },
     })
 
@@ -334,21 +331,17 @@ export async function importBotTranscriptHandler(
       .update({ where: { id: meetingId }, data: { status: "FAILED" } })
       .catch(() => {})
 
-    await prisma.processingEvent
-      .create({
-        data: {
-          meetingId,
-          stage: "TRANSCRIBE",
-          status: "FAILED",
-          message: (err as Error).message,
-          metadata: {
-            error: (err as Error).message,
-            source: "recall",
-            externalBotId,
-          },
-        },
-      })
-      .catch(() => {})
+    await createProcessingEventAndPublish({
+      meetingId,
+      stage: "TRANSCRIBE",
+      status: "FAILED",
+      message: (err as Error).message,
+      metadata: {
+        error: (err as Error).message,
+        source: "recall",
+        externalBotId,
+      },
+    }).catch(() => {})
 
     return { meetingId }
   }
