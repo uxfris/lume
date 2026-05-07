@@ -8,6 +8,13 @@
       "when": 1777880568144,
       "tag": "0000_serious_rick_jones",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1778136639704,
+      "tag": "0001_curly_mister_fear",
+      "breakpoints": true
     }
   ]
 }

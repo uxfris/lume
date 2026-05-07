@@ -59,6 +59,11 @@ export async function embedHandler(
     const segments = await prisma.transcriptSegment.findMany({
       where: { meetingId },
       orderBy: { index: "asc" },
+      include: {
+        participant: {
+          select: { name: true, externalId: true },
+        },
+      },
     })
 
     const windows = chunkSegmentsForEmbedding(
@@ -66,7 +71,9 @@ export async function embedHandler(
         text: s.text,
         startMs: s.startMs,
         endMs: s.endMs,
-        speaker: s.speaker,
+        speaker:
+          s.participant?.name ??
+          (s.participant?.externalId ? `Speaker ${s.participant.externalId}` : null),
       }))
     )
 

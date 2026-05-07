@@ -218,12 +218,14 @@ model Meeting {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
-  workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user               User                @relation(fields: [userId], references: [id], onDelete: Restrict)
-  processingEvents   ProcessingEvent[]
-  transcriptSegments TranscriptSegment[]
-  chunks             MeetingChunk[]
-  tasks              Task[]
+  workspace            Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  processingEvents     ProcessingEvent[]
+  transcriptSegments   TranscriptSegment[]
+  chunks               MeetingChunk[]
+  tasks                Task[]
+  meetingParticipants  MeetingParticipant[]
+  meetingTranscriptRaw MeetingTranscriptRaw?
 
   @@index([workspaceId, createdAt(sort: Desc)])
   @@index([workspaceId, deletedAt, createdAt(sort: Desc)])
@@ -267,22 +269,124 @@ model MeetingChunk {
   @@map("meeting_chunk")
 }
 
-model TranscriptSegment {
-  id        String   @id @default(cuid())
+model MeetingParticipant {
+  id        String @id @default(cuid())
   meetingId String
-  speaker   String?
-  startMs   Int
-  endMs     Int
-  text      String
-  index     Int
+
+  /**
+   * Provider participant id (Recall.ai participant.id)
+   * NOT globally unique.
+   */
+  externalId String?
+
+  name      String?
+  email     String?
+  isHost    Boolean?
+  platform  String?
+  extraData Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  meeting            Meeting             @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  transcriptSegments TranscriptSegment[]
+
+  @@unique([meetingId, externalId])
+  @@index([meetingId])
+  @@index([meetingId, externalId])
+  @@map("meeting_participant")
+}
+
+model TranscriptSegment {
+  id String @id @default(cuid())
+
+  meetingId String
+
+  /**
+   * Nullable because diarization may fail,
+   * or transcripts may not have speaker identity.
+   */
+  participantId String?
+
+  /**
+   * BCP-47 language code.
+   * Example: en-US, id-ID
+   */
+  languageCode String?
+
+  /**
+   * Sequential ordering inside meeting.
+   */
+  index Int
+
+  /**
+   * Utterance-level text.
+   */
+  text String
+
+  /**
+   * Segment timing in milliseconds.
+   */
+  startMs Int
+  endMs   Int
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
 
+  participant MeetingParticipant? @relation(fields: [participantId], references: [id], onDelete: SetNull)
+
+  transcriptWords TranscriptWord[]
+
   @@unique([meetingId, index])
   @@index([meetingId, startMs])
+  @@index([participantId])
   @@map("transcript_segment")
+}
+
+model TranscriptWord {
+  id String @id @default(cuid())
+
+  segmentId String
+
+  segment TranscriptSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  /**
+   * Individual token/word.
+   */
+  text String
+
+  /**
+   * Word-level timing.
+   */
+  startMs Int
+  endMs   Int
+
+  /**
+   * Sequential position inside segment.
+   */
+  position Int
+
+  createdAt DateTime @default(now())
+
+  @@index([segmentId, position])
+  @@index([segmentId, startMs])
+  @@map("transcript_word")
+}
+
+model MeetingTranscriptRaw {
+  id String @id @default(cuid())
+
+  meetingId String @unique
+  provider  String
+  payload   Json
+
+  createdAt DateTime @default(now())
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@map("meeting_transcript_raw")
 }
 
 enum ProcessingStage {

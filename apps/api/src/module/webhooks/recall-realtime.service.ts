@@ -92,9 +92,15 @@ export async function processRealtimeEvent(input: {
     )
   )
 
-  const speaker =
-    payload.data?.data?.participant?.name?.trim() ||
-    `Speaker ${payload.data?.data?.participant?.id ?? "?"}`
+  const participantExternalId =
+    payload.data?.data?.participant?.id != null
+      ? String(payload.data.data.participant.id)
+      : null
+  const participantName = payload.data?.data?.participant?.name?.trim() || null
+  const participantEmail = payload.data?.data?.participant?.email ?? null
+  const participantPlatform = payload.data?.data?.participant?.platform ?? null
+  const participantIsHost = payload.data?.data?.participant?.is_host ?? null
+  const languageCode = payload.data?.data?.language_code ?? null
 
   // Append a row at the end of the existing index space. We use a max+1
   // strategy in a single round-trip to handle concurrent webhook deliveries
@@ -109,14 +115,68 @@ export async function processRealtimeEvent(input: {
   const nextIndex = (last?.index ?? -1) + 1
 
   try {
+    let participantId: string | null = null
+    if (participantExternalId != null) {
+      const participant = await prisma.meetingParticipant.upsert({
+        where: {
+          meetingId_externalId: {
+            meetingId: meeting.id,
+            externalId: participantExternalId,
+          },
+        },
+        update: {
+          name: participantName,
+          email: participantEmail,
+          platform: participantPlatform,
+          isHost: participantIsHost,
+        },
+        create: {
+          meetingId: meeting.id,
+          externalId: participantExternalId,
+          name: participantName,
+          email: participantEmail,
+          platform: participantPlatform,
+          isHost: participantIsHost,
+        },
+        select: { id: true },
+      })
+      participantId = participant.id
+    }
+
     await prisma.transcriptSegment.create({
       data: {
         meetingId: meeting.id,
         index: nextIndex,
-        speaker,
+        participantId,
+        languageCode,
         startMs,
         endMs,
         text,
+        transcriptWords:
+          words.length > 0
+            ? {
+                create: words.map((word, position) => {
+                  const wordStartMs = Math.max(
+                    0,
+                    Math.round((word.start_timestamp?.relative ?? 0) * 1000)
+                  )
+                  const wordEndMs = Math.max(
+                    wordStartMs,
+                    Math.round(
+                      (word.end_timestamp?.relative ??
+                        word.start_timestamp?.relative ??
+                        0) * 1000
+                    )
+                  )
+                  return {
+                    text: word.text ?? "",
+                    startMs: wordStartMs,
+                    endMs: wordEndMs,
+                    position,
+                  }
+                }),
+              }
+            : undefined,
       },
     })
     return { handled: true, appended: true, meetingId: meeting.id }

@@ -1,5 +1,5 @@
 import type { Job } from "bullmq"
-import { prisma } from "@workspace/database"
+import { Prisma, prisma } from "@workspace/database"
 import {
   QueueName,
   getQueue,
@@ -16,10 +16,17 @@ import {
 
 interface FlatSegment {
   index: number
-  speaker: string
+  participantExternalId: string | null
+  participantName: string | null
+  participantEmail: string | null
+  participantIsHost: boolean | null
+  participantPlatform: string | null
+  participantExtraData: unknown
+  languageCode: string | null
   text: string
   startMs: number
   endMs: number
+  words: Array<{ text: string; startMs: number; endMs: number; position: number }>
 }
 
 /**
@@ -41,9 +48,10 @@ function flattenRecallTranscript(
   const tentative: Array<Omit<FlatSegment, "index">> = []
 
   for (const block of blocks) {
-    const speaker =
-      block.participant.name?.trim() || `Speaker ${block.participant.id ?? "?"}`
-    let buffer: string[] = []
+    const participantExternalId =
+      block.participant.id != null ? String(block.participant.id) : null
+    const participantName = block.participant.name?.trim() || null
+    let buffer: Array<{ text: string; startMs: number; endMs: number }> = []
     let bufferStartMs: number | null = null
     let bufferEndMs: number | null = null
 
@@ -52,10 +60,22 @@ function flattenRecallTranscript(
         return
       }
       tentative.push({
-        speaker,
-        text: buffer.join(" ").replace(/\s+/g, " ").trim(),
+        participantExternalId,
+        participantName,
+        participantEmail: block.participant.email ?? null,
+        participantIsHost: block.participant.is_host ?? null,
+        participantPlatform: block.participant.platform ?? null,
+        participantExtraData: block.participant.extra_data ?? null,
+        languageCode: block.language_code ?? null,
+        text: buffer.map((w) => w.text).join(" ").replace(/\s+/g, " ").trim(),
         startMs: Math.max(0, Math.round(bufferStartMs)),
         endMs: Math.max(0, Math.round(bufferEndMs)),
+        words: buffer.map((w, position) => ({
+          text: w.text,
+          startMs: Math.max(0, Math.round(w.startMs)),
+          endMs: Math.max(0, Math.round(w.endMs)),
+          position,
+        })),
       })
       buffer = []
       bufferStartMs = null
@@ -76,7 +96,7 @@ function flattenRecallTranscript(
         flush()
       }
 
-      buffer.push(word.text)
+      buffer.push({ text: word.text, startMs: wordStartMs, endMs: wordEndMs })
       if (bufferStartMs == null) bufferStartMs = wordStartMs
       bufferEndMs = wordEndMs
     }
@@ -166,19 +186,105 @@ export async function importBotTranscriptHandler(
       transcriptJson.find((b) => b.language_code)?.language_code ?? null
 
     await prisma.$transaction(async (tx) => {
+      await tx.transcriptWord.deleteMany({ where: { segment: { meetingId } } })
       await tx.transcriptSegment.deleteMany({ where: { meetingId } })
-      if (segments.length > 0) {
-        await tx.transcriptSegment.createMany({
-          data: segments.map((segment) => ({
+      await tx.meetingParticipant.deleteMany({ where: { meetingId } })
+
+      const dedupedParticipants = new Map<
+        string,
+        {
+          externalId: string | null
+          name: string | null
+          email: string | null
+          isHost: boolean | null
+          platform: string | null
+          extraData: unknown
+        }
+      >()
+      for (const segment of segments) {
+        const key =
+          segment.participantExternalId ??
+          `name:${segment.participantName ?? "unknown"}`
+        if (dedupedParticipants.has(key)) continue
+        dedupedParticipants.set(key, {
+          externalId: segment.participantExternalId,
+          name: segment.participantName,
+          email: segment.participantEmail,
+          isHost: segment.participantIsHost,
+          platform: segment.participantPlatform,
+          extraData: segment.participantExtraData,
+        })
+      }
+
+      if (dedupedParticipants.size > 0) {
+        await tx.meetingParticipant.createMany({
+          data: Array.from(dedupedParticipants.values()).map((p) => ({
             meetingId,
-            index: segment.index,
-            speaker: segment.speaker,
-            startMs: segment.startMs,
-            endMs: segment.endMs,
-            text: segment.text,
+            externalId: p.externalId,
+            name: p.name,
+            email: p.email,
+            isHost: p.isHost,
+            platform: p.platform,
+            extraData: (p.extraData ?? Prisma.JsonNull) as Prisma.InputJsonValue,
           })),
         })
       }
+
+      const participants = await tx.meetingParticipant.findMany({
+        where: { meetingId },
+        select: { id: true, externalId: true, name: true },
+      })
+      const participantIdByExternalId = new Map(
+        participants
+          .filter((p) => p.externalId != null)
+          .map((p) => [p.externalId as string, p.id])
+      )
+
+      if (segments.length > 0) {
+        for (const segment of segments) {
+          const created = await tx.transcriptSegment.create({
+            data: {
+            meetingId,
+            index: segment.index,
+              participantId: segment.participantExternalId
+                ? (participantIdByExternalId.get(
+                    segment.participantExternalId
+                  ) ?? null)
+                : null,
+              languageCode: segment.languageCode,
+            startMs: segment.startMs,
+            endMs: segment.endMs,
+            text: segment.text,
+            },
+            select: { id: true },
+          })
+
+          if (segment.words.length > 0) {
+            await tx.transcriptWord.createMany({
+              data: segment.words.map((word) => ({
+                segmentId: created.id,
+                text: word.text,
+                startMs: word.startMs,
+                endMs: word.endMs,
+                position: word.position,
+              })),
+            })
+          }
+        }
+      }
+
+      await tx.meetingTranscriptRaw.upsert({
+        where: { meetingId },
+        update: {
+          provider: "recall",
+          payload: transcriptJson as object,
+        },
+        create: {
+          meetingId,
+          provider: "recall",
+          payload: transcriptJson as object,
+        },
+      })
 
       await tx.meeting.update({
         where: { id: meetingId },

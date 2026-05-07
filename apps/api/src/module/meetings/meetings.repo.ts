@@ -3,6 +3,12 @@ import { prisma, type Prisma } from "@workspace/database"
 export type MeetingWithOwner = Prisma.MeetingGetPayload<{
   include: { user: true }
 }>
+export type TranscriptSegmentWithParticipant = Prisma.TranscriptSegmentGetPayload<{
+  include: {
+    participant: { select: { name: true; externalId: true } }
+    transcriptWords: { select: { id: true; text: true; startMs: true; endMs: true; position: true } }
+  }
+}>
 
 export const meetingsRepo = {
   /**
@@ -66,6 +72,21 @@ export const meetingsRepo = {
     return prisma.transcriptSegment.findMany({
       where: { meetingId },
       orderBy: { index: "asc" },
+      include: {
+        participant: {
+          select: { name: true, externalId: true },
+        },
+        transcriptWords: {
+          select: {
+            id: true,
+            text: true,
+            startMs: true,
+            endMs: true,
+            position: true,
+          },
+          orderBy: { position: "asc" },
+        },
+      },
     })
   },
 

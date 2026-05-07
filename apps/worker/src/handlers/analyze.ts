@@ -45,11 +45,20 @@ export async function analyzeHandler(
     const segments = await prisma.transcriptSegment.findMany({
       where: { meetingId },
       orderBy: { index: "asc" },
+      include: {
+        participant: {
+          select: { name: true, externalId: true },
+        },
+      },
     })
 
     const transcript = segments
       .map((s) => {
-        const sp = s.speaker?.trim() || "Speaker"
+        const sp =
+          s.participant?.name?.trim() ||
+          (s.participant?.externalId
+            ? `Speaker ${s.participant.externalId}`
+            : "Speaker")
         return `${sp}: ${s.text}`
       })
       .join("\n")
