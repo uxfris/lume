@@ -1,4 +1,5 @@
 import Fastify from "fastify"
+import fastifySSEPlugin from "fastify-sse-v2"
 import swaggerPlugin from "./plugins/swagger"
 import multipartPlugin from "./plugins/multipart"
 import { registerRoute } from "./routes"
@@ -31,6 +32,7 @@ export async function buildApp() {
   await app.register(rawBodyPlugin)
   await app.register(rateLimitPlugin)
   await app.register(corsPlugin)
+  await app.register(fastifySSEPlugin)
 
   registerZod(app)
   await registerErrorHandler(app)

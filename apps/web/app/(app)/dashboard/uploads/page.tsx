@@ -6,7 +6,13 @@ import { UploadInput } from "./_components/upload-input"
 import { useUpload } from "./_hooks/use-upload"
 
 export default function Uploads() {
-  const { handleUploadFile, displayUploads, progressByMeetingId, loading } =
+  const {
+    handleUploadFile,
+    displayUploads,
+    progressByMeetingId,
+    stageByMeetingId,
+    loading,
+  } =
     useUpload()
   return (
     <div className="flex flex-col gap-8 overflow-y-auto px-4 pt-0 pb-12 md:p-10">
@@ -17,6 +23,7 @@ export default function Uploads() {
       <RecentUploads
         uploads={displayUploads}
         progressByMeetingId={progressByMeetingId}
+        stageByMeetingId={stageByMeetingId}
         loading={loading}
       />
     </div>

@@ -113,3 +113,12 @@ export async function getConversation(input: {
   const segments = await meetingsRepo.listTranscriptSegments(meeting.id)
   return toConversationResponse(meeting.id, segments)
 }
+
+export async function canUserAccessMeeting(input: {
+  meetingId: string
+  userId: string
+  workspaceId?: string
+}): Promise<boolean> {
+  const row = await meetingsRepo.findMeetingForUser(input)
+  return Boolean(row)
+}

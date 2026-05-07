@@ -10,10 +10,15 @@ import { RecentUploadItem } from "./recent-upload-item"
 export function RecentUploads({
   uploads,
   progressByMeetingId,
+  stageByMeetingId,
   loading,
 }: {
   uploads: UploadSummary[]
   progressByMeetingId: Record<string, number>
+  stageByMeetingId: Record<
+    string,
+    "TRANSCRIBE" | "DIARIZE" | "ANALYZE" | "EMBED"
+  >
   loading?: boolean
 }) {
   return (
@@ -36,7 +41,11 @@ export function RecentUploads({
                   key={upload.meetingId}
                   href={`/meeting/${upload.meetingId}`}
                 >
-                  <RecentUploadItem item={upload} progress={progress} />
+                  <RecentUploadItem
+                    item={upload}
+                    progress={progress}
+                    stage={stageByMeetingId[upload.meetingId]}
+                  />
                 </Link>
               )
             }
@@ -45,6 +54,7 @@ export function RecentUploads({
                 key={upload.meetingId}
                 item={upload}
                 progress={progress}
+                stage={stageByMeetingId[upload.meetingId]}
                 className="cursor-progress"
               />
             )

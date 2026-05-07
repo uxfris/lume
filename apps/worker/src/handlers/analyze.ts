@@ -6,6 +6,7 @@ import {
   type AnalyzeJobPayload,
 } from "@workspace/queue"
 import { logger } from "../logger"
+import { createProcessingEventAndPublish } from "../lib/processing-events"
 import { analyzeMeetingTranscript } from "../lib/openai"
 
 export async function analyzeHandler(
@@ -34,12 +35,10 @@ export async function analyzeHandler(
       return { meetingId }
     }
 
-    await prisma.processingEvent.create({
-      data: {
-        meetingId,
-        stage: "ANALYZE",
-        status: "STARTED",
-      },
+    await createProcessingEventAndPublish({
+      meetingId,
+      stage: "ANALYZE",
+      status: "STARTED",
     })
 
     const segments = await prisma.transcriptSegment.findMany({
@@ -99,13 +98,11 @@ export async function analyzeHandler(
       }
     })
 
-    await prisma.processingEvent.create({
-      data: {
-        meetingId,
-        stage: "ANALYZE",
-        status: "SUCCEEDED",
-        metadata: { cost_usd: costUsd },
-      },
+    await createProcessingEventAndPublish({
+      meetingId,
+      stage: "ANALYZE",
+      status: "SUCCEEDED",
+      metadata: { cost_usd: costUsd },
     })
 
     await getQueue(QueueName.Embed).add(
@@ -123,17 +120,13 @@ export async function analyzeHandler(
       .update({ where: { id: meetingId }, data: { status: "FAILED" } })
       .catch(() => {})
 
-    await prisma.processingEvent
-      .create({
-        data: {
-          meetingId,
-          stage: "ANALYZE",
-          status: "FAILED",
-          message: (err as Error).message,
-          metadata: { error: (err as Error).message },
-        },
-      })
-      .catch(() => {})
+    await createProcessingEventAndPublish({
+      meetingId,
+      stage: "ANALYZE",
+      status: "FAILED",
+      message: (err as Error).message,
+      metadata: { error: (err as Error).message },
+    }).catch(() => {})
 
     return { meetingId }
   }

@@ -55,6 +55,26 @@ export const meetingsRepo = {
     })
   },
 
+  findMeetingForUser(input: {
+    meetingId: string
+    userId: string
+    workspaceId?: string
+  }): Promise<{ id: string; workspaceId: string } | null> {
+    return prisma.meeting.findFirst({
+      where: {
+        id: input.meetingId,
+        deletedAt: null,
+        workspaceId: input.workspaceId,
+        workspace: {
+          members: {
+            some: { userId: input.userId },
+          },
+        },
+      },
+      select: { id: true, workspaceId: true },
+    })
+  },
+
   /** Whether an active (non-deleted) meeting exists in the workspace. */
   existsActiveInWorkspace(
     meetingId: string,

@@ -11,6 +11,7 @@ import {
   saveRawTranscriptJson,
 } from "../lib/s3-presign"
 import { transcribeAudio } from "../lib/whisper"
+import { createProcessingEventAndPublish } from "../lib/processing-events"
 
 export async function transcribeHandler(
   job: Job<TranscribeJobPayload>
@@ -39,12 +40,10 @@ export async function transcribeHandler(
       return { meetingId }
     }
 
-    await prisma.processingEvent.create({
-      data: {
-        meetingId,
-        stage: "TRANSCRIBE",
-        status: "STARTED",
-      },
+    await createProcessingEventAndPublish({
+      meetingId,
+      stage: "TRANSCRIBE",
+      status: "STARTED",
     })
 
     const startedAt = Date.now()
@@ -83,17 +82,15 @@ export async function transcribeHandler(
       },
     })
 
-    await prisma.processingEvent.create({
-      data: {
-        meetingId,
-        stage: "TRANSCRIBE",
-        status: "SUCCEEDED",
-        message: `done in ${Math.round(durationMs / 1000)}s`,
-        metadata: {
-          durationMs,
-          transcriptBackupKey,
-          segmentCount: whisper.segments.length,
-        },
+    await createProcessingEventAndPublish({
+      meetingId,
+      stage: "TRANSCRIBE",
+      status: "SUCCEEDED",
+      message: `done in ${Math.round(durationMs / 1000)}s`,
+      metadata: {
+        durationMs,
+        transcriptBackupKey,
+        segmentCount: whisper.segments.length,
       },
     })
 
@@ -112,16 +109,13 @@ export async function transcribeHandler(
       .update({ where: { id: meetingId }, data: { status: "FAILED" } })
       .catch(() => {})
 
-    await prisma.processingEvent
-      .create({
-        data: {
-          meetingId,
-          stage: "TRANSCRIBE",
-          status: "FAILED",
-          message: (err as Error).message,
-          metadata: { error: (err as Error).message },
-        },
-      })
+    await createProcessingEventAndPublish({
+      meetingId,
+      stage: "TRANSCRIBE",
+      status: "FAILED",
+      message: (err as Error).message,
+      metadata: { error: (err as Error).message },
+    })
       .catch(() => {})
 
     // Swallow errors to avoid automatic expensive retry loops.
