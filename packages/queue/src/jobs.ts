@@ -12,6 +12,11 @@ export const QueueName = {
   Diarize: "diarize",
   Analyze: "analyze",
   Embed: "embed",
+  /**
+   * Pulls Recall.ai's diarized transcript for a bot meeting and skips the
+   * Whisper + pyannote pipeline by going straight to `analyze`.
+   */
+  ImportBotTranscript: "import-bot-transcript",
 } as const
 
 export type QueueName = (typeof QueueName)[keyof typeof QueueName]
@@ -47,11 +52,29 @@ export interface EmbedJobPayload {
   traceId?: string
 }
 
+/**
+ * Triggered by the Recall.ai webhook handler when `transcript.done` fires.
+ * The worker fetches Recall's diarized transcript JSON, persists segments,
+ * marks the meeting `TRANSCRIBED`, and enqueues `analyze` directly —
+ * skipping Whisper and pyannote because Recall already did both.
+ */
+export interface ImportBotTranscriptJobPayload {
+  meetingId: string
+  workspaceId: string
+  userId: string
+  /** Recall bot identifier; required to fetch the transcript. */
+  externalBotId: string
+  /** Optional: if Recall sent us the transcript id directly, prefer it. */
+  transcriptId?: string
+  traceId?: string
+}
+
 export interface JobPayloadMap {
   [QueueName.Transcribe]: TranscribeJobPayload
   [QueueName.Diarize]: DiarizeJobPayload
   [QueueName.Analyze]: AnalyzeJobPayload
   [QueueName.Embed]: EmbedJobPayload
+  [QueueName.ImportBotTranscript]: ImportBotTranscriptJobPayload
 }
 
 export type JobNameFor<Q extends QueueName> =
@@ -63,4 +86,6 @@ export type JobNameFor<Q extends QueueName> =
         ? "analyze"
         : Q extends typeof QueueName.Embed
           ? "embed"
-          : never
+          : Q extends typeof QueueName.ImportBotTranscript
+            ? "import-bot-transcript"
+            : never

@@ -16,20 +16,6 @@ function inferSpeakerFromWindows(
   return matching?.speaker ?? null
 }
 
-function buildUnknownSpeakerAllocator() {
-  const map = new Map<number, string>()
-  let next = 0
-  return (segmentIndex: number): string => {
-    const bucket = Math.floor(segmentIndex / 5)
-    const existing = map.get(bucket)
-    if (existing) return existing
-    const label = `Speaker ${String.fromCharCode("A".charCodeAt(0) + next)}`
-    next += 1
-    map.set(bucket, label)
-    return label
-  }
-}
-
 export async function diarizeHandler(
   job: Job<DiarizeJobPayload>
 ): Promise<{ meetingId: string }> {
@@ -60,25 +46,46 @@ export async function diarizeHandler(
       where: { meetingId },
       orderBy: { index: "asc" },
     })
-    const fallbackSpeaker = buildUnknownSpeakerAllocator()
-
-    // for (const segment of segments) {
-    //   const midpoint = Math.round((segment.startMs + segment.endMs) / 2)
-    //   const inferred = inferSpeakerFromWindows(midpoint, windows)
-    //   await prisma.transcriptSegment.update({
-    //     where: { id: segment.id },
-    //     data: { speaker: inferred ?? fallbackSpeaker(segment.index) },
-    //   })
-    // }
+    const existingParticipants = await prisma.meetingParticipant.findMany({
+      where: { meetingId },
+      select: { id: true, name: true },
+    })
+    const existingNames = new Set(
+      existingParticipants
+        .map((p) => p.name?.trim())
+        .filter((name): name is string => Boolean(name))
+    )
+    const inferredSpeakerNames = Array.from(
+      new Set(windows.map((w) => w.speaker?.trim()).filter(Boolean))
+    ) as string[]
+    const toCreate = inferredSpeakerNames.filter((name) => !existingNames.has(name))
+    if (toCreate.length > 0) {
+      await prisma.meetingParticipant.createMany({
+        data: toCreate.map((name) => ({
+          meetingId,
+          name,
+        })),
+      })
+    }
+    const participants = await prisma.meetingParticipant.findMany({
+      where: { meetingId },
+      select: { id: true, name: true },
+    })
+    const participantByName = new Map(
+      participants
+        .filter((p) => p.name)
+        .map((p) => [p.name as string, p.id])
+    )
 
     const updates = segments.map((segment) => {
       const midpoint = Math.round((segment.startMs + segment.endMs) / 2)
       const inferred = inferSpeakerFromWindows(midpoint, windows)
+      const participantId = inferred ? (participantByName.get(inferred) ?? null) : null
 
       return prisma.transcriptSegment.update({
         where: { id: segment.id },
         data: {
-          speaker: inferred ?? fallbackSpeaker(segment.index),
+          participantId,
         },
       })
     })

@@ -26,11 +26,11 @@ model User {
   createdAt     DateTime
   updatedAt     DateTime
 
-  sessions    Session[]
-  accounts    Account[]
-  memberships WorkspaceMember[]
-  invitesSent Invitation[]      @relation("InvitedBy")
-  meetings    Meeting[]
+  sessions      Session[]
+  accounts      Account[]
+  memberships   WorkspaceMember[]
+  invitesSent   Invitation[]      @relation("InvitedBy")
+  meetings      Meeting[]
   assignedTasks Task[]
 
   @@unique([email])
@@ -161,6 +161,7 @@ enum MeetingSource {
 
 enum MeetingStatus {
   PENDING_UPLOAD
+  SCHEDULED
   UPLOADED
   TRANSCRIBING
   TRANSCRIBED
@@ -169,33 +170,62 @@ enum MeetingStatus {
   FAILED
 }
 
-model Meeting {
-  id          String        @id @default(cuid())
-  workspaceId String
-  userId      String
-  title       String
-  source      MeetingSource @default(UPLOAD)
-  status      MeetingStatus @default(PENDING_UPLOAD)
-  audioKey    String?       @unique
-  fileName    String?
-  fileType    String?
-  fileSize    Int?
-  durationSeconds Int?
-  language    String?
-  summary     Json?
-  /** Soft delete — processed list endpoints exclude rows where this is set. */
-  deletedAt   DateTime?
-  /** When true, meeting link sharing / visibility flags are enabled (UI). */
-  isShared    Boolean       @default(false)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+enum MeetingPlatform {
+  ZOOM
+  GOOGLE_MEET
+  MICROSOFT_TEAMS
+  OTHER
+}
 
-  workspace        Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user             User              @relation(fields: [userId], references: [id], onDelete: Restrict)
-  processingEvents ProcessingEvent[]
-  transcriptSegments TranscriptSegment[]
-  chunks           MeetingChunk[]
-  tasks            Task[]
+model Meeting {
+  id              String           @id @default(cuid())
+  workspaceId     String
+  userId          String
+  title           String
+  source          MeetingSource    @default(UPLOAD)
+  status          MeetingStatus    @default(PENDING_UPLOAD)
+  audioKey        String?          @unique
+  fileName        String?
+  fileType        String?
+  fileSize        Int?
+  durationSeconds Int?
+  language        String?
+  summary         Json?
+  /**
+   * Original join URL captured for BOT-sourced meetings.
+   */
+  meetingUrl      String?
+  /**
+   * Conferencing platform inferred from `meetingUrl` (BOT source).
+   */
+  platform        MeetingPlatform?
+  /**
+   * Recall.ai bot id; unique so the webhook handler can look up the meeting.
+   */
+  externalBotId   String?          @unique
+  /**
+   * Optional future-dated start for BOT meetings (Recall scheduled bots).
+   */
+  scheduledAt     DateTime?
+  /**
+   * Soft delete — processed list endpoints exclude rows where this is set.
+   */
+  deletedAt       DateTime?
+  /**
+   * When true, meeting link sharing / visibility flags are enabled (UI).
+   */
+  isShared        Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  workspace            Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  processingEvents     ProcessingEvent[]
+  transcriptSegments   TranscriptSegment[]
+  chunks               MeetingChunk[]
+  tasks                Task[]
+  meetingParticipants  MeetingParticipant[]
+  meetingTranscriptRaw MeetingTranscriptRaw?
 
   @@index([workspaceId, createdAt(sort: Desc)])
   @@index([workspaceId, deletedAt, createdAt(sort: Desc)])
@@ -224,14 +254,14 @@ model Task {
 }
 
 model MeetingChunk {
-  id        String                @id @default(cuid())
+  id        String                      @id @default(cuid())
   meetingId String
   content   String
   startMs   Int
   endMs     Int
   embedding Unsupported("vector(1536)")
-  createdAt DateTime              @default(now())
-  updatedAt DateTime              @updatedAt
+  createdAt DateTime                    @default(now())
+  updatedAt DateTime                    @updatedAt
 
   meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
 
@@ -239,22 +269,124 @@ model MeetingChunk {
   @@map("meeting_chunk")
 }
 
-model TranscriptSegment {
-  id        String   @id @default(cuid())
+model MeetingParticipant {
+  id        String @id @default(cuid())
   meetingId String
-  speaker   String?
-  startMs   Int
-  endMs     Int
-  text      String
-  index     Int
+
+  /**
+   * Provider participant id (Recall.ai participant.id)
+   * NOT globally unique.
+   */
+  externalId String?
+
+  name      String?
+  email     String?
+  isHost    Boolean?
+  platform  String?
+  extraData Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  meeting            Meeting             @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  transcriptSegments TranscriptSegment[]
+
+  @@unique([meetingId, externalId])
+  @@index([meetingId])
+  @@index([meetingId, externalId])
+  @@map("meeting_participant")
+}
+
+model TranscriptSegment {
+  id String @id @default(cuid())
+
+  meetingId String
+
+  /**
+   * Nullable because diarization may fail,
+   * or transcripts may not have speaker identity.
+   */
+  participantId String?
+
+  /**
+   * BCP-47 language code.
+   * Example: en-US, id-ID
+   */
+  languageCode String?
+
+  /**
+   * Sequential ordering inside meeting.
+   */
+  index Int
+
+  /**
+   * Utterance-level text.
+   */
+  text String
+
+  /**
+   * Segment timing in milliseconds.
+   */
+  startMs Int
+  endMs   Int
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
 
+  participant MeetingParticipant? @relation(fields: [participantId], references: [id], onDelete: SetNull)
+
+  transcriptWords TranscriptWord[]
+
   @@unique([meetingId, index])
   @@index([meetingId, startMs])
+  @@index([participantId])
   @@map("transcript_segment")
+}
+
+model TranscriptWord {
+  id String @id @default(cuid())
+
+  segmentId String
+
+  segment TranscriptSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  /**
+   * Individual token/word.
+   */
+  text String
+
+  /**
+   * Word-level timing.
+   */
+  startMs Int
+  endMs   Int
+
+  /**
+   * Sequential position inside segment.
+   */
+  position Int
+
+  createdAt DateTime @default(now())
+
+  @@index([segmentId, position])
+  @@index([segmentId, startMs])
+  @@map("transcript_word")
+}
+
+model MeetingTranscriptRaw {
+  id String @id @default(cuid())
+
+  meetingId String @unique
+  provider  String
+  payload   Json
+
+  createdAt DateTime @default(now())
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@map("meeting_transcript_raw")
 }
 
 enum ProcessingStage {
@@ -283,4 +415,46 @@ model ProcessingEvent {
 
   @@index([meetingId, createdAt])
   @@map("processing_event")
+}
+
+// ─────────────────────────────────────────────
+// Webhooks
+// ─────────────────────────────────────────────
+
+/**
+ * Dead-letter store for incoming third-party webhooks (e.g. Recall.ai) that
+ * could not be processed after retries. Operators replay these manually.
+ */
+model FailedWebhook {
+  id            String   @id @default(cuid())
+  /**
+   * Source identifier, e.g. `recall`.
+   */
+  provider      String
+  /**
+   * Logical event name reported by the provider (`bot.done`, …).
+   */
+  eventType     String?
+  /**
+   * Raw payload exactly as received, retained for replay.
+   */
+  payload       Json
+  /**
+   * Last error message captured during processing.
+   */
+  error         String
+  /**
+   * Number of failed processing attempts so far.
+   */
+  attempts      Int      @default(1)
+  /**
+   * Provider-specific bot/job id for cross-referencing, when known.
+   */
+  externalBotId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([provider, createdAt])
+  @@index([externalBotId])
+  @@map("failed_webhook")
 }

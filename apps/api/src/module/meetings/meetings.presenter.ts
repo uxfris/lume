@@ -1,6 +1,8 @@
-import type { TranscriptSegment } from "@workspace/database"
 import type { Meeting as MeetingDTO } from "@workspace/types"
-import type { MeetingWithOwner } from "./meetings.repo"
+import type {
+  MeetingWithOwner,
+  TranscriptSegmentWithParticipant,
+} from "./meetings.repo"
 
 function toTimestamp(totalMs: number): string {
   const totalSeconds = Math.max(0, Math.floor(totalMs / 1000))
@@ -48,7 +50,11 @@ function formatDurationSeconds(seconds: number | null): string {
 /** Display time or calendar date for meeting cards. */
 function formatMeetingTimestamp(createdAt: Date): string {
   const now = new Date()
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  )
   const startOfCreated = new Date(
     createdAt.getFullYear(),
     createdAt.getMonth(),
@@ -64,14 +70,11 @@ function formatMeetingTimestamp(createdAt: Date): string {
   return createdAt.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
-    year:
-      createdAt.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+    year: createdAt.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
   })
 }
 
-function uiStatus(
-  status: MeetingWithOwner["status"]
-): MeetingDTO["status"] {
+function uiStatus(status: MeetingWithOwner["status"]): MeetingDTO["status"] {
   return status === "SUMMARIZED" ? "processed" : "analyzing"
 }
 
@@ -80,7 +83,7 @@ function uiStatus(
  */
 export function buildConversationMessages(
   meetingId: string,
-  segments: TranscriptSegment[]
+  segments: TranscriptSegmentWithParticipant[]
 ): Array<{
   id: string
   timestampMs: number
@@ -105,13 +108,27 @@ export function buildConversationMessages(
   }> = []
 
   for (const segment of segments) {
-    const speaker = segment.speaker ?? "Speaker A"
+    const speaker =
+      segment.participant?.name ??
+      (segment.participant?.externalId
+        ? `Speaker ${segment.participant.externalId}`
+        : "Speaker A")
 
     const sentence = {
       id: segment.id,
       text: segment.text,
       startTimeMs: segment.startMs,
       endTimeMs: segment.endMs,
+      words:
+        segment.transcriptWords.length > 0
+          ? segment.transcriptWords.map((word) => ({
+              id: word.id,
+              text: word.text,
+              startTimeMs: word.startMs,
+              endTimeMs: word.endMs,
+              position: word.position,
+            }))
+          : undefined,
     }
 
     const last = messages[messages.length - 1]
@@ -135,7 +152,7 @@ export function buildConversationMessages(
 /** Wire-format conversation for API responses. */
 export function toConversationResponse(
   meetingId: string,
-  segments: TranscriptSegment[]
+  segments: TranscriptSegmentWithParticipant[]
 ) {
   return toConversationDTO({
     id: meetingId,
