@@ -11,6 +11,7 @@ import corsPlugin from "./plugins/cors"
 import requestIdPlugin, { genReqId } from "./plugins/request-id"
 import bullBoardPlugin from "./plugins/bull-board"
 import { registerZod } from "./lib/zod"
+import rawBodyPlugin from "./plugins/raw-body"
 
 export async function buildApp() {
   const app = Fastify({
@@ -27,6 +28,7 @@ export async function buildApp() {
   await app.register(sessionPlugin)
   await app.register(workspaceAccessPlugin)
   await app.register(multipartPlugin)
+  await app.register(rawBodyPlugin)
   await app.register(rateLimitPlugin)
   await app.register(corsPlugin)
 

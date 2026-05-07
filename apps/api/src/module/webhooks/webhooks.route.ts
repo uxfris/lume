@@ -16,69 +16,65 @@ import { processRealtimeEvent } from "./recall-realtime.service"
  * means we'd lose the signal.
  */
 export const webhooksRoutes: FastifyPluginAsync = async (app) => {
-  app.removeContentTypeParser(["application/json"])
-  app.addContentTypeParser(
-    "application/json",
-    { parseAs: "buffer" },
-    (req, body, done) => {
-      ;(req as unknown as { rawBody: Buffer }).rawBody = body as Buffer
+  // Status changes + transcript artifact lifecycle (Svix-style webhooks).
+  app.post(
+    "/recall",
+    {
+      config: {
+        rawBody: true,
+      },
+    },
+
+    async (request, reply) => {
+      const rawBody = request.rawBody
+
+      if (!rawBody) {
+        return reply
+          .status(400)
+          .send({ error: "MISSING_RAW_BODY", message: "Empty request body." })
+      }
+
+      const verification = verifyRecallSignature({
+        rawBody,
+        headers: request.headers,
+      })
+      if (!verification.ok) {
+        request.log.warn(
+          { reason: verification.reason },
+          "rejected recall webhook"
+        )
+        return reply
+          .status(401)
+          .send({ error: "INVALID_SIGNATURE", message: verification.reason })
+      }
+
+      const payload = request.body
       try {
-        const text = (body as Buffer).toString("utf8")
-        const json = text.length === 0 ? {} : JSON.parse(text)
-        done(null, json)
+        const result = await processRecallEvent({
+          payload,
+          traceId: request.id,
+        })
+        if (result.ok) {
+          return reply.status(200).send({
+            ok: true,
+            meetingId: result.meetingId,
+            action: result.action,
+          })
+        }
+        return reply.status(202).send({ ok: true, reason: result.reason })
       } catch (err) {
-        done(err as Error, undefined)
+        request.log.error({ err }, "recall webhook processing failed")
+        await recordFailedRecallWebhook({
+          payload,
+          error: (err as Error).message,
+          externalBotId: extractBotId(payload),
+          eventType: extractEventType(payload),
+        }).catch(() => {})
+
+        return reply.status(500).send({ error: "WEBHOOK_PROCESSING_FAILED" })
       }
     }
   )
-
-  // Status changes + transcript artifact lifecycle (Svix-style webhooks).
-  app.post("/recall", async (request, reply) => {
-    const rawBody = (request as unknown as { rawBody?: Buffer }).rawBody
-    if (!rawBody) {
-      return reply
-        .status(400)
-        .send({ error: "MISSING_RAW_BODY", message: "Empty request body." })
-    }
-
-    const verification = verifyRecallSignature({
-      rawBody,
-      headers: request.headers,
-    })
-    if (!verification.ok) {
-      request.log.warn(
-        { reason: verification.reason },
-        "rejected recall webhook"
-      )
-      return reply
-        .status(401)
-        .send({ error: "INVALID_SIGNATURE", message: verification.reason })
-    }
-
-    const payload = request.body
-    try {
-      const result = await processRecallEvent({
-        payload,
-        traceId: request.id,
-      })
-      if (result.ok) {
-        return reply
-          .status(200)
-          .send({ ok: true, meetingId: result.meetingId, action: result.action })
-      }
-      return reply.status(202).send({ ok: true, reason: result.reason })
-    } catch (err) {
-      request.log.error({ err }, "recall webhook processing failed")
-      await recordFailedRecallWebhook({
-        payload,
-        error: (err as Error).message,
-        externalBotId: extractBotId(payload),
-        eventType: extractEventType(payload),
-      }).catch(() => {})
-
-      return reply.status(500).send({ error: "WEBHOOK_PROCESSING_FAILED" })
-    }
-  })
 
   /**
    * Real-time endpoint receiver. Recall posts `transcript.data` events here

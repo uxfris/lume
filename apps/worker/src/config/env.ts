@@ -17,7 +17,7 @@ const envSchema = z.object({
 
   // Phase 8 — Recall.ai
   RECALL_API_KEY: z.string().optional(),
-  RECALL_API_URL: z.url().default("https://us-east-1.recall.ai/api/v1"),
+  RECALL_API_URL: z.url().default("https://us-west-2.recall.ai/api/v1"),
 })
 
 export const env = envSchema.parse(process.env)

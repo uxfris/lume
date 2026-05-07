@@ -56,38 +56,39 @@ export interface DispatchBotResult {
 }
 
 /**
- * Build the recording config we send to Recall on every bot create. We
- * default to Recall's first-party transcription with perfect diarization so
- * the worker can skip Whisper + pyannote entirely once `transcript.done`
- * fires.
+ * Build the recording config for bot creation.
+ *
+ * Default mode (no realtime endpoint):
+ * - async-first: we wait for `recording.done`, then explicitly call
+ *   `recording/{id}/create_transcript/` with `recallai_async`.
+ *
+ * Realtime mode (realtime endpoint provided):
+ * - use `recallai_streaming` + `realtime_endpoints` so we can receive
+ *   `transcript.data` during the meeting.
  */
 function buildRecordingConfig(input: {
   meetingId: string
   realtimeWebhookUrl?: string
 }): Record<string, unknown> {
   const recordingConfig: Record<string, unknown> = {
-    transcript: {
+    metadata: { meeting_id: input.meetingId },
+  }
+
+  if (input.realtimeWebhookUrl) {
+    recordingConfig.transcript = {
       provider: {
         recallai_streaming: {
-          // Default to accuracy — the realtime path is opt-in via the
-          // realtime endpoint below, and most callers just want the final
-          // diarized transcript at `transcript.done` time.
           mode: "prioritize_accuracy",
           language_code: "auto",
         },
       },
       diarization: {
-        // Perfect diarization when separate streams are available (Zoom,
-        // Google Meet via DSDK, etc.). Falls back gracefully elsewhere.
         use_separate_streams_when_available: true,
       },
       metadata: {
         meeting_id: input.meetingId,
       },
-    },
-  }
-
-  if (input.realtimeWebhookUrl) {
+    }
     recordingConfig.realtime_endpoints = [
       {
         type: "webhook",
@@ -99,6 +100,59 @@ function buildRecordingConfig(input: {
   }
 
   return recordingConfig
+}
+
+/**
+ * Start an async transcript job for a completed recording.
+ *
+ * Flow:
+ * 1) receive `recording.done` webhook
+ * 2) call this endpoint with `recallai_async`
+ * 3) wait for `transcript.done` / `transcript.failed`
+ */
+export async function createAsyncTranscriptForRecording(input: {
+  recordingId: string
+  meetingId: string
+}): Promise<{ transcriptId: string | null }> {
+  if (!env.RECALL_API_KEY) {
+    throw new RecallNotConfiguredError(
+      "Recall.ai is not configured: set RECALL_API_KEY."
+    )
+  }
+
+  const response = await fetch(
+    `${env.RECALL_API_URL}/recording/${input.recordingId}/create_transcript/`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Token ${env.RECALL_API_KEY}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        provider: {
+          recallai_async: {},
+        },
+        diarization: {
+          use_separate_streams_when_available: true,
+        },
+        metadata: {
+          meeting_id: input.meetingId,
+        },
+      }),
+    }
+  )
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "")
+    throw new RecallApiError(
+      `Recall create_transcript failed (${response.status}): ${text || response.statusText}`,
+      response.status
+    )
+  }
+
+  const json = (await response.json()) as { id?: string }
+  return { transcriptId: json.id ?? null }
 }
 
 /**

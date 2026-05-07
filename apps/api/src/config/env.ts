@@ -35,7 +35,7 @@ const envSchema = z.object({
   /** Webhook signing secret (whsec_<base64>) issued by the Recall dashboard. */
   RECALL_WEBHOOK_SECRET: z.string().optional(),
   /** Region-aware Recall API base, e.g. https://us-east-1.recall.ai/api/v1. */
-  RECALL_API_URL: z.url().default("https://us-east-1.recall.ai/api/v1"),
+  RECALL_API_URL: z.url().default("https://us-west-2.recall.ai/api/v1"),
   /** Display name the bot uses when joining meetings. */
   RECALL_BOT_NAME: z.string().default("Lume Notetaker"),
   /**
@@ -43,7 +43,11 @@ const envSchema = z.object({
    * Leave unset to disable real-time streaming and rely solely on the
    * post-call `transcript.done` import path.
    */
-  RECALL_REALTIME_WEBHOOK_URL: z.url().optional(),
+  RECALL_REALTIME_WEBHOOK_URL: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.url().optional()
+  ),
 })
 
 export const env = envSchema.parse(process.env)

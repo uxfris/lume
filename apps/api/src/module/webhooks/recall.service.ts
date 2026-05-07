@@ -1,5 +1,9 @@
 import { Prisma, prisma } from "@workspace/database"
 import { QueueName, getQueue } from "@workspace/queue"
+import {
+  RecallApiError,
+  createAsyncTranscriptForRecording,
+} from "../../lib/recall"
 
 export type RecallEventResult =
   | {
@@ -61,6 +65,12 @@ function extractTranscriptId(payload: unknown): string | null {
   return root.data?.transcript?.id ?? null
 }
 
+function extractRecordingId(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null
+  const root = payload as RecallStatusEnvelope
+  return root.data?.recording?.id ?? null
+}
+
 function extractStatusCode(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null
   const root = payload as RecallStatusEnvelope
@@ -100,6 +110,48 @@ export async function processRecallEvent(input: {
   if (!meeting) return { ok: false, reason: "MEETING_NOT_FOUND" }
 
   switch (eventType) {
+    case "recording.done": {
+      if (meeting.status !== "SCHEDULED") {
+        return { ok: false, reason: "ALREADY_PROCESSED" }
+      }
+      const recordingId = extractRecordingId(input.payload)
+      if (!recordingId) return { ok: false, reason: "IGNORED" }
+
+      try {
+        const { transcriptId } = await createAsyncTranscriptForRecording({
+          recordingId,
+          meetingId: meeting.id,
+        })
+
+        await prisma.processingEvent.create({
+          data: {
+            meetingId: meeting.id,
+            stage: "TRANSCRIBE",
+            status: "STARTED",
+            message: "requested Recall async transcript",
+            metadata: {
+              event: eventType,
+              recordingId,
+              transcriptId,
+            },
+          },
+        })
+      } catch (err) {
+        // Webhook retries may attempt create_transcript multiple times; if the
+        // transcript already exists or is already in progress, treat as
+        // acknowledged and continue waiting for transcript.done.
+        if (
+          err instanceof RecallApiError &&
+          (err.status === 409 || err.status === 400)
+        ) {
+          return { ok: true, meetingId: meeting.id, action: "NOTED" }
+        }
+        throw err
+      }
+
+      return { ok: true, meetingId: meeting.id, action: "NOTED" }
+    }
+
     case "transcript.done": {
       // Idempotent: only run once per meeting.
       if (meeting.status !== "SCHEDULED") {
@@ -163,6 +215,11 @@ export async function processRecallEvent(input: {
     }
 
     case "bot.in_call_recording":
+    case "recording.processing":
+    case "recording.failed":
+    case "recording.deleted":
+    case "transcript.processing":
+    case "transcript.deleted":
     case "bot.in_waiting_room":
     case "bot.in_call_not_recording":
     case "bot.joining_call":
