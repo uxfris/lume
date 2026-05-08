@@ -506,7 +506,7 @@ The timeline assumes 30h/week. Buffer is baked into the last phase.
 
 ### Phase 11 — Billing & usage metering (Week 12, ~25h)
 
-**Goal:** enforce the "300 min/month free, $8/mo Pro" tiers.
+**Goal:** enforce the "5 meetings/month free, $25/mo Pro" tiers.
 
 **Tasks:**
 
