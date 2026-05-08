@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { meeting, meetingParticipant, workspace, user, invitation, processingEvent, account, session, workspaceMember, transcriptSegment, transcriptWord, meetingTranscriptRaw, meetingChunk, task } from "./schema";
+import { meeting, meetingParticipant, workspace, calendarEvent, user, recallCalendarConnection, invitation, processingEvent, account, session, workspaceMember, transcriptSegment, transcriptWord, meetingTranscriptRaw, meetingChunk, task } from "./schema";
 
 export const meetingParticipantRelations = relations(meetingParticipant, ({one, many}) => ({
 	meeting: one(meeting, {
@@ -26,7 +26,19 @@ export const meetingRelations = relations(meeting, ({one, many}) => ({
 	transcriptSegments: many(transcriptSegment),
 }));
 
+export const calendarEventRelations = relations(calendarEvent, ({one}) => ({
+	workspace: one(workspace, {
+		fields: [calendarEvent.workspaceId],
+		references: [workspace.id]
+	}),
+	user: one(user, {
+		fields: [calendarEvent.userId],
+		references: [user.id]
+	}),
+}));
+
 export const workspaceRelations = relations(workspace, ({many}) => ({
+	calendarEvents: many(calendarEvent),
 	meetings: many(meeting),
 	invitations: many(invitation),
 	workspaceMembers: many(workspaceMember),
@@ -34,12 +46,21 @@ export const workspaceRelations = relations(workspace, ({many}) => ({
 }));
 
 export const userRelations = relations(user, ({many}) => ({
+	calendarEvents: many(calendarEvent),
+	recallCalendarConnections: many(recallCalendarConnection),
 	meetings: many(meeting),
 	invitations: many(invitation),
 	accounts: many(account),
 	sessions: many(session),
 	workspaceMembers: many(workspaceMember),
 	tasks: many(task),
+}));
+
+export const recallCalendarConnectionRelations = relations(recallCalendarConnection, ({one}) => ({
+	user: one(user, {
+		fields: [recallCalendarConnection.userId],
+		references: [user.id]
+	}),
 }));
 
 export const invitationRelations = relations(invitation, ({one}) => ({

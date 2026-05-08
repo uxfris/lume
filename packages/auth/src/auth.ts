@@ -17,6 +17,12 @@ type AuthConfig = {
     clientId: string
     clientSecret: string
   }
+
+  /**
+   * Fires server-side after each new session row is created (e.g. OAuth sign-in).
+   * Use for Recall Calendar V2 provisioning without involving the frontend.
+   */
+  afterSessionCreated?: (input: { userId: string }) => void | Promise<void>
 }
 
 export function createAuth(config: AuthConfig) {
@@ -35,6 +41,8 @@ export function createAuth(config: AuthConfig) {
       google: {
         clientId: config.google.clientId,
         clientSecret: config.google.clientSecret,
+        accessType: "offline",
+        prompt: "consent",
         scope: [
           "openid",
           "email",
@@ -68,6 +76,13 @@ export function createAuth(config: AuthConfig) {
               name: user.name,
               email: user.email,
             })
+          },
+        },
+      },
+      session: {
+        create: {
+          after: async (session) => {
+            await config.afterSessionCreated?.({ userId: session.userId })
           },
         },
       },

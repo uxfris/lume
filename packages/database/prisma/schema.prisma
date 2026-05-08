@@ -32,6 +32,8 @@ model User {
   invitesSent   Invitation[]      @relation("InvitedBy")
   meetings      Meeting[]
   assignedTasks Task[]
+  calendarEvents CalendarEvent[]
+  recallCalendarConnections RecallCalendarConnection[]
 
   @@unique([email])
   @@index([id])
@@ -74,6 +76,27 @@ model Account {
   @@map("account")
 }
 
+/**
+ * Records a successful Recall Calendar V2 `POST /api/v2/calendars/` so we do not
+ * create duplicate calendars on every new session.
+ */
+model RecallCalendarConnection {
+  id               String   @id @default(cuid())
+  userId           String
+  /**
+   * Same as BetterAuth `account.providerId` for OAuth: `google` or `microsoft`.
+   */
+  provider         String
+  recallCalendarId String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@map("recall_calendar_connection")
+}
+
 model Verification {
   id         String    @id
   identifier String
@@ -107,6 +130,7 @@ model Workspace {
   invitations Invitation[]
   meetings    Meeting[]
   tasks       Task[]
+  calendarEvents CalendarEvent[]
 
   @@map("workspace")
 }
@@ -251,6 +275,31 @@ model Task {
   @@index([workspaceId, isCompleted, createdAt(sort: Desc)])
   @@index([meetingId])
   @@map("task")
+}
+
+model CalendarEvent {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  provider    String
+  externalId  String
+  title       String
+  startAt     DateTime
+  endAt       DateTime
+  joinUrl     String?
+  platform    MeetingPlatform?
+  attendees   Json?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId, provider, externalId])
+  @@index([workspaceId, startAt])
+  @@index([userId, startAt])
+  @@map("calendar_event")
 }
 
 model MeetingChunk {

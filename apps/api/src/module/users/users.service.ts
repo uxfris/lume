@@ -26,7 +26,14 @@ export async function getMe(input: {
     email: input.user.email,
   })
 
-  const memberships = await usersRepo.listMembershipsForUser(input.user.id)
+  const [memberships, oauthAccounts] = await Promise.all([
+    usersRepo.listMembershipsForUser(input.user.id),
+    usersRepo.listOAuthCalendarProviders(input.user.id),
+  ])
+
+  const oauthCalendarProviders = oauthAccounts
+    .map((a) => a.providerId)
+    .filter((id): id is "google" | "microsoft" => id === "google" || id === "microsoft")
   const requestedWorkspaceId = resolveWorkspaceIdHeader(input.workspaceIdHeader)
 
   const activeWorkspaceId =
@@ -50,5 +57,6 @@ export async function getMe(input: {
       joinedAt: item.joinedAt.toISOString(),
     })),
     activeWorkspaceId,
+    oauthCalendarProviders,
   }
 }

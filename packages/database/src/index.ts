@@ -13,6 +13,8 @@ export type {
   ProcessingStage,
   ProcessingEventStatus,
   Task,
+  CalendarEvent,
+  RecallCalendarConnection,
   TranscriptSegment,
   FailedWebhook,
 } from "@prisma/client";
