@@ -1,3 +1,5 @@
+"use client"
+
 import {
   Card,
   CardContent,
@@ -7,85 +9,155 @@ import {
 } from "@workspace/ui/components/card"
 import { Button } from "@workspace/ui/components/button"
 import { Check } from "lucide-react"
-import { pricingPlans } from "@workspace/types"
+import {
+  pricingPlans,
+  type BillingCheckoutBody,
+  type BillingPlanId,
+  type BillingUsageResponse,
+} from "@workspace/types"
+import { billingApi } from "@workspace/api-client"
 import { Separator } from "@workspace/ui/components/separator"
 import { Switch } from "@workspace/ui/components/switch"
 import { Badge } from "@workspace/ui/components/badge"
 import { cn } from "@workspace/ui/lib/utils"
+import { useMemo, useState } from "react"
 
-export function BillingPlan() {
+const STUDIO_PRO_MONTHLY_PRICE = 25
+const STUDIO_PRO_YEARLY_PRICE = STUDIO_PRO_MONTHLY_PRICE * 12 - 60
+
+function resolvePlansWithCurrent(active: BillingPlanId | null) {
+  return pricingPlans.map((p) => ({
+    ...p,
+    currentPlan: p.id === active,
+    ctaDisabled: p.price === "Custom" || p.id === active,
+  }))
+}
+
+export function BillingPlan({ usage }: { usage: BillingUsageResponse | null }) {
+  const activePlan: BillingPlanId | null = usage?.plan ?? null
+  const plans = useMemo(() => resolvePlansWithCurrent(activePlan), [activePlan])
+  const [checkoutBusy, setCheckoutBusy] = useState(false)
+  const [isAnnual, setIsAnnual] = useState(false)
+
+  async function upgradeStudioPro() {
+    setCheckoutBusy(true)
+    try {
+      const billingPeriod: BillingCheckoutBody["billingPeriod"] = isAnnual
+        ? "yearly"
+        : "monthly"
+      const { url } = await billingApi.createStudioProCheckout({
+        billingPeriod,
+      })
+      window.location.href = url
+    } catch {
+      setCheckoutBusy(false)
+    }
+  }
+
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {pricingPlans.map((plan) => (
-        <Card key={plan.id} className="py-8">
-          <CardHeader className="px-8">
-            <CardTitle>{plan.name}</CardTitle>
-            <CardDescription>{plan.tagline}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-10 px-0">
-            <div className="space-y-8">
-              <div className="space-y-2 px-8">
-                <h2 className="text-4xl font-bold">
-                  {plan.price === 0
-                    ? "Free"
-                    : plan.price !== "Custom"
-                      ? `$${plan.price}`
-                      : plan.price}
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  {plan.description}
-                </p>
-              </div>
-              <div className="space-y-6">
-                {
-                  <Separator
+      {plans.map((plan) => {
+        const isStudioPro = plan.id === "studio-pro"
+        const displayPrice =
+          isStudioPro && isAnnual ? STUDIO_PRO_YEARLY_PRICE : plan.price
+        const displayDescription =
+          isStudioPro && isAnnual ? "Billed yearly" : plan.description
+
+        return (
+          <Card key={plan.id} className="py-8">
+            <CardHeader className="px-8">
+              <CardTitle>{plan.name}</CardTitle>
+              <CardDescription>{plan.tagline}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-10 px-0">
+              <div className="space-y-8">
+                <div className="space-y-2 px-8">
+                  <h2 className="text-4xl font-bold">
+                    {displayPrice === 0
+                      ? "Free"
+                      : displayPrice !== "Custom"
+                        ? `$${displayPrice}`
+                        : displayPrice}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {displayDescription}
+                  </p>
+                </div>
+                <div className="space-y-6">
+                  {
+                    <Separator
+                      className={cn(
+                        plan.id !== "studio-pro" && "hidden opacity-0 md:block"
+                      )}
+                    />
+                  }
+                  <div
                     className={cn(
+                      "flex items-center gap-2 px-8",
                       plan.id !== "studio-pro" && "hidden opacity-0 md:block"
                     )}
-                  />
-                }
-                <div
-                  className={cn(
-                    "flex items-center gap-2 px-8",
-                    plan.id !== "studio-pro" && "hidden opacity-0 md:block"
-                  )}
-                >
-                  <Switch disabled={plan.id !== "studio-pro"} />
-                  <span className="flex-1 text-sm font-medium">Annual</span>
-                  {/* Activate for annual only */}
-                  <Badge>Save $50</Badge>
+                  >
+                    <Switch
+                      checked={isAnnual}
+                      onCheckedChange={setIsAnnual}
+                      disabled={plan.id !== "studio-pro" || checkoutBusy}
+                    />
+                    <span className="flex-1 text-sm font-medium">Annual</span>
+                    <Badge>Save $60</Badge>
+                  </div>
+                  {
+                    <Separator
+                      className={cn(
+                        plan.id !== "studio-pro" && "hidden md:block"
+                      )}
+                    />
+                  }
                 </div>
-                {
-                  <Separator
-                    className={cn(
-                      plan.id !== "studio-pro" && "hidden md:block"
-                    )}
-                  />
-                }
+                <div className="px-8">
+                  {plan.id === "studio-pro" ? (
+                    <Button
+                      disabled={
+                        Boolean(plan.currentPlan) ||
+                        checkoutBusy ||
+                        plan.ctaDisabled
+                      }
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        void upgradeStudioPro()
+                      }}
+                    >
+                      {plan.currentPlan
+                        ? "Current Plan"
+                        : checkoutBusy
+                          ? "Redirecting…"
+                          : plan.ctaLabel}
+                    </Button>
+                  ) : (
+                    <Button
+                      disabled={plan.ctaDisabled}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      {plan.currentPlan ? "Current Plan" : plan.ctaLabel}
+                    </Button>
+                  )}
+                </div>
+                <div className="space-y-4 px-8">
+                  <ul className="space-y-4 text-sm font-medium">
+                    {plan.features.map((feature) => (
+                      <li key={feature} className="flex items-center gap-3">
+                        <Check size={16} />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
-              <div className="px-8">
-                <Button
-                  disabled={plan.currentPlan || plan.price === 0}
-                  variant="outline"
-                  className="w-full"
-                >
-                  {plan.currentPlan ? "Current Plan" : plan.ctaLabel}
-                </Button>
-              </div>
-              <div className="space-y-4 px-8">
-                <ul className="space-y-4 text-sm font-medium">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-center gap-3">
-                      <Check size={16} />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+            </CardContent>
+          </Card>
+        )
+      })}
     </div>
   )
 }

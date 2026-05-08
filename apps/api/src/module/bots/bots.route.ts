@@ -1,4 +1,5 @@
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod"
+import { quotaExceededResponseSchema } from "../billing/billing.schema"
 import * as botsService from "./bots.service"
 import {
   botErrorSchema,
@@ -14,7 +15,11 @@ export const botsRoutes: FastifyPluginAsyncZod = async (app) => {
   app.post(
     "/bot",
     {
-      preHandler: [app.verifySession, app.requireWorkspace],
+      preHandler: [
+        app.verifySession,
+        app.requireWorkspace,
+        app.requireQuota,
+      ],
       config: {
         rateLimit: {
           max: 10,
@@ -29,6 +34,7 @@ export const botsRoutes: FastifyPluginAsyncZod = async (app) => {
         response: {
           201: startBotMeetingResponseSchema,
           400: botErrorSchema,
+          402: quotaExceededResponseSchema,
           422: botErrorSchema,
           502: botErrorSchema,
           503: botErrorSchema,

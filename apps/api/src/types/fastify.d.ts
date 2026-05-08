@@ -19,6 +19,7 @@ declare module "fastify" {
     requireRole: (
       roles: WorkspaceRole | WorkspaceRole[]
     ) => preHandlerAsyncHookHandler
+    requireQuota: preHandlerAsyncHookHandler
   }
   interface FastifyRequest {
     user?: SessionData["user"]

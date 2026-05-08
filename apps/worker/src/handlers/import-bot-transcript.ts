@@ -1,5 +1,5 @@
 import type { Job } from "bullmq"
-import { Prisma, prisma } from "@workspace/database"
+import { Prisma, prisma, recordTranscriptionBillingUsage } from "@workspace/database"
 import {
   QueueName,
   getQueue,
@@ -289,10 +289,24 @@ export async function importBotTranscriptHandler(
         where: { id: meetingId },
         data: {
           status: "TRANSCRIBED",
-          durationSeconds: Math.round(maxEndMs(segments) / 1000) || null,
+          durationSeconds:
+            segments.length > 0
+              ? Math.round(maxEndMs(segments) / 1000) || null
+              : null,
           language: inferredLanguage,
         },
       })
+    })
+
+    const durationSeconds =
+      segments.length > 0
+        ? Math.round(maxEndMs(segments) / 1000) || null
+        : null
+
+    await recordTranscriptionBillingUsage({
+      workspaceId,
+      meetingId,
+      durationSeconds,
     })
 
     await createProcessingEventAndPublish({

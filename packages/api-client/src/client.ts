@@ -137,7 +137,13 @@ async function request<T>(
         res.statusText ||
         "API Error",
       status: res.status,
-      detail: errorBody?.["detail"] || "",
+      detail:
+        errorBody?.["detail"] ||
+        errorBody?.["message"] ||
+        (typeof errorBody?.["error"] === "string"
+          ? errorBody.error
+          : "") ||
+        "",
       traceId: errorBody?.["trace_id"] || "",
     })
 

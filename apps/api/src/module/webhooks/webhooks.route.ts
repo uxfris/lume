@@ -1,4 +1,6 @@
 import type { FastifyPluginAsync } from "fastify"
+import type Stripe from "stripe"
+import { getStripe } from "../../lib/stripe"
 import { verifyRecallSignature } from "../../lib/recall"
 import {
   extractBotId,
@@ -7,6 +9,8 @@ import {
   recordFailedRecallWebhook,
 } from "./recall.service"
 import { processRealtimeEvent } from "./recall-realtime.service"
+import { processStripeWebhookEvent } from "./stripe.service"
+import { env } from "../../config/env"
 
 /**
  * Webhook routes are registered as a child plugin so we can override the
@@ -114,4 +118,48 @@ export const webhooksRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(500).send({ error: "REALTIME_PROCESSING_FAILED" })
     }
   })
+
+  app.post(
+    "/stripe",
+    {
+      config: {
+        rawBody: true,
+      },
+    },
+    async (request, reply) => {
+      const stripe = getStripe()
+      const secret = env.STRIPE_WEBHOOK_SECRET
+      const rawBody = request.rawBody
+
+      if (!stripe || !secret) {
+        request.log.warn("stripe webhook rejected: missing configuration")
+        return reply.status(503).send({ error: "STRIPE_WEBHOOK_UNAVAILABLE" })
+      }
+
+      if (!rawBody) {
+        return reply.status(400).send({ error: "MISSING_RAW_BODY" })
+      }
+
+      const sig = request.headers["stripe-signature"]
+      if (typeof sig !== "string") {
+        return reply.status(400).send({ error: "MISSING_STRIPE_SIGNATURE" })
+      }
+
+      let event: Stripe.Event
+      try {
+        event = stripe.webhooks.constructEvent(rawBody, sig, secret)
+      } catch (err) {
+        request.log.warn({ err }, "rejected stripe webhook signature")
+        return reply.status(400).send({ error: "INVALID_STRIPE_SIGNATURE" })
+      }
+
+      try {
+        await processStripeWebhookEvent(event)
+        return reply.status(200).send({ received: true })
+      } catch (err) {
+        request.log.error({ err }, "stripe webhook processing failed")
+        return reply.status(500).send({ error: "WEBHOOK_PROCESSING_FAILED" })
+      }
+    }
+  )
 }

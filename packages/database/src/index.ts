@@ -1,7 +1,13 @@
 export { prisma } from "./client";
+export {
+  utcBillingPeriod,
+  transcribedMinutesFromDuration,
+  recordTranscriptionBillingUsage,
+} from "./billing-usage";
 export type { PrismaClient } from "@prisma/client";
 export type {
   Workspace,
+  WorkspacePlan,
   WorkspaceMember,
   WorkspaceRole,
   Meeting,

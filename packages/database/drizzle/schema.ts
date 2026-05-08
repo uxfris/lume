@@ -1,4 +1,4 @@
-import { pgTable, index, uniqueIndex, foreignKey, text, boolean, jsonb, timestamp, varchar, integer, vector, pgEnum } from "drizzle-orm/pg-core"
+import { pgTable, index, uniqueIndex, foreignKey, text, boolean, jsonb, timestamp, integer, varchar, vector, pgEnum } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 export const meetingPlatform = pgEnum("MeetingPlatform", ['ZOOM', 'GOOGLE_MEET', 'MICROSOFT_TEAMS', 'OTHER'])
@@ -6,6 +6,7 @@ export const meetingSource = pgEnum("MeetingSource", ['UPLOAD', 'BOT'])
 export const meetingStatus = pgEnum("MeetingStatus", ['PENDING_UPLOAD', 'UPLOADED', 'TRANSCRIBING', 'TRANSCRIBED', 'ANALYZING', 'SUMMARIZED', 'FAILED', 'SCHEDULED'])
 export const processingEventStatus = pgEnum("ProcessingEventStatus", ['STARTED', 'SUCCEEDED', 'FAILED'])
 export const processingStage = pgEnum("ProcessingStage", ['TRANSCRIBE', 'DIARIZE', 'ANALYZE', 'EMBED'])
+export const workspacePlan = pgEnum("WorkspacePlan", ['STARTER', 'STUDIO_PRO'])
 export const workspaceRole = pgEnum("WorkspaceRole", ['OWNER', 'ADMIN', 'MEMBER', 'GUEST'])
 
 
@@ -78,6 +79,40 @@ export const recallCalendarConnection = pgTable("recall_calendar_connection", {
 		}).onUpdate("cascade").onDelete("cascade"),
 ]);
 
+export const workspace = pgTable("workspace", {
+	id: text().primaryKey().notNull(),
+	name: text().notNull(),
+	slug: text().notNull(),
+	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+	plan: workspacePlan().default('STARTER').notNull(),
+	stripeCustomerId: text(),
+	stripeSubscriptionId: text(),
+	subscriptionPeriodEnd: timestamp({ precision: 3, mode: 'string' }),
+}, (table) => [
+	uniqueIndex("workspace_slug_key").using("btree", table.slug.asc().nullsLast().op("text_ops")),
+	uniqueIndex("workspace_stripeCustomerId_key").using("btree", table.stripeCustomerId.asc().nullsLast().op("text_ops")),
+	uniqueIndex("workspace_stripeSubscriptionId_key").using("btree", table.stripeSubscriptionId.asc().nullsLast().op("text_ops")),
+]);
+
+export const usageCounter = pgTable("usage_counter", {
+	id: text().primaryKey().notNull(),
+	workspaceId: text().notNull(),
+	period: text().notNull(),
+	minutesTranscribed: integer().default(0).notNull(),
+	meetingsTranscribed: integer().default(0).notNull(),
+	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+}, (table) => [
+	index("usage_counter_workspaceId_period_idx").using("btree", table.workspaceId.asc().nullsLast().op("text_ops"), table.period.asc().nullsLast().op("text_ops")),
+	uniqueIndex("usage_counter_workspaceId_period_key").using("btree", table.workspaceId.asc().nullsLast().op("text_ops"), table.period.asc().nullsLast().op("text_ops")),
+	foreignKey({
+			columns: [table.workspaceId],
+			foreignColumns: [workspace.id],
+			name: "usage_counter_workspaceId_fkey"
+		}).onUpdate("cascade").onDelete("cascade"),
+]);
+
 export const prismaMigrations = pgTable("_prisma_migrations", {
 	id: varchar({ length: 36 }).primaryKey().notNull(),
 	checksum: varchar({ length: 64 }).notNull(),
@@ -88,6 +123,21 @@ export const prismaMigrations = pgTable("_prisma_migrations", {
 	startedAt: timestamp("started_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	appliedStepsCount: integer("applied_steps_count").default(0).notNull(),
 });
+
+export const failedWebhook = pgTable("failed_webhook", {
+	id: text().primaryKey().notNull(),
+	provider: text().notNull(),
+	eventType: text(),
+	payload: jsonb().notNull(),
+	error: text().notNull(),
+	attempts: integer().default(1).notNull(),
+	externalBotId: text(),
+	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+}, (table) => [
+	index("failed_webhook_externalBotId_idx").using("btree", table.externalBotId.asc().nullsLast().op("text_ops")),
+	index("failed_webhook_provider_createdAt_idx").using("btree", table.provider.asc().nullsLast().op("text_ops"), table.createdAt.asc().nullsLast().op("text_ops")),
+]);
 
 export const meeting = pgTable("meeting", {
 	id: text().primaryKey().notNull(),
@@ -111,6 +161,7 @@ export const meeting = pgTable("meeting", {
 	platform: meetingPlatform(),
 	externalBotId: text(),
 	scheduledAt: timestamp({ precision: 3, mode: 'string' }),
+	billingUsageRecorded: boolean().default(false).notNull(),
 }, (table) => [
 	uniqueIndex("meeting_audioKey_key").using("btree", table.audioKey.asc().nullsLast().op("text_ops")),
 	uniqueIndex("meeting_externalBotId_key").using("btree", table.externalBotId.asc().nullsLast().op("text_ops")),
@@ -129,21 +180,6 @@ export const meeting = pgTable("meeting", {
 		}).onUpdate("cascade").onDelete("restrict"),
 ]);
 
-export const failedWebhook = pgTable("failed_webhook", {
-	id: text().primaryKey().notNull(),
-	provider: text().notNull(),
-	eventType: text(),
-	payload: jsonb().notNull(),
-	error: text().notNull(),
-	attempts: integer().default(1).notNull(),
-	externalBotId: text(),
-	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
-	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
-}, (table) => [
-	index("failed_webhook_externalBotId_idx").using("btree", table.externalBotId.asc().nullsLast().op("text_ops")),
-	index("failed_webhook_provider_createdAt_idx").using("btree", table.provider.asc().nullsLast().op("text_ops"), table.createdAt.asc().nullsLast().op("text_ops")),
-]);
-
 export const user = pgTable("user", {
 	id: text().primaryKey().notNull(),
 	name: text().notNull(),
@@ -155,16 +191,6 @@ export const user = pgTable("user", {
 }, (table) => [
 	uniqueIndex("user_email_key").using("btree", table.email.asc().nullsLast().op("text_ops")),
 	index("user_id_idx").using("btree", table.id.asc().nullsLast().op("text_ops")),
-]);
-
-export const workspace = pgTable("workspace", {
-	id: text().primaryKey().notNull(),
-	name: text().notNull(),
-	slug: text().notNull(),
-	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
-	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
-}, (table) => [
-	uniqueIndex("workspace_slug_key").using("btree", table.slug.asc().nullsLast().op("text_ops")),
 ]);
 
 export const verification = pgTable("verification", {
