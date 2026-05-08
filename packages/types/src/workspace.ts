@@ -40,6 +40,8 @@ export const GetMeResponseSchema = z.object({
   user: CurrentUserSchema,
   workspaces: z.array(WorkspaceMembershipSchema),
   activeWorkspaceId: z.string().nullable(),
+  /** Social accounts that can be used for Recall Calendar V2 (`google` / `microsoft`). */
+  oauthCalendarProviders: z.array(z.enum(["google", "microsoft"])),
 })
 export type GetMeResponse = z.infer<typeof GetMeResponseSchema>
 

@@ -31,6 +31,53 @@ export const meetingParticipant = pgTable("meeting_participant", {
 		}).onUpdate("cascade").onDelete("cascade"),
 ]);
 
+export const calendarEvent = pgTable("calendar_event", {
+	id: text().primaryKey().notNull(),
+	workspaceId: text().notNull(),
+	userId: text().notNull(),
+	provider: text().notNull(),
+	externalId: text().notNull(),
+	title: text().notNull(),
+	startAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+	endAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+	joinUrl: text(),
+	platform: meetingPlatform(),
+	attendees: jsonb(),
+	metadata: jsonb(),
+	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+}, (table) => [
+	index("calendar_event_userId_startAt_idx").using("btree", table.userId.asc().nullsLast().op("text_ops"), table.startAt.asc().nullsLast().op("timestamp_ops")),
+	index("calendar_event_workspaceId_startAt_idx").using("btree", table.workspaceId.asc().nullsLast().op("timestamp_ops"), table.startAt.asc().nullsLast().op("text_ops")),
+	uniqueIndex("calendar_event_workspaceId_userId_provider_externalId_key").using("btree", table.workspaceId.asc().nullsLast().op("text_ops"), table.userId.asc().nullsLast().op("text_ops"), table.provider.asc().nullsLast().op("text_ops"), table.externalId.asc().nullsLast().op("text_ops")),
+	foreignKey({
+			columns: [table.workspaceId],
+			foreignColumns: [workspace.id],
+			name: "calendar_event_workspaceId_fkey"
+		}).onUpdate("cascade").onDelete("cascade"),
+	foreignKey({
+			columns: [table.userId],
+			foreignColumns: [user.id],
+			name: "calendar_event_userId_fkey"
+		}).onUpdate("cascade").onDelete("cascade"),
+]);
+
+export const recallCalendarConnection = pgTable("recall_calendar_connection", {
+	id: text().primaryKey().notNull(),
+	userId: text().notNull(),
+	provider: text().notNull(),
+	recallCalendarId: text().notNull(),
+	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+}, (table) => [
+	uniqueIndex("recall_calendar_connection_userId_provider_key").using("btree", table.userId.asc().nullsLast().op("text_ops"), table.provider.asc().nullsLast().op("text_ops")),
+	foreignKey({
+			columns: [table.userId],
+			foreignColumns: [user.id],
+			name: "recall_calendar_connection_userId_fkey"
+		}).onUpdate("cascade").onDelete("cascade"),
+]);
+
 export const prismaMigrations = pgTable("_prisma_migrations", {
 	id: varchar({ length: 36 }).primaryKey().notNull(),
 	checksum: varchar({ length: 64 }).notNull(),

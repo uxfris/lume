@@ -57,7 +57,7 @@ export const webhooksRoutes: FastifyPluginAsync = async (app) => {
         if (result.ok) {
           return reply.status(200).send({
             ok: true,
-            meetingId: result.meetingId,
+            ...(result.meetingId ? { meetingId: result.meetingId } : {}),
             action: result.action,
           })
         }

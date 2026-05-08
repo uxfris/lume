@@ -3,12 +3,16 @@ import { UpcomingMeetingSettingDialog } from "./upcoming-meeting-setting-dialog"
 import { UpcomingMeetingsEmpty } from "./upcoming-meetings-empty"
 import { ScheduleNewMeetingButton } from "./schedule-new-meeting-button"
 import { meetingApi } from "@workspace/api-client"
+import { getServerApiFetchOptions } from "@/lib/server-api"
 
 
 
 export async function UpcomingMeetings() {
-
-    const groups = await meetingApi.getUpcomingMeetings()
+    const { cookie, workspaceId } = await getServerApiFetchOptions()
+    const groups = await meetingApi.getUpcomingMeetings({
+        cookie,
+        workspaceId,
+    })
 
     const total = groups.reduce((acc, g) => acc + g.meetings.length, 0)
 

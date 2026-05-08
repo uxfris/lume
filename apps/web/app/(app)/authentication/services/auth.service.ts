@@ -2,8 +2,6 @@ import { authClient } from "@/lib/auth-client"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL
 
-console.log(APP_URL)
-
 export function loginWithMicrosoft() {
   authClient.signIn.social({
     provider: "microsoft",

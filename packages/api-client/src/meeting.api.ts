@@ -38,12 +38,10 @@ export const meetingApi = {
     return res.meetings
   },
 
-  /**
-   * Phase 10 will replace this with calendar integration. Until then the API
-   * does not expose upcoming events — return an empty list so the UI stays real-data-only.
-   */
-  async getUpcomingMeetings(): Promise<UpcomingMeetingGroup[]> {
-    return []
+  async getUpcomingMeetings(
+    options?: RequestOptions
+  ): Promise<UpcomingMeetingGroup[]> {
+    return client.get<UpcomingMeetingGroup[]>("/calendar/upcoming", options)
   },
 
   async getMeeting(id: string, options?: RequestOptions): Promise<Meeting> {
