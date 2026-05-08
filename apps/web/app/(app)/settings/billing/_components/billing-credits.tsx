@@ -1,19 +1,9 @@
 import LogoIcon from "@/assets/icons/logo-icon"
-import { Button } from "@workspace/ui/components/button"
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@workspace/ui/components/dialog"
 import { Progress } from "@workspace/ui/components/progress"
 import { Check } from "lucide-react"
 import type { BillingUsageResponse } from "@workspace/types"
 import { starterPlanLimits } from "@workspace/types"
+import { ManageBillingDialog } from "./manage-billing-dialog"
 
 const STARTER_STORAGE_MINUTES_APPROX = 13 * 60
 
@@ -126,63 +116,5 @@ export function BillingCredits({
         </div>
       </div>
     </div>
-  )
-}
-
-export function ManageBillingDialog({
-  usage,
-}: {
-  usage: BillingUsageResponse | null
-}) {
-  const renews =
-    usage?.subscriptionRenewsAt != null
-      ? new Date(usage.subscriptionRenewsAt).toLocaleDateString(undefined, {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        })
-      : null
-
-  const planName =
-    usage?.plan === "studio-pro"
-      ? "Studio Pro"
-      : usage?.plan === "starter"
-        ? "Starter"
-        : "—"
-
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="secondary" className="mt-3 w-full">
-          Manage
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Manage Plan</DialogTitle>
-          <DialogDescription>Subscription & billing settings</DialogDescription>
-        </DialogHeader>
-        <div className="flex items-center gap-2 rounded-lg bg-secondary p-2">
-          <LogoIcon className="h-14 w-14" />
-          <div>
-            <h2 className="font-semibold">{planName}</h2>
-            <p className="text-sm text-muted-foreground">
-              {renews
-                ? `Renews on ${renews}`
-                : usage?.plan === "starter"
-                  ? "No active subscription"
-                  : "Renewal date unavailable"}
-            </p>
-          </div>
-        </div>
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="secondary" className="flex-1">
-              Close
-            </Button>
-          </DialogClose>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   )
 }

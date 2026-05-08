@@ -1,9 +1,11 @@
 import {
   BillingCheckoutBodySchema,
   BillingCheckoutResponseSchema,
+  BillingPortalResponseSchema,
   BillingUsageResponseSchema,
   type BillingCheckoutBody,
   type BillingCheckoutResponse,
+  type BillingPortalResponse,
   type BillingUsageResponse,
 } from "@workspace/types"
 
@@ -29,5 +31,12 @@ export const billingApi = {
       options
     )
     return BillingCheckoutResponseSchema.parse(raw)
+  },
+
+  async createBillingPortalSession(
+    options?: RequestOptions
+  ): Promise<BillingPortalResponse> {
+    const raw = await client.post<unknown>("/billing/portal", {}, options)
+    return BillingPortalResponseSchema.parse(raw)
   },
 }

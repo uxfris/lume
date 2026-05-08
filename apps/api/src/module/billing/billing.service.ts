@@ -85,3 +85,34 @@ export async function createStudioProCheckoutSession(input: {
 
   return { ok: true, url: session.url }
 }
+
+export async function createBillingPortalSession(input: {
+  workspace: Workspace
+}): Promise<
+  | { ok: true; url: string }
+  | { ok: false; error: "STRIPE_NOT_CONFIGURED" | "STRIPE_CUSTOMER_NOT_FOUND" }
+> {
+  const stripe = getStripe()
+  const frontendUrl = env.FRONTEND_URL
+
+  if (!stripe || !frontendUrl) {
+    return { ok: false, error: "STRIPE_NOT_CONFIGURED" }
+  }
+
+  if (!input.workspace.stripeCustomerId) {
+    return { ok: false, error: "STRIPE_CUSTOMER_NOT_FOUND" }
+  }
+
+  const returnUrl = `${frontendUrl.replace(/\/$/, "")}/settings/billing`
+
+  const session = await stripe.billingPortal.sessions.create({
+    customer: input.workspace.stripeCustomerId,
+    return_url: returnUrl,
+  })
+
+  if (!session.url) {
+    return { ok: false, error: "STRIPE_NOT_CONFIGURED" }
+  }
+
+  return { ok: true, url: session.url }
+}

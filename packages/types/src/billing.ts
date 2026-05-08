@@ -36,6 +36,12 @@ export const BillingCheckoutBodySchema = z.object({
 
 export type BillingCheckoutBody = z.infer<typeof BillingCheckoutBodySchema>
 
+export const BillingPortalResponseSchema = z.object({
+  url: z.string().url(),
+})
+
+export type BillingPortalResponse = z.infer<typeof BillingPortalResponseSchema>
+
 export const QuotaExceededBodySchema = z.object({
   error: z.literal("QUOTA_EXCEEDED"),
   message: z.string(),
