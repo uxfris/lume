@@ -1,5 +1,75 @@
 import { relations } from "drizzle-orm/relations";
-import { workspace, invitation, user, meeting, processingEvent, account, session, workspaceMember, transcriptSegment, meetingChunk, task } from "./schema";
+import { meeting, meetingParticipant, workspace, calendarEvent, user, recallCalendarConnection, usageCounter, invitation, processingEvent, account, session, workspaceMember, transcriptSegment, transcriptWord, meetingTranscriptRaw, meetingChunk, task } from "./schema";
+
+export const meetingParticipantRelations = relations(meetingParticipant, ({one, many}) => ({
+	meeting: one(meeting, {
+		fields: [meetingParticipant.meetingId],
+		references: [meeting.id]
+	}),
+	transcriptSegments: many(transcriptSegment),
+}));
+
+export const meetingRelations = relations(meeting, ({one, many}) => ({
+	meetingParticipants: many(meetingParticipant),
+	workspace: one(workspace, {
+		fields: [meeting.workspaceId],
+		references: [workspace.id]
+	}),
+	user: one(user, {
+		fields: [meeting.userId],
+		references: [user.id]
+	}),
+	processingEvents: many(processingEvent),
+	meetingTranscriptRaws: many(meetingTranscriptRaw),
+	meetingChunks: many(meetingChunk),
+	tasks: many(task),
+	transcriptSegments: many(transcriptSegment),
+}));
+
+export const calendarEventRelations = relations(calendarEvent, ({one}) => ({
+	workspace: one(workspace, {
+		fields: [calendarEvent.workspaceId],
+		references: [workspace.id]
+	}),
+	user: one(user, {
+		fields: [calendarEvent.userId],
+		references: [user.id]
+	}),
+}));
+
+export const workspaceRelations = relations(workspace, ({many}) => ({
+	calendarEvents: many(calendarEvent),
+	usageCounters: many(usageCounter),
+	meetings: many(meeting),
+	invitations: many(invitation),
+	workspaceMembers: many(workspaceMember),
+	tasks: many(task),
+}));
+
+export const userRelations = relations(user, ({many}) => ({
+	calendarEvents: many(calendarEvent),
+	recallCalendarConnections: many(recallCalendarConnection),
+	meetings: many(meeting),
+	invitations: many(invitation),
+	accounts: many(account),
+	sessions: many(session),
+	workspaceMembers: many(workspaceMember),
+	tasks: many(task),
+}));
+
+export const recallCalendarConnectionRelations = relations(recallCalendarConnection, ({one}) => ({
+	user: one(user, {
+		fields: [recallCalendarConnection.userId],
+		references: [user.id]
+	}),
+}));
+
+export const usageCounterRelations = relations(usageCounter, ({one}) => ({
+	workspace: one(workspace, {
+		fields: [usageCounter.workspaceId],
+		references: [workspace.id]
+	}),
+}));
 
 export const invitationRelations = relations(invitation, ({one}) => ({
 	workspace: one(workspace, {
@@ -12,42 +82,11 @@ export const invitationRelations = relations(invitation, ({one}) => ({
 	}),
 }));
 
-export const workspaceRelations = relations(workspace, ({many}) => ({
-	invitations: many(invitation),
-	meetings: many(meeting),
-	workspaceMembers: many(workspaceMember),
-	tasks: many(task),
-}));
-
-export const userRelations = relations(user, ({many}) => ({
-	invitations: many(invitation),
-	meetings: many(meeting),
-	accounts: many(account),
-	sessions: many(session),
-	workspaceMembers: many(workspaceMember),
-	tasks: many(task),
-}));
-
 export const processingEventRelations = relations(processingEvent, ({one}) => ({
 	meeting: one(meeting, {
 		fields: [processingEvent.meetingId],
 		references: [meeting.id]
 	}),
-}));
-
-export const meetingRelations = relations(meeting, ({one, many}) => ({
-	processingEvents: many(processingEvent),
-	workspace: one(workspace, {
-		fields: [meeting.workspaceId],
-		references: [workspace.id]
-	}),
-	user: one(user, {
-		fields: [meeting.userId],
-		references: [user.id]
-	}),
-	transcriptSegments: many(transcriptSegment),
-	meetingChunks: many(meetingChunk),
-	tasks: many(task),
 }));
 
 export const accountRelations = relations(account, ({one}) => ({
@@ -75,9 +114,28 @@ export const workspaceMemberRelations = relations(workspaceMember, ({one}) => ({
 	}),
 }));
 
-export const transcriptSegmentRelations = relations(transcriptSegment, ({one}) => ({
+export const transcriptWordRelations = relations(transcriptWord, ({one}) => ({
+	transcriptSegment: one(transcriptSegment, {
+		fields: [transcriptWord.segmentId],
+		references: [transcriptSegment.id]
+	}),
+}));
+
+export const transcriptSegmentRelations = relations(transcriptSegment, ({one, many}) => ({
+	transcriptWords: many(transcriptWord),
 	meeting: one(meeting, {
 		fields: [transcriptSegment.meetingId],
+		references: [meeting.id]
+	}),
+	meetingParticipant: one(meetingParticipant, {
+		fields: [transcriptSegment.participantId],
+		references: [meetingParticipant.id]
+	}),
+}));
+
+export const meetingTranscriptRawRelations = relations(meetingTranscriptRaw, ({one}) => ({
+	meeting: one(meeting, {
+		fields: [meetingTranscriptRaw.meetingId],
 		references: [meeting.id]
 	}),
 }));

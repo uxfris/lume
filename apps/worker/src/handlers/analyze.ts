@@ -6,6 +6,7 @@ import {
   type AnalyzeJobPayload,
 } from "@workspace/queue"
 import { logger } from "../logger"
+import { createProcessingEventAndPublish } from "../lib/processing-events"
 import { analyzeMeetingTranscript } from "../lib/openai"
 
 export async function analyzeHandler(
@@ -34,22 +35,29 @@ export async function analyzeHandler(
       return { meetingId }
     }
 
-    await prisma.processingEvent.create({
-      data: {
-        meetingId,
-        stage: "ANALYZE",
-        status: "STARTED",
-      },
+    await createProcessingEventAndPublish({
+      meetingId,
+      stage: "ANALYZE",
+      status: "STARTED",
     })
 
     const segments = await prisma.transcriptSegment.findMany({
       where: { meetingId },
       orderBy: { index: "asc" },
+      include: {
+        participant: {
+          select: { name: true, externalId: true },
+        },
+      },
     })
 
     const transcript = segments
       .map((s) => {
-        const sp = s.speaker?.trim() || "Speaker"
+        const sp =
+          s.participant?.name?.trim() ||
+          (s.participant?.externalId
+            ? `Speaker ${s.participant.externalId}`
+            : "Speaker")
         return `${sp}: ${s.text}`
       })
       .join("\n")
@@ -90,13 +98,11 @@ export async function analyzeHandler(
       }
     })
 
-    await prisma.processingEvent.create({
-      data: {
-        meetingId,
-        stage: "ANALYZE",
-        status: "SUCCEEDED",
-        metadata: { cost_usd: costUsd },
-      },
+    await createProcessingEventAndPublish({
+      meetingId,
+      stage: "ANALYZE",
+      status: "SUCCEEDED",
+      metadata: { cost_usd: costUsd },
     })
 
     await getQueue(QueueName.Embed).add(
@@ -114,17 +120,13 @@ export async function analyzeHandler(
       .update({ where: { id: meetingId }, data: { status: "FAILED" } })
       .catch(() => {})
 
-    await prisma.processingEvent
-      .create({
-        data: {
-          meetingId,
-          stage: "ANALYZE",
-          status: "FAILED",
-          message: (err as Error).message,
-          metadata: { error: (err as Error).message },
-        },
-      })
-      .catch(() => {})
+    await createProcessingEventAndPublish({
+      meetingId,
+      stage: "ANALYZE",
+      status: "FAILED",
+      message: (err as Error).message,
+      metadata: { error: (err as Error).message },
+    }).catch(() => {})
 
     return { meetingId }
   }

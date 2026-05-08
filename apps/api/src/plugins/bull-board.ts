@@ -16,7 +16,13 @@ export default fp(async (app) => {
   serverAdapter.setBasePath("/admin/queues")
 
   createBullBoard({
-    queues: [new BullMQAdapter(getQueue(QueueName.Transcribe))],
+    queues: [
+      new BullMQAdapter(getQueue(QueueName.Transcribe)),
+      new BullMQAdapter(getQueue(QueueName.Diarize)),
+      new BullMQAdapter(getQueue(QueueName.Analyze)),
+      new BullMQAdapter(getQueue(QueueName.Embed)),
+      new BullMQAdapter(getQueue(QueueName.ImportBotTranscript)),
+    ],
     serverAdapter,
   })
 

@@ -2,6 +2,7 @@ import type { Job } from "bullmq"
 import { prisma } from "@workspace/database"
 import { QueueName, getQueue, type DiarizeJobPayload } from "@workspace/queue"
 import { logger } from "../logger"
+import { createProcessingEventAndPublish } from "../lib/processing-events"
 import { createPresignedAudioDownload } from "../lib/s3-presign"
 import { diarizeAudio, type DiarizeWindow } from "../lib/pyannote"
 
@@ -14,20 +15,6 @@ function inferSpeakerFromWindows(
       segmentMidpointMs >= window.startMs && segmentMidpointMs <= window.endMs
   )
   return matching?.speaker ?? null
-}
-
-function buildUnknownSpeakerAllocator() {
-  const map = new Map<number, string>()
-  let next = 0
-  return (segmentIndex: number): string => {
-    const bucket = Math.floor(segmentIndex / 5)
-    const existing = map.get(bucket)
-    if (existing) return existing
-    const label = `Speaker ${String.fromCharCode("A".charCodeAt(0) + next)}`
-    next += 1
-    map.set(bucket, label)
-    return label
-  }
 }
 
 export async function diarizeHandler(
@@ -46,12 +33,10 @@ export async function diarizeHandler(
   log.info("diarize job received")
 
   try {
-    await prisma.processingEvent.create({
-      data: {
-        meetingId,
-        stage: "DIARIZE",
-        status: "STARTED",
-      },
+    await createProcessingEventAndPublish({
+      meetingId,
+      stage: "DIARIZE",
+      status: "STARTED",
     })
 
     const audioUrl = await createPresignedAudioDownload(audioKey)
@@ -60,25 +45,46 @@ export async function diarizeHandler(
       where: { meetingId },
       orderBy: { index: "asc" },
     })
-    const fallbackSpeaker = buildUnknownSpeakerAllocator()
-
-    // for (const segment of segments) {
-    //   const midpoint = Math.round((segment.startMs + segment.endMs) / 2)
-    //   const inferred = inferSpeakerFromWindows(midpoint, windows)
-    //   await prisma.transcriptSegment.update({
-    //     where: { id: segment.id },
-    //     data: { speaker: inferred ?? fallbackSpeaker(segment.index) },
-    //   })
-    // }
+    const existingParticipants = await prisma.meetingParticipant.findMany({
+      where: { meetingId },
+      select: { id: true, name: true },
+    })
+    const existingNames = new Set(
+      existingParticipants
+        .map((p) => p.name?.trim())
+        .filter((name): name is string => Boolean(name))
+    )
+    const inferredSpeakerNames = Array.from(
+      new Set(windows.map((w) => w.speaker?.trim()).filter(Boolean))
+    ) as string[]
+    const toCreate = inferredSpeakerNames.filter((name) => !existingNames.has(name))
+    if (toCreate.length > 0) {
+      await prisma.meetingParticipant.createMany({
+        data: toCreate.map((name) => ({
+          meetingId,
+          name,
+        })),
+      })
+    }
+    const participants = await prisma.meetingParticipant.findMany({
+      where: { meetingId },
+      select: { id: true, name: true },
+    })
+    const participantByName = new Map(
+      participants
+        .filter((p) => p.name)
+        .map((p) => [p.name as string, p.id])
+    )
 
     const updates = segments.map((segment) => {
       const midpoint = Math.round((segment.startMs + segment.endMs) / 2)
       const inferred = inferSpeakerFromWindows(midpoint, windows)
+      const participantId = inferred ? (participantByName.get(inferred) ?? null) : null
 
       return prisma.transcriptSegment.update({
         where: { id: segment.id },
         data: {
-          speaker: inferred ?? fallbackSpeaker(segment.index),
+          participantId,
         },
       })
     })
@@ -86,15 +92,13 @@ export async function diarizeHandler(
     // Execute all updates in a single transaction
     await prisma.$transaction(updates)
 
-    await prisma.processingEvent.create({
-      data: {
-        meetingId,
-        stage: "DIARIZE",
-        status: "SUCCEEDED",
-        metadata: {
-          diarizationWindowCount: windows.length,
-          transcriptSegmentCount: segments.length,
-        },
+    await createProcessingEventAndPublish({
+      meetingId,
+      stage: "DIARIZE",
+      status: "SUCCEEDED",
+      metadata: {
+        diarizationWindowCount: windows.length,
+        transcriptSegmentCount: segments.length,
       },
     })
 
@@ -113,17 +117,13 @@ export async function diarizeHandler(
 
     log.error({ err }, "diarize job failed")
 
-    await prisma.processingEvent
-      .create({
-        data: {
-          meetingId,
-          stage: "DIARIZE",
-          status: "FAILED",
-          message: (err as Error).message,
-          metadata: { error: (err as Error).message },
-        },
-      })
-      .catch(() => {})
+    await createProcessingEventAndPublish({
+      meetingId,
+      stage: "DIARIZE",
+      status: "FAILED",
+      message: (err as Error).message,
+      metadata: { error: (err as Error).message },
+    }).catch(() => {})
 
     // Avoid automatic retries for heavy diarization requests.
     return { meetingId }

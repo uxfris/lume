@@ -6,6 +6,17 @@ export const SentenceSchema = z.object({
 
     startTimeMs: z.number(),
     endTimeMs: z.number(),
+    words: z
+        .array(
+            z.object({
+                id: z.string(),
+                text: z.string(),
+                startTimeMs: z.number(),
+                endTimeMs: z.number(),
+                position: z.number(),
+            })
+        )
+        .optional(),
 });
 
 export const ConversationMessageSchema = z.object({

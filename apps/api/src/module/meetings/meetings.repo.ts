@@ -3,6 +3,12 @@ import { prisma, type Prisma } from "@workspace/database"
 export type MeetingWithOwner = Prisma.MeetingGetPayload<{
   include: { user: true }
 }>
+export type TranscriptSegmentWithParticipant = Prisma.TranscriptSegmentGetPayload<{
+  include: {
+    participant: { select: { name: true; externalId: true } }
+    transcriptWords: { select: { id: true; text: true; startMs: true; endMs: true; position: true } }
+  }
+}>
 
 export const meetingsRepo = {
   /**
@@ -49,6 +55,26 @@ export const meetingsRepo = {
     })
   },
 
+  findMeetingForUser(input: {
+    meetingId: string
+    userId: string
+    workspaceId?: string
+  }): Promise<{ id: string; workspaceId: string } | null> {
+    return prisma.meeting.findFirst({
+      where: {
+        id: input.meetingId,
+        deletedAt: null,
+        workspaceId: input.workspaceId,
+        workspace: {
+          members: {
+            some: { userId: input.userId },
+          },
+        },
+      },
+      select: { id: true, workspaceId: true },
+    })
+  },
+
   /** Whether an active (non-deleted) meeting exists in the workspace. */
   existsActiveInWorkspace(
     meetingId: string,
@@ -66,6 +92,21 @@ export const meetingsRepo = {
     return prisma.transcriptSegment.findMany({
       where: { meetingId },
       orderBy: { index: "asc" },
+      include: {
+        participant: {
+          select: { name: true, externalId: true },
+        },
+        transcriptWords: {
+          select: {
+            id: true,
+            text: true,
+            startMs: true,
+            endMs: true,
+            position: true,
+          },
+          orderBy: { position: "asc" },
+        },
+      },
     })
   },
 

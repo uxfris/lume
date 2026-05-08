@@ -4,6 +4,7 @@ import { Prisma, prisma } from "@workspace/database"
 import type { MeetingStatus } from "@workspace/database"
 import { QueueName, type EmbedJobPayload } from "@workspace/queue"
 import { logger } from "../logger"
+import { createProcessingEventAndPublish } from "../lib/processing-events"
 import { embedText } from "../lib/openai"
 import { chunkSegmentsForEmbedding } from "../lib/transcript-chunks"
 
@@ -48,17 +49,20 @@ export async function embedHandler(
       return { meetingId }
     }
 
-    await prisma.processingEvent.create({
-      data: {
-        meetingId,
-        stage: "EMBED",
-        status: "STARTED",
-      },
+    await createProcessingEventAndPublish({
+      meetingId,
+      stage: "EMBED",
+      status: "STARTED",
     })
 
     const segments = await prisma.transcriptSegment.findMany({
       where: { meetingId },
       orderBy: { index: "asc" },
+      include: {
+        participant: {
+          select: { name: true, externalId: true },
+        },
+      },
     })
 
     const windows = chunkSegmentsForEmbedding(
@@ -66,7 +70,9 @@ export async function embedHandler(
         text: s.text,
         startMs: s.startMs,
         endMs: s.endMs,
-        speaker: s.speaker,
+        speaker:
+          s.participant?.name ??
+          (s.participant?.externalId ? `Speaker ${s.participant.externalId}` : null),
       }))
     )
 
@@ -110,15 +116,13 @@ export async function embedHandler(
       })
     })
 
-    await prisma.processingEvent.create({
-      data: {
-        meetingId,
-        stage: "EMBED",
-        status: "SUCCEEDED",
-        metadata: {
-          cost_usd: totalEmbedCost,
-          chunkCount: windows.length,
-        },
+    await createProcessingEventAndPublish({
+      meetingId,
+      stage: "EMBED",
+      status: "SUCCEEDED",
+      metadata: {
+        cost_usd: totalEmbedCost,
+        chunkCount: windows.length,
       },
     })
 
@@ -131,17 +135,13 @@ export async function embedHandler(
       .update({ where: { id: meetingId }, data: { status: "FAILED" } })
       .catch(() => {})
 
-    await prisma.processingEvent
-      .create({
-        data: {
-          meetingId,
-          stage: "EMBED",
-          status: "FAILED",
-          message: (err as Error).message,
-          metadata: { error: (err as Error).message },
-        },
-      })
-      .catch(() => {})
+    await createProcessingEventAndPublish({
+      meetingId,
+      stage: "EMBED",
+      status: "FAILED",
+      message: (err as Error).message,
+      metadata: { error: (err as Error).message },
+    }).catch(() => {})
 
     return { meetingId }
   }

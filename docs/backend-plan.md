@@ -486,27 +486,27 @@ The timeline assumes 30h/week. Buffer is baked into the last phase.
 
 ### Phase 10 — Calendar integration (Week 11, ~25h)
 
-**Goal:** populate "Upcoming meetings" from Google Calendar / Microsoft Graph.
+**Goal:** populate "Upcoming meetings" using Recall.ai's calendar aggregation layer (instead of provider-specific Google/MS sync logic in our app).
 
 **Tasks:**
 
-1. Cron-like worker job `sync-calendar` (BullMQ repeatable job every 10 min per connected user).
-2. Use BetterAuth's stored `accessToken` / `refreshToken` (scope already covers readonly calendars). Refresh on 401.
-3. Upsert into `CalendarEvent`.
-4. Endpoint `GET /calendar/upcoming` returning `UpcomingMeetingGroup[]` shape.
+1. Extend `POST /webhooks/recall` to handle Calendar V2 events (`calendar*` family) in near real-time.
+2. Normalize Recall Calendar V2 event payloads into `CalendarEvent` (`provider`, `externalId`, `startAt`, `endAt`, `joinUrl`, `platform`, `metadata`).
+3. Upsert/delete idempotently (unique key: `workspaceId + userId + provider + externalId`) using event ids and `is_deleted`.
+4. Expose `GET /calendar/upcoming` returning `UpcomingMeetingGroup[]` for the dashboard.
 
 **Deliverable:** the dashboard's "Upcoming" component shows real events.
 
 **Gotchas:**
 
-- Microsoft Graph pagination uses `@odata.nextLink`, not `pageToken`. Read docs carefully.
-- Don't store refresh tokens in plaintext in prod — wrap in AES-256 using a KMS key.
+- Calendar webhooks can arrive out of order; rely on idempotent upserts + deletes keyed by provider event id.
+- Keep Recall payload copies in `metadata` for debugging, but never trust raw payload types at runtime without validation.
 
 ---
 
 ### Phase 11 — Billing & usage metering (Week 12, ~25h)
 
-**Goal:** enforce the "300 min/month free, $8/mo Pro" tiers.
+**Goal:** enforce the "5 meetings/month free, $25/mo Pro" tiers.
 
 **Tasks:**
 

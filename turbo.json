@@ -5,43 +5,36 @@
     "DATABASE_URL",
     "REDIS_URL",
     "NODE_ENV",
+    "FRONTEND_URL",
     "LOG_LEVEL",
-    "OPENAI_API_KEY"
+    "OPENAI_API_KEY",
+    "RECALL_API_KEY",
+    "RECALL_API_URL",
+    "RECALL_WEBHOOK_SECRET",
+    "RECALL_BOT_NAME",
+    "RECALL_REALTIME_WEBHOOK_URL",
+    "STRIPE_SECRET_KEY",
+    "STRIPE_WEBHOOK_SECRET",
+    "STRIPE_PRICE_ID_STUDIO_PRO_MONTHLY",
+    "STRIPE_PRICE_ID_STUDIO_PRO_YEARLY"
   ],
   "tasks": {
     "build": {
-      "dependsOn": [
-        "^build",
-        "^db:generate"
-      ],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        ".env*"
-      ],
-      "outputs": [
-        ".next/**",
-        "!.next/cache/**"
-      ]
+      "dependsOn": ["^build", "^db:generate"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": [".next/**", "!.next/cache/**"]
     },
     "lint": {
-      "dependsOn": [
-        "^lint"
-      ]
+      "dependsOn": ["^lint"]
     },
     "format": {
-      "dependsOn": [
-        "^format"
-      ]
+      "dependsOn": ["^format"]
     },
     "typecheck": {
-      "dependsOn": [
-        "^typecheck"
-      ]
+      "dependsOn": ["^typecheck"]
     },
     "dev": {
-      "dependsOn": [
-        "^db:generate"
-      ],
+      "dependsOn": ["^db:generate"],
       "cache": false,
       "persistent": true
     },
