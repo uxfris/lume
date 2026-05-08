@@ -29,6 +29,27 @@ const envSchema = z.object({
   REDIS_URL: z.string(),
   OPENAI_API_KEY: z.string(),
 
+  STRIPE_SECRET_KEY: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
+  STRIPE_PRICE_ID_STUDIO_PRO_MONTHLY: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
+  STRIPE_PRICE_ID_STUDIO_PRO_YEARLY: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
+  STRIPE_WEBHOOK_SECRET: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
+
   // Phase 8 — Recall.ai
   /** Public API key. Optional in dev so the API still boots without bot support. */
   RECALL_API_KEY: z.string().optional(),

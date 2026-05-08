@@ -16,7 +16,8 @@ export const PricingPlanSchema = z.object({
   features: z.array(z.string()),
   ctaLabel: z.string(),
   highlighted: z.boolean().default(false),
-  currentPlan: z.boolean().default(false),
+  /** Overridden in the billing UI from live `/billing` data. */
+  currentPlan: z.boolean().optional(),
 })
 
 export const PricingPlansSchema = z.array(PricingPlanSchema)
@@ -45,7 +46,6 @@ export const pricingPlans: PricingPlan[] = [
     ],
     ctaLabel: "Starter Plan",
     highlighted: false,
-    currentPlan: true,
   },
   {
     id: "studio-pro",
@@ -63,7 +63,6 @@ export const pricingPlans: PricingPlan[] = [
     ],
     ctaLabel: "Upgrade",
     highlighted: true,
-    currentPlan: false,
   },
   {
     id: "business",
@@ -80,6 +79,5 @@ export const pricingPlans: PricingPlan[] = [
     ],
     ctaLabel: "Book a demo",
     highlighted: false,
-    currentPlan: false,
   },
 ]

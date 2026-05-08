@@ -1,4 +1,5 @@
 export * from "./client"
+export * from "./billing.api"
 export * from "./bots.api"
 export * from "./meeting.api"
 export * from "./task.api"

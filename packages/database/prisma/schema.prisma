@@ -119,6 +119,11 @@ enum WorkspaceRole {
   GUEST
 }
 
+enum WorkspacePlan {
+  STARTER
+  STUDIO_PRO
+}
+
 model Workspace {
   id        String   @id @default(cuid())
   name      String
@@ -126,13 +131,50 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members     WorkspaceMember[]
-  invitations Invitation[]
-  meetings    Meeting[]
-  tasks       Task[]
-  calendarEvents CalendarEvent[]
+  plan        WorkspacePlan @default(STARTER)
+  /**
+   * Stripe Customer id (cus_…), set on first successful checkout.
+   */
+  stripeCustomerId     String? @unique
+  /**
+   * Active subscription id (sub_…).
+   */
+  stripeSubscriptionId String? @unique
+  /**
+   * End of the current paid period (from Stripe), for renewals display.
+   */
+  subscriptionPeriodEnd DateTime?
+
+  members          WorkspaceMember[]
+  invitations      Invitation[]
+  meetings         Meeting[]
+  tasks            Task[]
+  calendarEvents   CalendarEvent[]
+  usageCounters    UsageCounter[]
 
   @@map("workspace")
+}
+
+/**
+ * Workspace-scoped metering for billing (UTC calendar month, `period` = YYYY-MM).
+ */
+model UsageCounter {
+  id                  String   @id @default(cuid())
+  workspaceId         String
+  /**
+   * Billing month in UTC, e.g. 2026-05
+   */
+  period              String
+  minutesTranscribed  Int      @default(0)
+  meetingsTranscribed Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, period])
+  @@index([workspaceId, period])
+  @@map("usage_counter")
 }
 
 model WorkspaceMember {
@@ -239,6 +281,11 @@ model Meeting {
    * When true, meeting link sharing / visibility flags are enabled (UI).
    */
   isShared        Boolean          @default(false)
+  /**
+   * When true, this meeting’s transcription minutes / meeting count were applied
+   * to `UsageCounter` (idempotent for retried worker jobs).
+   */
+  billingUsageRecorded Boolean      @default(false)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 

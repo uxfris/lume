@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { meeting, meetingParticipant, workspace, calendarEvent, user, recallCalendarConnection, invitation, processingEvent, account, session, workspaceMember, transcriptSegment, transcriptWord, meetingTranscriptRaw, meetingChunk, task } from "./schema";
+import { meeting, meetingParticipant, workspace, calendarEvent, user, recallCalendarConnection, usageCounter, invitation, processingEvent, account, session, workspaceMember, transcriptSegment, transcriptWord, meetingTranscriptRaw, meetingChunk, task } from "./schema";
 
 export const meetingParticipantRelations = relations(meetingParticipant, ({one, many}) => ({
 	meeting: one(meeting, {
@@ -39,6 +39,7 @@ export const calendarEventRelations = relations(calendarEvent, ({one}) => ({
 
 export const workspaceRelations = relations(workspace, ({many}) => ({
 	calendarEvents: many(calendarEvent),
+	usageCounters: many(usageCounter),
 	meetings: many(meeting),
 	invitations: many(invitation),
 	workspaceMembers: many(workspaceMember),
@@ -60,6 +61,13 @@ export const recallCalendarConnectionRelations = relations(recallCalendarConnect
 	user: one(user, {
 		fields: [recallCalendarConnection.userId],
 		references: [user.id]
+	}),
+}));
+
+export const usageCounterRelations = relations(usageCounter, ({one}) => ({
+	workspace: one(workspace, {
+		fields: [usageCounter.workspaceId],
+		references: [workspace.id]
 	}),
 }));
 

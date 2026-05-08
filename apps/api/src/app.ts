@@ -8,6 +8,7 @@ import rateLimitPlugin from "./plugins/rate-limit"
 import betterAuthPlugin from "./plugins/better-auth"
 import sessionPlugin from "./plugins/session"
 import workspaceAccessPlugin from "./plugins/workspace-access"
+import billingQuotaPlugin from "./plugins/billing-quota"
 import corsPlugin from "./plugins/cors"
 import requestIdPlugin, { genReqId } from "./plugins/request-id"
 import bullBoardPlugin from "./plugins/bull-board"
@@ -28,6 +29,7 @@ export async function buildApp() {
   await app.register(betterAuthPlugin)
   await app.register(sessionPlugin)
   await app.register(workspaceAccessPlugin)
+  await app.register(billingQuotaPlugin)
   await app.register(multipartPlugin)
   await app.register(rawBodyPlugin)
   await app.register(rateLimitPlugin)

@@ -1,5 +1,6 @@
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod"
 import * as uploadsService from "./uploads.service"
+import { quotaExceededResponseSchema } from "../billing/billing.schema"
 import {
   completeUploadParamsSchema,
   completeUploadResponseSchema,
@@ -14,7 +15,11 @@ export const uploadsRoutes: FastifyPluginAsyncZod = async (app) => {
   app.post(
     "/presign",
     {
-      preHandler: [app.verifySession, app.requireWorkspace],
+      preHandler: [
+        app.verifySession,
+        app.requireWorkspace,
+        app.requireQuota,
+      ],
       config: {
         rateLimit: {
           max: 20,
@@ -29,6 +34,7 @@ export const uploadsRoutes: FastifyPluginAsyncZod = async (app) => {
         response: {
           201: presignUploadResponseSchema,
           400: uploadErrorSchema,
+          402: quotaExceededResponseSchema,
         },
       },
     },
