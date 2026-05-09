@@ -69,6 +69,26 @@ const envSchema = z.object({
       typeof value === "string" && value.trim() === "" ? undefined : value,
     z.url().optional()
   ),
+
+  // Phase 12 — Observability
+  /** Sentry DSN for the API process. Leave empty in dev to disable. */
+  SENTRY_DSN_API: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
+  /**
+   * Commit SHA injected by the deploy pipeline. Used as the Sentry release
+   * tag so issues can be grouped per deploy.
+   */
+  GIT_SHA: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
+  LOG_LEVEL: z
+    .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
+    .default("info"),
 })
 
 export const env = envSchema.parse(process.env)
