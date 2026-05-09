@@ -18,6 +18,17 @@ const envSchema = z.object({
   // Phase 8 — Recall.ai
   RECALL_API_KEY: z.string().optional(),
   RECALL_API_URL: z.url().default("https://us-west-2.recall.ai/api/v1"),
+
+  // Phase 12 — Observability + deployment
+  /** Sentry DSN for the worker process. Leave empty to disable. */
+  SENTRY_DSN_WORKER: z.string().optional(),
+  /** Commit SHA injected by deploy pipeline (Sentry release tag). */
+  GIT_SHA: z.string().optional(),
+  /** Port for the worker's tiny HTTP server (health + metrics). */
+  WORKER_HEALTH_PORT: z.coerce.number().int().positive().default(9100),
+  LOG_LEVEL: z
+    .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
+    .default("info"),
 })
 
 export const env = envSchema.parse(process.env)

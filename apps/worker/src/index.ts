@@ -1,5 +1,11 @@
 import "dotenv/config"
-import "./config/env"
+import { initSentry, Sentry } from "./lib/sentry"
+
+// Sentry must initialize before BullMQ / OpenAI / Prisma so its OpenTelemetry
+// auto-instrumentation can patch them.
+initSentry()
+
+import { env } from "./config/env"
 import {
   QueueName,
   closeAllQueues,
@@ -7,11 +13,14 @@ import {
   createWorker,
 } from "@workspace/queue"
 import { logger } from "./logger"
+import { startHealthServer } from "./lib/health-server"
 import { transcribeHandler } from "./handlers/transcribe"
 import { diarizeHandler } from "./handlers/diarize"
 import { analyzeHandler } from "./handlers/analyze"
 import { embedHandler } from "./handlers/embed"
 import { importBotTranscriptHandler } from "./handlers/import-bot-transcript"
+
+const healthServer = startHealthServer(env.WORKER_HEALTH_PORT)
 
 const transcribeWorker = createWorker(QueueName.Transcribe, transcribeHandler)
 const diarizeWorker = createWorker(QueueName.Diarize, diarizeHandler)
@@ -38,42 +47,36 @@ importBotTranscriptWorker.on("ready", () => {
   logger.info({ queue: QueueName.ImportBotTranscript }, "worker ready")
 })
 
-transcribeWorker.on("failed", (job, err) => {
-  logger.error(
-    { queue: QueueName.Transcribe, jobId: job?.id, err },
-    "job failed after retries"
-  )
-})
-diarizeWorker.on("failed", (job, err) => {
-  logger.error(
-    { queue: QueueName.Diarize, jobId: job?.id, err },
-    "job failed after retries"
-  )
-})
-analyzeWorker.on("failed", (job, err) => {
-  logger.error(
-    { queue: QueueName.Analyze, jobId: job?.id, err },
-    "job failed after retries"
-  )
-})
-embedWorker.on("failed", (job, err) => {
-  logger.error(
-    { queue: QueueName.Embed, jobId: job?.id, err },
-    "job failed after retries"
-  )
-})
-importBotTranscriptWorker.on("failed", (job, err) => {
-  logger.error(
-    { queue: QueueName.ImportBotTranscript, jobId: job?.id, err },
-    "job failed after retries"
-  )
-})
+function reportFailedJob(queue: string, job: { id?: string } | undefined, err: Error) {
+  logger.error({ queue, jobId: job?.id, err }, "job failed after retries")
+  Sentry.captureException(err, {
+    tags: { queue },
+    extra: { jobId: job?.id },
+  })
+}
+
+transcribeWorker.on("failed", (job, err) =>
+  reportFailedJob(QueueName.Transcribe, job, err as Error)
+)
+diarizeWorker.on("failed", (job, err) =>
+  reportFailedJob(QueueName.Diarize, job, err as Error)
+)
+analyzeWorker.on("failed", (job, err) =>
+  reportFailedJob(QueueName.Analyze, job, err as Error)
+)
+embedWorker.on("failed", (job, err) =>
+  reportFailedJob(QueueName.Embed, job, err as Error)
+)
+importBotTranscriptWorker.on("failed", (job, err) =>
+  reportFailedJob(QueueName.ImportBotTranscript, job, err as Error)
+)
 
 logger.info("worker online")
 
 async function shutdown(signal: string) {
   logger.info({ signal }, "shutting down worker")
   try {
+    healthServer.close()
     await transcribeWorker.close()
     await diarizeWorker.close()
     await analyzeWorker.close()
@@ -81,6 +84,9 @@ async function shutdown(signal: string) {
     await importBotTranscriptWorker.close()
     await closeAllQueues()
     await closeRedisConnection()
+    // Flush in-flight Sentry events before exiting (otherwise we lose the
+    // trail of any error that triggered the shutdown).
+    await Sentry.flush(2_000)
   } catch (err) {
     logger.error({ err }, "error during shutdown")
   } finally {

@@ -16,7 +16,11 @@
     "STRIPE_SECRET_KEY",
     "STRIPE_WEBHOOK_SECRET",
     "STRIPE_PRICE_ID_STUDIO_PRO_MONTHLY",
-    "STRIPE_PRICE_ID_STUDIO_PRO_YEARLY"
+    "STRIPE_PRICE_ID_STUDIO_PRO_YEARLY",
+    "SENTRY_DSN_API",
+    "SENTRY_DSN_WORKER",
+    "GIT_SHA",
+    "WORKER_HEALTH_PORT"
   ],
   "tasks": {
     "build": {
@@ -32,6 +36,9 @@
     },
     "typecheck": {
       "dependsOn": ["^typecheck"]
+    },
+    "test": {
+      "dependsOn": ["^db:generate"]
     },
     "dev": {
       "dependsOn": ["^db:generate"],

@@ -548,12 +548,38 @@ The timeline assumes 30h/week. Buffer is baked into the last phase.
    - `apps/api` and `apps/worker` → separate Railway services.
    - `services/whisper` → Railway with a GPU plan, or run on a cheap Hetzner GPU box.
    - Postgres → Railway or Neon (managed pgvector on either).
-   - Redis → Upstash.
+   - Redis → Railway or Upstash.
    - S3 → AWS proper (not a clone — presigned URLs are finicky elsewhere).
    - Single `railway.json` per service with health-check URLs.
 6. **Runbooks** — one-pager per failure mode (worker stuck, OpenAI outage, Whisper OOM).
 
 **Deliverable:** can deploy a new version with `git push` and you sleep soundly.
+
+#### What shipped (Phase 12)
+
+- **Testing**: Vitest configured in `apps/api`, `apps/worker`, `packages/queue` with a `pnpm test` orchestrator via Turbo. Initial unit suites cover meeting cursor encoding, billing helpers (`utcBillingPeriod`, `transcribedMinutesFromDuration`, quota response), the queue registry / default job options, and the worker's transcript chunker. Integration suites for the three critical flows are still TODO.
+- **CI**: `.github/workflows/ci.yml` runs install / typecheck / lint / test on every PR plus a separate `schema-drift` job that boots `pgvector/pgvector:pg16`, applies migrations, and runs `prisma migrate diff --exit-code` against `schema.prisma` to block un-migrated schema edits.
+- **Observability**:
+  - `@sentry/node@10` initialized on both api (via `lib/sentry.ts`, `setupFastifyErrorHandler`) and worker (auto-captures BullMQ `failed` events with `queue` tag, flushes on SIGTERM).
+  - Sentry projects `lume-api` and `lume-worker` provisioned in the `commit-coffee` org via the Sentry MCP server.
+  - `/metrics` Prometheus exposition on the api (`lume_queue_jobs{queue,state}`, RSS, heap, uptime) and a tiny embedded HTTP server in the worker on `WORKER_HEALTH_PORT` (default 9100) serving `/health` + `/metrics`.
+  - Pino logger gains JSON-only output in production with redaction of auth + Recall + Stripe secrets, plus `LOG_LEVEL` env override.
+- **Security**: `@fastify/helmet` plugin (HSTS in prod, CSP/COEP off because the API is JSON-only), per-route stricter rate limit on `/api/auth/*` (5/min), `trustProxy` enabled in production. Browser-facing security headers live in `apps/web/next.config.mjs`, including a Report-Only CSP allowing Stripe Checkout.
+- **Deployment**: `railway.json` per service:
+  - `apps/api/railway.json` — Nixpacks builder, runs `prisma migrate deploy` then `pnpm start`, healthcheck `/health`.
+  - `apps/worker/railway.json` — Nixpacks builder, healthcheck `/health` on `$WORKER_HEALTH_PORT`, `restartPolicyType: ALWAYS`.
+  - `services/whisper/railway.json` — Dockerfile builder, healthcheck `/health`. Dockerfile updated to honor `$PORT`.
+  - One-pager deploy doc at `docs/deployment.md`.
+- **Runbooks** in `docs/runbooks/`:
+  - `worker-stuck.md`, `openai-outage.md`, `whisper-oom.md`, plus `_template.md` for new ones.
+- **Env vars**: `SENTRY_DSN_API`, `SENTRY_DSN_WORKER`, `GIT_SHA`, `WORKER_HEALTH_PORT`, `LOG_LEVEL` added to `.env.example` files and `turbo.json`'s `globalEnv`.
+
+#### Still open
+
+- Integration tests for upload → summary, signup → workspace, invite → accept (need a test-DB harness — see §9).
+- Strict CSP (currently Report-Only); promote once we've watched the report endpoint for a week.
+- Stripe / Recall webhook secret rotation runbooks.
+- Per-meeting OpenAI cost tracking surfaced to billing alerts (Phase 5 follow-up).
 
 ---
 

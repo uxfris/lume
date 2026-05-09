@@ -34,6 +34,14 @@ export default fp(async (app) => {
   app.route({
     method: ["GET", "POST"],
     url: "/api/auth/*",
+    config: {
+      // Tighter limit on auth endpoints: deters credential stuffing /
+      // password-spray. Counts per-IP via @fastify/rate-limit defaults.
+      rateLimit: {
+        max: 5,
+        timeWindow: "1 minute",
+      },
+    },
     async handler(request, reply) {
       try {
         // Construct request URL
