@@ -71,6 +71,7 @@ export function createAuth(config: AuthConfig) {
         state: {
           attributes: {
             sameSite: "none",
+            secure: true,
           },
         },
       },
