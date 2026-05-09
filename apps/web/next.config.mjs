@@ -52,8 +52,8 @@ const nextConfig = {
     return [
       {
         source: "/api/:path*",
-        // destination: 'https://lumelabs-api.vercel.app/:path*',
-        destination: "http://localhost:3001/:path*",
+        // destination: "http://localhost:3001/:path*",
+        destination: "https://lume-api-production.up.railway.app/:path*",
       },
     ]
   },
