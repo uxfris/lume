@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify"
 import { healthRoute } from "./health.route"
+import { metricsRoute } from "./metrics.route"
 import { userRoute } from "../module/users/users.route"
 import { uploadsRoutes } from "../module/uploads/uploads.route"
 import {
@@ -16,6 +17,7 @@ import { billingRoutes } from "../module/billing/billing.route"
 
 export async function registerRoute(app: FastifyInstance) {
   await app.register(healthRoute)
+  await app.register(metricsRoute)
   await app.register(userRoute, { prefix: "/users" })
   await app.register(workspacesRoutes, { prefix: "/workspaces" })
   await app.register(invitationsAcceptRoute, { prefix: "/invitations" })

@@ -1,0 +1,118 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  # Dummy values so Zod env-schemas pass at typecheck/test time. Real
+  # secrets are only needed when something actually hits Postgres / Stripe.
+  DATABASE_URL: postgresql://lume:lume@localhost:5432/lume
+  REDIS_URL: redis://localhost:6379
+  AUTH_URL: http://localhost:3001
+  APP_URL: http://localhost:3000
+  FRONTEND_URL: http://localhost:3000
+  BETTER_AUTH_SECRET: ci-not-a-real-secret-32-bytes-long
+  GOOGLE_CLIENT_ID: ci
+  GOOGLE_CLIENT_SECRET: ci
+  MICROSOFT_CLIENT_ID: ci
+  MICROSOFT_CLIENT_SECRET: ci
+  AWS_REGION: us-east-1
+  AWS_ACCESS_KEY_ID: ci
+  AWS_SECRET_ACCESS_KEY: ci
+  S3_BUCKET: ci
+  S3_BASE_URL: https://example.invalid
+  OPENAI_API_KEY: ci
+  WHISPER_URL: http://localhost:8000
+  PYANNOTE_URL: http://localhost:8000
+
+jobs:
+  build:
+    name: Install, lint, typecheck, test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @workspace/database db:generate
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+  schema-drift:
+    name: Block un-migrated schema changes
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: lume
+          POSTGRES_PASSWORD: lume
+          POSTGRES_DB: lume
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://lume:lume@localhost:5432/lume
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply migrations
+        run: pnpm --filter @workspace/database exec prisma migrate deploy
+
+      - name: Detect drift between schema.prisma and migrations
+        # After `migrate deploy`, the DB matches the migrations folder. If
+        # schema.prisma is also in sync, this diff is empty. `--exit-code`
+        # exits non-zero when there's a difference, blocking merges where
+        # someone edited schema.prisma without running `prisma migrate dev`.
+        run: |
+          pnpm --filter @workspace/database exec prisma migrate diff \
+            --from-url "$DATABASE_URL" \
+            --to-schema-datamodel prisma/schema.prisma \
+            --exit-code
