@@ -58,9 +58,24 @@ export default fp(async (app) => {
         // Process authentication request
         const response = await auth.handler(req)
 
-        // Forward response to client
+        // Forward response to client. Keep Set-Cookie handling explicit to avoid
+        // collapsing multiple cookies into one invalid header value.
         reply.status(response.status)
-        response.headers.forEach((value, key) => reply.header(key, value))
+        const setCookieHeaders = (
+          response.headers as unknown as { getSetCookie?: () => string[] }
+        ).getSetCookie?.()
+
+        if (setCookieHeaders?.length) {
+          reply.header("set-cookie", setCookieHeaders)
+        } else {
+          const setCookie = response.headers.get("set-cookie")
+          if (setCookie) reply.header("set-cookie", setCookie)
+        }
+
+        response.headers.forEach((value, key) => {
+          if (key.toLowerCase() === "set-cookie") return
+          reply.header(key, value)
+        })
         reply.send(response.body ? await response.text() : null)
       } catch (error) {
         app.log.error(`Authentication Error: ${error}`)
