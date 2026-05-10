@@ -67,14 +67,14 @@ export function createAuth(config: AuthConfig) {
       },
     },
     advanced: {
-      cookies: {
-        state: {
-          attributes: {
-            sameSite: "none",
-            secure: true,
-          },
-        },
-      },
+      // cookies: {
+      //   state: {
+      //     attributes: {
+      //       sameSite: "none",
+      //       secure: true,
+      //     },
+      //   },
+      // },
     },
     databaseHooks: {
       user: {
