@@ -26,13 +26,13 @@ model User {
   createdAt     DateTime
   updatedAt     DateTime
 
-  sessions      Session[]
-  accounts      Account[]
-  memberships   WorkspaceMember[]
-  invitesSent   Invitation[]      @relation("InvitedBy")
-  meetings      Meeting[]
-  assignedTasks Task[]
-  calendarEvents CalendarEvent[]
+  sessions                  Session[]
+  accounts                  Account[]
+  memberships               WorkspaceMember[]
+  invitesSent               Invitation[]               @relation("InvitedBy")
+  meetings                  Meeting[]
+  assignedTasks             Task[]
+  calendarEvents            CalendarEvent[]
   recallCalendarConnections RecallCalendarConnection[]
 
   @@unique([email])
@@ -131,26 +131,26 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  plan        WorkspacePlan @default(STARTER)
+  plan                  WorkspacePlan @default(STARTER)
   /**
    * Stripe Customer id (cus_…), set on first successful checkout.
    */
-  stripeCustomerId     String? @unique
+  stripeCustomerId      String?       @unique
   /**
    * Active subscription id (sub_…).
    */
-  stripeSubscriptionId String? @unique
+  stripeSubscriptionId  String?       @unique
   /**
    * End of the current paid period (from Stripe), for renewals display.
    */
   subscriptionPeriodEnd DateTime?
 
-  members          WorkspaceMember[]
-  invitations      Invitation[]
-  meetings         Meeting[]
-  tasks            Task[]
-  calendarEvents   CalendarEvent[]
-  usageCounters    UsageCounter[]
+  members        WorkspaceMember[]
+  invitations    Invitation[]
+  meetings       Meeting[]
+  tasks          Task[]
+  calendarEvents CalendarEvent[]
+  usageCounters  UsageCounter[]
 
   @@map("workspace")
 }
@@ -244,50 +244,50 @@ enum MeetingPlatform {
 }
 
 model Meeting {
-  id              String           @id @default(cuid())
-  workspaceId     String
-  userId          String
-  title           String
-  source          MeetingSource    @default(UPLOAD)
-  status          MeetingStatus    @default(PENDING_UPLOAD)
-  audioKey        String?          @unique
-  fileName        String?
-  fileType        String?
-  fileSize        Int?
-  durationSeconds Int?
-  language        String?
-  summary         Json?
+  id                   String           @id @default(cuid())
+  workspaceId          String
+  userId               String
+  title                String
+  source               MeetingSource    @default(UPLOAD)
+  status               MeetingStatus    @default(PENDING_UPLOAD)
+  audioKey             String?          @unique
+  fileName             String?
+  fileType             String?
+  fileSize             Int?
+  durationSeconds      Int?
+  language             String?
+  summary              Json?
   /**
    * Original join URL captured for BOT-sourced meetings.
    */
-  meetingUrl      String?
+  meetingUrl           String?
   /**
    * Conferencing platform inferred from `meetingUrl` (BOT source).
    */
-  platform        MeetingPlatform?
+  platform             MeetingPlatform?
   /**
    * Recall.ai bot id; unique so the webhook handler can look up the meeting.
    */
-  externalBotId   String?          @unique
+  externalBotId        String?          @unique
   /**
    * Optional future-dated start for BOT meetings (Recall scheduled bots).
    */
-  scheduledAt     DateTime?
+  scheduledAt          DateTime?
   /**
    * Soft delete — processed list endpoints exclude rows where this is set.
    */
-  deletedAt       DateTime?
+  deletedAt            DateTime?
   /**
    * When true, meeting link sharing / visibility flags are enabled (UI).
    */
-  isShared        Boolean          @default(false)
+  isShared             Boolean          @default(false)
   /**
    * When true, this meeting’s transcription minutes / meeting count were applied
    * to `UsageCounter` (idempotent for retried worker jobs).
    */
-  billingUsageRecorded Boolean      @default(false)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  billingUsageRecorded Boolean          @default(false)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
   workspace            Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user                 User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -325,7 +325,7 @@ model Task {
 }
 
 model CalendarEvent {
-  id          String   @id @default(cuid())
+  id          String           @id @default(cuid())
   workspaceId String
   userId      String
   provider    String
@@ -334,11 +334,12 @@ model CalendarEvent {
   startAt     DateTime
   endAt       DateTime
   joinUrl     String?
+  calendarUrl String
   platform    MeetingPlatform?
   attendees   Json?
   metadata    Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)

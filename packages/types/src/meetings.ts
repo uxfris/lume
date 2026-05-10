@@ -33,7 +33,9 @@ export const UpcomingMeetingSchema = z.object({
   timestamp: z.string(), // display string, e.g. "10:30" or "Oct 22, 2024"
   duration: z.string(), // e.g. "28m"
   platform: MeetingPlatformSchema,
-  action: z.enum(["join", "prepare"]),
+  action: z.enum(["join", "view event"]),
+  calendarUrl: z.string(),
+  meetingUrl: z.string().nullable(),
   attendees: z.array(AttendeeSchema),
   extraAttendees: z.number().optional(),
 })

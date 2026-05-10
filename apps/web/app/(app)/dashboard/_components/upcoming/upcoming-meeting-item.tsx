@@ -7,29 +7,75 @@ import { cn } from "@workspace/ui/lib/utils"
 import { AttendeeAvatar } from "@/components/attendee-avatar"
 import { UpcomingMeeting } from "@workspace/types"
 
+export function UpcomingMeetingItem({
+  meeting,
+  isTomorrow,
+}: {
+  meeting: UpcomingMeeting
+  isTomorrow: boolean
+}) {
+  const canJoin = meeting.action === "join"
 
-export function UpcomingMeetingItem({ meeting, isTomorrow }: { meeting: UpcomingMeeting, isTomorrow: boolean }) {
-    const isJoin = meeting.action === "join";
-    return (
-        <Card className={cn(isTomorrow && "bg-gray-100 dark:bg-card border border-dashed border-gray-200 dark:border-gray-800")}>
-            <CardContent className="space-y-6">
-                <div className="space-y-1">
-                    <div className="flex justify-between gap-1">
-                        <h4 className="flex-1 min-w-0 font-semibold text-base line-clamp-2 overflow-hidden">{meeting.title}</h4>
-                        <Button size="xs" variant={isJoin ? "default" : "outline"} className={cn("uppercase text-[10px]", !isJoin && isTomorrow && "border-gray-200 dark:border-gray-800")}>{meeting.action}</Button>
-                    </div>
-                    <div className="flex gap-1.5 items-center font-medium text-xs">
-                        <ClockCircle />
-                        <span>{meeting.timestamp} • {meeting.duration}</span>
-                    </div>
-                </div>
-                <div className={cn("flex items-center justify-between pt-4 border-t border-gray-50: dark:border-gray-800", isTomorrow && "border-gray-200")}>
-                    <AttendeeAvatar attendees={meeting.attendees} extra={meeting.extraAttendees} />
+  const ctaVariant = canJoin ? "default" : "outline"
 
-                    <span className="text-muted-foreground text-xs font-medium">{meeting.platform}</span>
-                </div>
+  const platformLabel = meeting.meetingUrl ? meeting.platform : ""
 
-            </CardContent>
-        </Card>
-    )
+  const handleAction = () => {
+    if (meeting.meetingUrl && meeting.action === "join") {
+      window.open(meeting.meetingUrl, "_blank", "noopener,noreferrer")
+    } else {
+      window.open(meeting.calendarUrl, "_blank", "noopener,noreferrer")
+    }
+  }
+
+  return (
+    <Card
+      className={cn(
+        isTomorrow &&
+          "border border-dashed border-gray-200 bg-gray-100 dark:border-gray-800 dark:bg-card"
+      )}
+    >
+      <CardContent className="space-y-6">
+        <div className="space-y-1">
+          <div className="flex justify-between gap-1">
+            <h4 className="line-clamp-2 min-w-0 flex-1 text-base font-semibold">
+              {meeting.title}
+            </h4>
+            <Button
+              onClick={handleAction}
+              size="xs"
+              variant={ctaVariant}
+              className={cn(
+                "text-[10px] uppercase",
+                !canJoin && isTomorrow && "border-gray-200 dark:border-gray-800"
+              )}
+            >
+              {meeting.action}
+            </Button>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs font-medium">
+            <ClockCircle />
+            <span>
+              {meeting.timestamp} • {meeting.duration}
+            </span>
+          </div>
+        </div>
+        <div
+          className={cn(
+            "flex items-center justify-between border-t border-gray-50 pt-4 dark:border-gray-800",
+            isTomorrow && "border-gray-200"
+          )}
+        >
+          <AttendeeAvatar
+            attendees={meeting.attendees}
+            extra={meeting.extraAttendees}
+          />
+
+          <span className="text-xs font-medium text-muted-foreground">
+            {platformLabel}
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }

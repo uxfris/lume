@@ -12,6 +12,28 @@ function normalizeEmail(input: unknown): string | null {
   return email || null
 }
 
+/**
+ * Browser link to the event in the provider calendar UI.
+ * Google Calendar uses `htmlLink`; Microsoft Graph uses `webLink`.
+ * Falls back to the meeting join URL when neither is present (DB requires a non-null string).
+ */
+function calendarWebUrlFromRaw(
+  raw: unknown,
+  fallbackJoinUrl?: string | null
+): string {
+  if (!raw || typeof raw !== "object") {
+    const fb = typeof fallbackJoinUrl === "string" ? fallbackJoinUrl.trim() : ""
+    return fb || ""
+  }
+  const rec = raw as Record<string, unknown>
+  const htmlLink = rec.htmlLink
+  if (typeof htmlLink === "string" && htmlLink.trim()) return htmlLink.trim()
+  const webLink = rec.webLink
+  if (typeof webLink === "string" && webLink.trim()) return webLink.trim()
+  const fb = typeof fallbackJoinUrl === "string" ? fallbackJoinUrl.trim() : ""
+  return fb || ""
+}
+
 function readRawEmail(
   raw: unknown,
   key: "creator" | "organizer"
@@ -233,6 +255,10 @@ async function upsertCalendarEventRecord(
         startAt,
         endAt,
         joinUrl: calendarEvent.meeting_url ?? null,
+        calendarUrl: calendarWebUrlFromRaw(
+          calendarEvent.raw,
+          calendarEvent.meeting_url
+        ),
         platform: toMeetingPlatform(
           calendarEvent.meeting_platform ?? calendarEvent.platform
         ),
@@ -243,6 +269,10 @@ async function upsertCalendarEventRecord(
         startAt,
         endAt,
         joinUrl: calendarEvent.meeting_url ?? null,
+        calendarUrl: calendarWebUrlFromRaw(
+          calendarEvent.raw,
+          calendarEvent.meeting_url
+        ),
         platform: toMeetingPlatform(
           calendarEvent.meeting_platform ?? calendarEvent.platform
         ),
@@ -253,7 +283,9 @@ async function upsertCalendarEventRecord(
   return true
 }
 
-export async function handleCalendarSyncEvent(payload: unknown): Promise<boolean> {
+export async function handleCalendarSyncEvent(
+  payload: unknown
+): Promise<boolean> {
   if (!payload || typeof payload !== "object") return false
   const root = payload as RecallStatusEnvelope
   const calendarId = root.data?.calendar_id ?? root.data?.calendar?.id

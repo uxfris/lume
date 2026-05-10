@@ -7,6 +7,8 @@ import { prisma } from "@workspace/database"
 import { calendarRepo, type CalendarEventRow } from "./calendar.repo"
 import { env } from "../../config/env"
 
+const TEN_MINUTES = 10 * 60 * 1000
+
 function initialsFromTitle(title: string): string {
   const parts = title.trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) return "EV"
@@ -50,6 +52,16 @@ function toDisplayPlatform(
   return "Google Meet"
 }
 
+function toDisplayAction(
+  startAt: Date,
+  joinUrl: string | null
+): "join" | "view event" {
+  const canJoin = joinUrl && Date.now() >= startAt.getTime() - TEN_MINUTES
+
+  const action = canJoin ? "join" : "view event"
+  return action
+}
+
 function toUpcomingMeeting(row: CalendarEventRow): UpcomingMeeting {
   return {
     id: row.id,
@@ -57,7 +69,9 @@ function toUpcomingMeeting(row: CalendarEventRow): UpcomingMeeting {
     timestamp: formatTimestamp(row.startAt),
     duration: formatDuration(row.startAt, row.endAt),
     platform: toDisplayPlatform(row.platform),
-    action: row.startAt.getTime() <= Date.now() ? "join" : "prepare",
+    action: toDisplayAction(row.startAt, row.joinUrl),
+    meetingUrl: row.joinUrl,
+    calendarUrl: row.calendarUrl,
     attendees: [
       {
         id: `calendar-${row.id}`,
