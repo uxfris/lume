@@ -1,6 +1,11 @@
 import { z } from "zod"
 
-export const MeetingStatusSchema = z.enum(["analyzing", "processed"])
+export const MeetingStatusSchema = z.enum([
+  "transcribing",
+  "analyzing",
+  "processed",
+  "failed",
+])
 export type MeetingStatus = z.infer<typeof MeetingStatusSchema>
 
 export const MeetingPlatformSchema = z.enum(["Google Meet", "Zoom", "Teams"])

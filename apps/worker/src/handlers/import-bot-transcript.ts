@@ -1,5 +1,9 @@
 import type { Job } from "bullmq"
-import { Prisma, prisma, recordTranscriptionBillingUsage } from "@workspace/database"
+import {
+  Prisma,
+  prisma,
+  recordTranscriptionBillingUsage,
+} from "@workspace/database"
 import {
   QueueName,
   getQueue,
@@ -27,7 +31,12 @@ interface FlatSegment {
   text: string
   startMs: number
   endMs: number
-  words: Array<{ text: string; startMs: number; endMs: number; position: number }>
+  words: Array<{
+    text: string
+    startMs: number
+    endMs: number
+    position: number
+  }>
 }
 
 /**
@@ -68,7 +77,11 @@ function flattenRecallTranscript(
         participantPlatform: block.participant.platform ?? null,
         participantExtraData: block.participant.extra_data ?? null,
         languageCode: block.language_code ?? null,
-        text: buffer.map((w) => w.text).join(" ").replace(/\s+/g, " ").trim(),
+        text: buffer
+          .map((w) => w.text)
+          .join(" ")
+          .replace(/\s+/g, " ")
+          .trim(),
         startMs: Math.max(0, Math.round(bufferStartMs)),
         endMs: Math.max(0, Math.round(bufferEndMs)),
         words: buffer.map((w, position) => ({
@@ -153,10 +166,10 @@ export async function importBotTranscriptHandler(
     }
     // Idempotent: only run if the bot is still in SCHEDULED state. Re-runs
     // (e.g. webhook replay) are dropped silently.
-    if (meeting.status !== "SCHEDULED") {
+    if (!["SCHEDULED", "LIVE"].includes(meeting.status)) {
       log.warn(
         { status: meeting.status },
-        "meeting not in SCHEDULED state; skipping"
+        "meeting not in SCHEDULED or LIVE state; skipping"
       )
       return { meetingId }
     }
@@ -224,7 +237,8 @@ export async function importBotTranscriptHandler(
             email: p.email,
             isHost: p.isHost,
             platform: p.platform,
-            extraData: (p.extraData ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+            extraData: (p.extraData ??
+              Prisma.JsonNull) as Prisma.InputJsonValue,
           })),
         })
       }
@@ -243,17 +257,17 @@ export async function importBotTranscriptHandler(
         for (const segment of segments) {
           const created = await tx.transcriptSegment.create({
             data: {
-            meetingId,
-            index: segment.index,
+              meetingId,
+              index: segment.index,
               participantId: segment.participantExternalId
                 ? (participantIdByExternalId.get(
                     segment.participantExternalId
                   ) ?? null)
                 : null,
               languageCode: segment.languageCode,
-            startMs: segment.startMs,
-            endMs: segment.endMs,
-            text: segment.text,
+              startMs: segment.startMs,
+              endMs: segment.endMs,
+              text: segment.text,
             },
             select: { id: true },
           })
@@ -299,9 +313,7 @@ export async function importBotTranscriptHandler(
     })
 
     const durationSeconds =
-      segments.length > 0
-        ? Math.round(maxEndMs(segments) / 1000) || null
-        : null
+      segments.length > 0 ? Math.round(maxEndMs(segments) / 1000) || null : null
 
     await recordTranscriptionBillingUsage({
       workspaceId,

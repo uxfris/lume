@@ -75,7 +75,13 @@ export function formatMeetingTimestamp(createdAt: Date): string {
 }
 
 function uiStatus(status: MeetingWithOwner["status"]): MeetingDTO["status"] {
-  return status === "SUMMARIZED" ? "processed" : "analyzing"
+  return status === "SUMMARIZED"
+    ? "processed"
+    : status === "TRANSCRIBING"
+      ? "transcribing"
+      : status === "FAILED"
+        ? "failed"
+        : "analyzing"
 }
 
 /**

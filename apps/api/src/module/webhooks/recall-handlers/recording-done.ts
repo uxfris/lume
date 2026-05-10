@@ -1,5 +1,8 @@
 import { prisma } from "@workspace/database"
-import { RecallApiError, createAsyncTranscriptForRecording } from "../../../lib/recall"
+import {
+  RecallApiError,
+  createAsyncTranscriptForRecording,
+} from "../../../lib/recall"
 import { extractRecordingId } from "../recall-webhook-payload"
 import type { RecallEventResult } from "../recall-webhook.types"
 import type { MeetingRecallContext } from "./context"
@@ -10,7 +13,7 @@ export async function handleRecordingDone(
   const { meeting, payload } = ctx
   const eventType = "recording.done"
 
-  if (meeting.status !== "SCHEDULED") {
+  if (!["SCHEDULED", "LIVE"].includes(meeting.status)) {
     return { ok: false, reason: "ALREADY_PROCESSED" }
   }
   const recordingId = extractRecordingId(payload)
@@ -20,6 +23,11 @@ export async function handleRecordingDone(
     const { transcriptId } = await createAsyncTranscriptForRecording({
       recordingId,
       meetingId: meeting.id,
+    })
+
+    await prisma.meeting.update({
+      where: { id: ctx.meeting.id },
+      data: { status: "TRANSCRIBING" },
     })
 
     await prisma.processingEvent.create({
