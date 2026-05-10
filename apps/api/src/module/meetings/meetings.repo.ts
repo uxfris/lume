@@ -47,7 +47,7 @@ export const meetingsRepo = {
       workspaceId: input.workspaceId,
       deletedAt: null,
       status: {
-        not: "LIVE",
+        notIn: ["SCHEDULED", "LIVE"],
       },
       ...(input.cursor
         ? {
