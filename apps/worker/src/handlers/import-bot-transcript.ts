@@ -166,10 +166,10 @@ export async function importBotTranscriptHandler(
     }
     // Idempotent: only run if the bot is still in SCHEDULED state. Re-runs
     // (e.g. webhook replay) are dropped silently.
-    if (!["SCHEDULED", "LIVE"].includes(meeting.status)) {
+    if (!["SCHEDULED", "LIVE", "TRANSCRIBING"].includes(meeting.status)) {
       log.warn(
         { status: meeting.status },
-        "meeting not in SCHEDULED or LIVE state; skipping"
+        "meeting not in SCHEDULED LIVE, or TRANSCRIBING state; skipping"
       )
       return { meetingId }
     }
