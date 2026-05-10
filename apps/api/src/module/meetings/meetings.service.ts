@@ -6,12 +6,27 @@ import {
 } from "./meetings.cursor"
 import { meetingsRepo } from "./meetings.repo"
 import {
+  formatMeetingTimestamp,
   toConversationResponse,
   toMeetingDTO,
 } from "./meetings.presenter"
 
 function clampPageSize(limit: number): number {
   return Math.min(Math.max(limit, 1), 100)
+}
+
+export async function listLiveMeetings(input: { workspaceId: string }) {
+  const result = await meetingsRepo.listLiveByWorkspace({
+    workspaceId: input.workspaceId,
+  })
+  return {
+    meetings: result.map((item) => ({
+      id: item.id,
+      title: item.title,
+      timestamp: formatMeetingTimestamp(item.createdAt),
+      meetingUrl: item.meetingUrl,
+    })),
+  }
 }
 
 export async function listMeetings(input: {

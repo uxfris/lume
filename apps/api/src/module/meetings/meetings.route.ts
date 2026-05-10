@@ -6,6 +6,7 @@ import {
   getConversationParamsSchema,
   getConversationResponseSchema,
   getMeetingParamsSchema,
+  listLiveMeetingsResponseSchema,
   listMeetingsQuerySchema,
   listMeetingsResponseSchema,
   meetingErrorSchema,
@@ -45,6 +46,25 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
         }
         throw err
       }
+    }
+  )
+
+  app.get(
+    "/live",
+    {
+      preHandler: [app.verifySession, app.requireWorkspace],
+      schema: {
+        tags: ["Meetings"],
+        summary: "List live meetings in current workspace",
+        response: {
+          200: listLiveMeetingsResponseSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      return await meetingsService.listLiveMeetings({
+        workspaceId: request.workspace!.id,
+      })
     }
   )
 

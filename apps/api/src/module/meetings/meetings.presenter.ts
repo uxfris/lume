@@ -48,7 +48,7 @@ function formatDurationSeconds(seconds: number | null): string {
 }
 
 /** Display time or calendar date for meeting cards. */
-function formatMeetingTimestamp(createdAt: Date): string {
+export function formatMeetingTimestamp(createdAt: Date): string {
   const now = new Date()
   const startOfToday = new Date(
     now.getFullYear(),

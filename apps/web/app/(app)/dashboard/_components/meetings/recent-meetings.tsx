@@ -4,14 +4,18 @@ import { cn } from "@workspace/ui/lib/utils"
 import { EmptyState } from "@/components/empty-state"
 import { meetingApi } from "@workspace/api-client"
 import { getServerApiFetchOptions } from "@/lib/server-api"
+import { LiveMeetings } from "./live-meetings"
 
 export async function RecentMeetings() {
   const { cookie, workspaceId } = await getServerApiFetchOptions()
-  const meetings = await meetingApi.getMeetingsList({
-    limit: 50,
-    cookie,
-    workspaceId,
-  })
+  const [meetings, liveMeetings] = await Promise.all([
+    meetingApi.getMeetingsList({
+      limit: 50,
+      cookie,
+      workspaceId,
+    }),
+    meetingApi.getLiveMeetings({ cookie, workspaceId }),
+  ])
 
   return (
     <div className="space-y-6">
@@ -19,14 +23,8 @@ export async function RecentMeetings() {
         <h2 className="text-2xl font-semibold tracking-[-0.4px]">
           Recent Meetings
         </h2>
-        <Button
-          variant="ghost"
-          size="xs"
-          className="font-semibold text-primary uppercase"
-        >
-          View Archive
-        </Button>
       </div>
+      <LiveMeetings meetings={liveMeetings} />
       {meetings.length === 0 ? (
         <EmptyState
           title="No recent activity yet"

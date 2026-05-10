@@ -1,4 +1,8 @@
-import type { Meeting, UpcomingMeetingGroup } from "@workspace/types"
+import type {
+  LiveMeeting,
+  Meeting,
+  UpcomingMeetingGroup,
+} from "@workspace/types"
 import { client, type RequestOptions } from "./client"
 
 type ListMeetingsResponse = {
@@ -7,6 +11,15 @@ type ListMeetingsResponse = {
 }
 
 export const meetingApi = {
+  async getLiveMeetings(
+    options?: RequestOptions
+  ): Promise<LiveMeeting[]> {
+    const res = await client.get<{ meetings: LiveMeeting[] }>(
+      "/meetings/live",
+      options
+    )
+    return res.meetings
+  },
   /**
    * Cursor-paginated list; defaults match the API (`limit` 20).
    */

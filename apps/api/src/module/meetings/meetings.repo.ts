@@ -3,14 +3,38 @@ import { prisma, type Prisma } from "@workspace/database"
 export type MeetingWithOwner = Prisma.MeetingGetPayload<{
   include: { user: true }
 }>
-export type TranscriptSegmentWithParticipant = Prisma.TranscriptSegmentGetPayload<{
-  include: {
-    participant: { select: { name: true; externalId: true } }
-    transcriptWords: { select: { id: true; text: true; startMs: true; endMs: true; position: true } }
-  }
-}>
+export type TranscriptSegmentWithParticipant =
+  Prisma.TranscriptSegmentGetPayload<{
+    include: {
+      participant: { select: { name: true; externalId: true } }
+      transcriptWords: {
+        select: {
+          id: true
+          text: true
+          startMs: true
+          endMs: true
+          position: true
+        }
+      }
+    }
+  }>
 
 export const meetingsRepo = {
+  listLiveByWorkspace(input: { workspaceId: string }) {
+    return prisma.meeting.findMany({
+      where: {
+        workspaceId: input.workspaceId,
+        deletedAt: null,
+        status: "LIVE",
+      },
+      select: {
+        id: true,
+        createdAt: true,
+        title: true,
+        meetingUrl: true,
+      },
+    })
+  },
   /**
    * Ordered page of meetings; caller passes `take` (e.g. limit + 1 for has-next detection).
    */
@@ -22,6 +46,9 @@ export const meetingsRepo = {
     const where: Prisma.MeetingWhereInput = {
       workspaceId: input.workspaceId,
       deletedAt: null,
+      status: {
+        not: "LIVE",
+      },
       ...(input.cursor
         ? {
             OR: [

@@ -13,6 +13,14 @@ export const AttendeeSchema = z.object({
 })
 export type Attendee = z.infer<typeof AttendeeSchema>
 
+export const LiveMeetingSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  timestamp: z.string(),
+  meetingUrl: z.url().nullable(),
+})
+export type LiveMeeting = z.infer<typeof LiveMeetingSchema>
+
 export const MeetingSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -25,6 +33,7 @@ export const MeetingSchema = z.object({
   /** Present when returned from meeting detail API (AI analysis). */
   keyPoints: z.array(z.string()).optional(),
 })
+
 export type Meeting = z.infer<typeof MeetingSchema>
 
 export const UpcomingMeetingSchema = z.object({
