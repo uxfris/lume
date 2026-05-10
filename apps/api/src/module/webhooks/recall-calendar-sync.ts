@@ -301,11 +301,12 @@ export async function handleCalendarSyncEvent(
   for (const evt of changed) {
     const didHandle = await upsertCalendarEventRecord(evt)
     // Calendar V2 scheduling policy: keep one bot per meeting url + start time.
-    if (evt.is_deleted) {
-      await unscheduleBotForCalendarEvent(evt)
-    } else {
-      await scheduleBotForCalendarEvent(evt)
-    }
+    //POSTPONE FOR NOW: Wait until the meeting creation logic based on calendar event is handled
+    // if (evt.is_deleted) {
+    //   await unscheduleBotForCalendarEvent(evt)
+    // } else {
+    //   await scheduleBotForCalendarEvent(evt)
+    // }
     handled = handled || didHandle
   }
   return handled
