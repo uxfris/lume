@@ -1,6 +1,7 @@
 export * from "./client"
 export * from "./billing.api"
 export * from "./bots.api"
+export * from "./channel.api"
 export * from "./meeting.api"
 export * from "./task.api"
 export * from "./uploads.api"
