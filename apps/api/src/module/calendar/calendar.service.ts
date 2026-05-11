@@ -56,10 +56,11 @@ function toDisplayAction(
   startAt: Date,
   joinUrl: string | null
 ): "join" | "view event" {
-  const canJoin = joinUrl && Date.now() >= startAt.getTime() - TEN_MINUTES
+  // const canJoin = joinUrl && Date.now() >= startAt.getTime() - TEN_MINUTES
 
-  const action = canJoin ? "join" : "view event"
-  return action
+  // const action = canJoin ? "join" : "view event"
+  // return action
+  return "view event"
 }
 
 function toUpcomingMeeting(row: CalendarEventRow): UpcomingMeeting {
