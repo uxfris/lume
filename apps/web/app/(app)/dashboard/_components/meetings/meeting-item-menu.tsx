@@ -1,74 +1,112 @@
-import { Hashtag, MenuDots, Share, SquareTopDown, Text, TrashBin2 } from "@solar-icons/react/ssr";
-import { Meeting } from "@workspace/types";
-import { Button } from "@workspace/ui/components/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@workspace/ui/components/dropdown-menu";
-import Link from "next/link";
-import { useState } from "react";
-import { ShareMeetingDialog } from "./meeting-menu-item/share-meeting-dialog";
-import { MoveMeeting } from "./meeting-menu-item/move-meeting-dialog";
-import { RenameMeeting } from "./meeting-menu-item/rename-meeting-dialog";
-import { DeleteMeetingDialog } from "./meeting-menu-item/delete-meeting-dialog";
-import { CreateChannelDialog } from "../../(meetings)/meetings/_components/create-channel-dialog";
-
+import {
+  Hashtag,
+  MenuDots,
+  Share,
+  SquareTopDown,
+  Text,
+  TrashBin2,
+} from "@solar-icons/react/ssr"
+import { Meeting } from "@workspace/types"
+import { Button } from "@workspace/ui/components/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu"
+import Link from "next/link"
+import { useState } from "react"
+import { ShareMeetingDialog } from "./meeting-menu-item/share-meeting-dialog"
+import { MoveMeeting } from "./meeting-menu-item/move-meeting-dialog"
+import { RenameMeeting } from "./meeting-menu-item/rename-meeting-dialog"
+import { DeleteMeetingDialog } from "./meeting-menu-item/delete-meeting-dialog"
+import { CreateChannelDialog } from "../../(meetings)/meetings/_components/create-channel-dialog"
 
 export function MeetingItemMenu({ meeting }: { meeting: Meeting }) {
+  const [openShare, setOpenShare] = useState(false)
+  const [openMove, setOpenMove] = useState(false)
+  const [openCreate, setOpenCreate] = useState(false)
+  const [openRename, setOpenRename] = useState(false)
+  const [openDelete, setOpenDelete] = useState(false)
 
-    const [openShare, setOpenShare] = useState(false)
-    const [openMove, setOpenMove] = useState(false)
-    const [openCreate, setOpenCreate] = useState(false)
-    const [openRename, setOpenRename] = useState(false)
-    const [openDelete, setOpenDelete] = useState(false)
+  const createChannel = () => {
+    setOpenMove(false)
+    setOpenCreate(true)
+  }
 
-    const createChannel = () => {
-        setOpenMove(false)
-        setOpenCreate(true)
-    }
-
-    return (
-        <div
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="opacity-0 group-hover/meeting:opacity-100 data-[state=open]:opacity-100 duration-200 transition-all">
-                        <MenuDots weight="Bold" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="sm:min-w-fit p-2 text-sm space-y-3">
-                    <DropdownMenuGroup className="space-y-3">
-                        <DropdownMenuItem asChild>
-                            <Link href={`/meeting/${meeting.id}`} target="_blank" rel="noopener noreferrer">
-                                <SquareTopDown />
-                                Open in a new tab
-                            </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => setOpenShare(true)}>
-                            <Share />
-                            Share
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => setOpenMove(true)}>
-                            <Hashtag />
-                            Move to channel
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => setOpenRename(true)}>
-                            <Text />
-                            Rename
-                        </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-destructive" onSelect={() => setOpenDelete(true)}>
-                        <TrashBin2 />
-                        Delete
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-
-            </DropdownMenu>
-            <ShareMeetingDialog open={openShare} onOpenChange={setOpenShare} meeting={meeting} />
-            <MoveMeeting open={openMove} onOpenChange={setOpenMove} meeting={meeting} onCreateChannel={createChannel} />
-            <CreateChannelDialog open={openCreate} onOpenChange={setOpenCreate} />
-            <RenameMeeting open={openRename} onOpenChange={setOpenRename} meeting={meeting} />
-            <DeleteMeetingDialog open={openDelete} onOpenChange={setOpenDelete} meeting={meeting} />
-        </div>
-    )
+  return (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+    >
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            className="opacity-0 transition-all duration-200 group-hover/meeting:opacity-100 data-[state=open]:opacity-100"
+          >
+            <MenuDots weight="Bold" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-32 space-y-3 p-2 text-sm">
+          <DropdownMenuGroup className="space-y-3">
+            <DropdownMenuItem asChild>
+              <Link
+                href={`/meeting/${meeting.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <SquareTopDown />
+                Open in a new tab
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setOpenShare(true)}>
+              <Share />
+              Share
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setOpenMove(true)}>
+              <Hashtag />
+              Move to channel
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setOpenRename(true)}>
+              <Text />
+              Rename
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-destructive"
+            onSelect={() => setOpenDelete(true)}
+          >
+            <TrashBin2 />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <ShareMeetingDialog
+        open={openShare}
+        onOpenChange={setOpenShare}
+        meeting={meeting}
+      />
+      <MoveMeeting
+        open={openMove}
+        onOpenChange={setOpenMove}
+        meeting={meeting}
+        onCreateChannel={createChannel}
+      />
+      <CreateChannelDialog open={openCreate} onOpenChange={setOpenCreate} />
+      <RenameMeeting
+        open={openRename}
+        onOpenChange={setOpenRename}
+        meeting={meeting}
+      />
+      <DeleteMeetingDialog
+        open={openDelete}
+        onOpenChange={setOpenDelete}
+        meeting={meeting}
+      />
+    </div>
+  )
 }
-
