@@ -1,6 +1,7 @@
-import { pgTable, foreignKey, text, timestamp, varchar, integer, index, uniqueIndex, boolean, jsonb, vector, pgEnum } from "drizzle-orm/pg-core"
+import { pgTable, uniqueIndex, foreignKey, text, timestamp, varchar, integer, index, boolean, jsonb, vector, pgEnum } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
+export const channelType = pgEnum("ChannelType", ['PUBLIC', 'PRIVATE'])
 export const meetingPlatform = pgEnum("MeetingPlatform", ['ZOOM', 'GOOGLE_MEET', 'MICROSOFT_TEAMS', 'OTHER'])
 export const meetingSource = pgEnum("MeetingSource", ['UPLOAD', 'BOT'])
 export const meetingStatus = pgEnum("MeetingStatus", ['PENDING_UPLOAD', 'UPLOADED', 'TRANSCRIBING', 'TRANSCRIBED', 'ANALYZING', 'SUMMARIZED', 'FAILED', 'SCHEDULED', 'LIVE'])
@@ -9,6 +10,29 @@ export const processingStage = pgEnum("ProcessingStage", ['TRANSCRIBE', 'DIARIZE
 export const workspacePlan = pgEnum("WorkspacePlan", ['STARTER', 'STUDIO_PRO'])
 export const workspaceRole = pgEnum("WorkspaceRole", ['OWNER', 'ADMIN', 'MEMBER', 'GUEST'])
 
+
+export const channel = pgTable("Channel", {
+	id: text().primaryKey().notNull(),
+	name: text().notNull(),
+	description: text(),
+	type: channelType().default('PUBLIC').notNull(),
+	workspaceId: text().notNull(),
+	creatorId: text().notNull(),
+	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+}, (table) => [
+	uniqueIndex("Channel_workspaceId_name_key").using("btree", table.workspaceId.asc().nullsLast().op("text_ops"), table.name.asc().nullsLast().op("text_ops")),
+	foreignKey({
+			columns: [table.workspaceId],
+			foreignColumns: [workspace.id],
+			name: "Channel_workspaceId_fkey"
+		}).onUpdate("cascade").onDelete("cascade"),
+	foreignKey({
+			columns: [table.creatorId],
+			foreignColumns: [user.id],
+			name: "Channel_creatorId_fkey"
+		}).onUpdate("cascade").onDelete("restrict"),
+]);
 
 export const account = pgTable("account", {
 	id: text().primaryKey().notNull(),
@@ -154,6 +178,54 @@ export const processingEvent = pgTable("processing_event", {
 		}).onUpdate("cascade").onDelete("cascade"),
 ]);
 
+export const meeting = pgTable("meeting", {
+	id: text().primaryKey().notNull(),
+	workspaceId: text().notNull(),
+	userId: text().notNull(),
+	title: text().notNull(),
+	source: meetingSource().default('UPLOAD').notNull(),
+	status: meetingStatus().default('PENDING_UPLOAD').notNull(),
+	audioKey: text(),
+	fileName: text(),
+	fileType: text(),
+	fileSize: integer(),
+	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+	durationSeconds: integer(),
+	language: text(),
+	summary: jsonb(),
+	deletedAt: timestamp({ precision: 3, mode: 'string' }),
+	isShared: boolean().default(false).notNull(),
+	meetingUrl: text(),
+	platform: meetingPlatform(),
+	externalBotId: text(),
+	scheduledAt: timestamp({ precision: 3, mode: 'string' }),
+	billingUsageRecorded: boolean().default(false).notNull(),
+	isStarred: boolean().default(false).notNull(),
+	channelId: text(),
+}, (table) => [
+	uniqueIndex("meeting_audioKey_key").using("btree", table.audioKey.asc().nullsLast().op("text_ops")),
+	uniqueIndex("meeting_externalBotId_key").using("btree", table.externalBotId.asc().nullsLast().op("text_ops")),
+	index("meeting_userId_idx").using("btree", table.userId.asc().nullsLast().op("text_ops")),
+	index("meeting_workspaceId_createdAt_idx").using("btree", table.workspaceId.asc().nullsLast().op("timestamp_ops"), table.createdAt.desc().nullsFirst().op("text_ops")),
+	index("meeting_workspaceId_deletedAt_createdAt_idx").using("btree", table.workspaceId.asc().nullsLast().op("timestamp_ops"), table.deletedAt.asc().nullsLast().op("text_ops"), table.createdAt.desc().nullsFirst().op("text_ops")),
+	foreignKey({
+			columns: [table.channelId],
+			foreignColumns: [channel.id],
+			name: "meeting_channelId_fkey"
+		}).onUpdate("cascade").onDelete("set null"),
+	foreignKey({
+			columns: [table.workspaceId],
+			foreignColumns: [workspace.id],
+			name: "meeting_workspaceId_fkey"
+		}).onUpdate("cascade").onDelete("cascade"),
+	foreignKey({
+			columns: [table.userId],
+			foreignColumns: [user.id],
+			name: "meeting_userId_fkey"
+		}).onUpdate("cascade").onDelete("restrict"),
+]);
+
 export const task = pgTable("task", {
 	id: text().primaryKey().notNull(),
 	workspaceId: text().notNull(),
@@ -182,48 +254,6 @@ export const task = pgTable("task", {
 			foreignColumns: [user.id],
 			name: "task_assigneeId_fkey"
 		}).onUpdate("cascade").onDelete("set null"),
-]);
-
-export const meeting = pgTable("meeting", {
-	id: text().primaryKey().notNull(),
-	workspaceId: text().notNull(),
-	userId: text().notNull(),
-	title: text().notNull(),
-	source: meetingSource().default('UPLOAD').notNull(),
-	status: meetingStatus().default('PENDING_UPLOAD').notNull(),
-	audioKey: text(),
-	fileName: text(),
-	fileType: text(),
-	fileSize: integer(),
-	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
-	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
-	durationSeconds: integer(),
-	language: text(),
-	summary: jsonb(),
-	deletedAt: timestamp({ precision: 3, mode: 'string' }),
-	isShared: boolean().default(false).notNull(),
-	meetingUrl: text(),
-	platform: meetingPlatform(),
-	externalBotId: text(),
-	scheduledAt: timestamp({ precision: 3, mode: 'string' }),
-	billingUsageRecorded: boolean().default(false).notNull(),
-	isStarred: boolean().default(false).notNull(),
-}, (table) => [
-	uniqueIndex("meeting_audioKey_key").using("btree", table.audioKey.asc().nullsLast().op("text_ops")),
-	uniqueIndex("meeting_externalBotId_key").using("btree", table.externalBotId.asc().nullsLast().op("text_ops")),
-	index("meeting_userId_idx").using("btree", table.userId.asc().nullsLast().op("text_ops")),
-	index("meeting_workspaceId_createdAt_idx").using("btree", table.workspaceId.asc().nullsLast().op("timestamp_ops"), table.createdAt.desc().nullsFirst().op("text_ops")),
-	index("meeting_workspaceId_deletedAt_createdAt_idx").using("btree", table.workspaceId.asc().nullsLast().op("timestamp_ops"), table.deletedAt.asc().nullsLast().op("text_ops"), table.createdAt.desc().nullsFirst().op("text_ops")),
-	foreignKey({
-			columns: [table.workspaceId],
-			foreignColumns: [workspace.id],
-			name: "meeting_workspaceId_fkey"
-		}).onUpdate("cascade").onDelete("cascade"),
-	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [user.id],
-			name: "meeting_userId_fkey"
-		}).onUpdate("cascade").onDelete("restrict"),
 ]);
 
 export const meetingChunk = pgTable("meeting_chunk", {

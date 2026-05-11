@@ -14,6 +14,7 @@ import { botsRoutes } from "../module/bots/bots.route"
 import { webhooksRoutes } from "../module/webhooks/webhooks.route"
 import { calendarRoutes } from "../module/calendar/calendar.route"
 import { billingRoutes } from "../module/billing/billing.route"
+import { channelRoutes } from "../module/channels/channel.route"
 
 export async function registerRoute(app: FastifyInstance) {
   await app.register(healthRoute)
@@ -24,6 +25,7 @@ export async function registerRoute(app: FastifyInstance) {
   await app.register(uploadsRoutes, { prefix: "/uploads" })
   await app.register(meetingsRoutes, { prefix: "/meetings" })
   await app.register(botsRoutes, { prefix: "/meetings" })
+  await app.register(channelRoutes, { prefix: "/channels" })
   await app.register(tasksRoutes, { prefix: "/tasks" })
   await app.register(searchRoutes, { prefix: "/search" })
   await app.register(webhooksRoutes, { prefix: "/webhooks" })
