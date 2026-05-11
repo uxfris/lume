@@ -45,9 +45,12 @@ export const meetingsRepo = {
    */
   listByWorkspace(input: {
     workspaceId: string
+    userId: string
     take: number
     cursor?: { createdAt: Date; id: string }
     isStarred?: boolean
+    isCreatedByMe?: boolean
+    isSharedWithMe?: boolean
   }): Promise<MeetingWithOwner[]> {
     const where: Prisma.MeetingWhereInput = {
       workspaceId: input.workspaceId,
@@ -69,6 +72,10 @@ export const meetingsRepo = {
           }
         : {}),
       ...(input.isStarred !== undefined ? { isStarred: input.isStarred } : {}),
+      ...(input.isCreatedByMe === true ? { userId: input.userId } : {}),
+      ...(input.isSharedWithMe === true
+        ? { isShared: true, NOT: { userId: input.userId } }
+        : {}),
     }
 
     return prisma.meeting.findMany({

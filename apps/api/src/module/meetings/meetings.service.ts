@@ -31,9 +31,12 @@ export async function listLiveMeetings(input: { workspaceId: string }) {
 
 export async function listMeetings(input: {
   workspaceId: string
+  userId: string
   cursor?: string
   limit: number
   isStarred?: boolean
+  isCreatedByMe?: boolean
+  isSharedWithMe?: boolean
 }): Promise<{ meetings: MeetingDTO[]; nextCursor: string | null }> {
   let decoded: { createdAt: Date; id: string } | undefined
   if (input.cursor) {
@@ -47,9 +50,12 @@ export async function listMeetings(input: {
   const pageSize = clampPageSize(input.limit)
   const rows = await meetingsRepo.listByWorkspace({
     workspaceId: input.workspaceId,
+    userId: input.userId,
     take: pageSize + 1,
     cursor: decoded,
     isStarred: input.isStarred,
+    isCreatedByMe: input.isCreatedByMe,
+    isSharedWithMe: input.isSharedWithMe,
   })
 
   const hasMore = rows.length > pageSize

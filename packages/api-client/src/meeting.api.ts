@@ -26,14 +26,25 @@ export const meetingApi = {
       cursor?: string
       limit?: number
       isStarred?: boolean
+      isCreatedByMe?: boolean
+      isSharedWithMe?: boolean
     } & RequestOptions
   ): Promise<ListMeetingsResponse> {
-    const { cursor, limit, isStarred, ...fetchOpts } = options ?? {}
+    const {
+      cursor,
+      limit,
+      isStarred,
+      isCreatedByMe,
+      isSharedWithMe,
+      ...fetchOpts
+    } = options ?? {}
     return client.get<ListMeetingsResponse>("/meetings", {
       params: {
         cursor,
         limit,
         isStarred,
+        isCreatedByMe,
+        isSharedWithMe,
       },
       ...fetchOpts,
     })
@@ -41,12 +52,20 @@ export const meetingApi = {
 
   /** Convenience for views that only need the first page as an array. */
   async getMeetingsList(
-    options?: { limit?: number; isStarred?: boolean } & RequestOptions
+    options?: {
+      limit?: number
+      isStarred?: boolean
+      isCreatedByMe?: boolean
+      isSharedWithMe?: boolean
+    } & RequestOptions
   ): Promise<Meeting[]> {
-    const { limit, isStarred, ...fetchOpts } = options ?? {}
+    const { limit, isStarred, isCreatedByMe, isSharedWithMe, ...fetchOpts } =
+      options ?? {}
     const res = await meetingApi.getMeetings({
       limit: limit ?? 50,
       isStarred,
+      isCreatedByMe,
+      isSharedWithMe,
       ...fetchOpts,
     })
     return res.meetings

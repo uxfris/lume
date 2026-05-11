@@ -34,9 +34,12 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
       try {
         return await meetingsService.listMeetings({
           workspaceId: request.workspace!.id,
+          userId: request.user!.id,
           cursor: request.query.cursor,
           limit: request.query.limit,
           isStarred: request.query.isStarred,
+          isCreatedByMe: request.query.isCreatedByMe,
+          isSharedWithMe: request.query.isSharedWithMe,
         })
       } catch (err) {
         if ((err as Error).message === "INVALID_CURSOR") {

@@ -13,6 +13,8 @@ export const listMeetingsQuerySchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   isStarred: z.coerce.boolean().optional(),
+  isCreatedByMe: z.coerce.boolean().optional(),
+  isSharedWithMe: z.coerce.boolean().optional(),
 })
 
 export const listLiveMeetingsResponseSchema = z.object({
