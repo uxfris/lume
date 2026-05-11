@@ -74,13 +74,13 @@ export function NavMeetings({ item }: { item: NavItem }) {
                         <NavAddChannel />
                     </SidebarMenuSubItem>
                     {[
-                        { icon: Hashtag, label: "Sprint Planning", url: "/dashboard/meetings/channel/side-projects" }
+                        { icon: Hashtag, label: "Sprint Planning", url: "/dashboard/meetings/channel/side-projects", channelId: "side-projects" }
 
                     ].map((subItem) => (
                         <SidebarMenuSubItem key={subItem.label} className="flex group/channel">
                             <AppSidebarMenuButton item={{
                                 ...subItem,
-                                badge: <ChannelTitleMenuDropdown isSidebar={true} />
+                                badge: <ChannelTitleMenuDropdown isSidebar={true} channelId={subItem.channelId} channelName={subItem.label} />
                             }} />
 
                         </SidebarMenuSubItem>

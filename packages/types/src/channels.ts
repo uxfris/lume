@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { MeetingSchema, type Meeting } from "./meetings"
 
 export const ChannelTypeSchema = z.enum(["PUBLIC", "PRIVATE"])
 export type ChannelType = z.infer<typeof ChannelTypeSchema>
@@ -14,11 +15,5 @@ export const ChannelSchema = z.object({
 })
 export type Channel = z.infer<typeof ChannelSchema>
 
-export const ChannelMeetingSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  status: z.string(),
-  meetingUrl: z.string().nullable(),
-  createdAt: z.string(),
-})
-export type ChannelMeeting = z.infer<typeof ChannelMeetingSchema>
+export const ChannelMeetingSchema = MeetingSchema
+export type ChannelMeeting = Meeting

@@ -1,10 +1,22 @@
 import { client, type RequestOptions } from "./client"
-import type { Channel, ChannelMeeting, ChannelType } from "@workspace/types"
+import type { Channel, ChannelType, Meeting } from "@workspace/types"
 
 export const channelApi = {
+  async createChannel(
+    body: { name: string; description?: string | null; type?: ChannelType },
+    options?: RequestOptions
+  ): Promise<Channel> {
+    const res = await client.post<{ channel: Channel }>("/channels", body, options)
+    return res.channel
+  },
+
   async getChannels(options?: RequestOptions): Promise<Channel[]> {
     const res = await client.get<{ channels: Channel[] }>("/channels", options)
     return res.channels
+  },
+
+  async getChannel(id: string, options?: RequestOptions): Promise<Channel> {
+    return client.get<Channel>(`/channels/${id}`, options)
   },
 
   async updateChannel(
@@ -22,9 +34,9 @@ export const channelApi = {
   async getChannelMeetings(
     id: string,
     options?: { limit?: number } & RequestOptions
-  ): Promise<ChannelMeeting[]> {
+  ): Promise<Meeting[]> {
     const { limit, ...fetchOpts } = options ?? {}
-    const res = await client.get<{ meetings: ChannelMeeting[] }>(
+    const res = await client.get<{ meetings: Meeting[] }>(
       `/channels/${id}/meetings`,
       {
         params: { limit },

@@ -4,6 +4,9 @@ import * as channelService from "./channel.service"
 import {
   channelErrorSchema,
   channelParamsSchema,
+  channelSchema,
+  createChannelBodySchema,
+  createChannelResponseSchema,
   listChannelMeetingsQuerySchema,
   listChannelMeetingsResponseSchema,
   listChannelsResponseSchema,
@@ -14,6 +17,40 @@ import {
 } from "./channel.schema"
 
 export const channelRoutes: FastifyPluginAsyncZod = async (app) => {
+  app.post(
+    "/",
+    {
+      preHandler: [app.verifySession, app.requireWorkspace],
+      schema: {
+        tags: ["Channel"],
+        summary: "Create a channel",
+        body: createChannelBodySchema,
+        response: {
+          201: createChannelResponseSchema,
+          409: channelErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await channelService.createChannel({
+        workspaceId: request.workspace!.id,
+        creatorId: request.user!.id,
+        name: request.body.name,
+        description: request.body.description,
+        type: request.body.type ?? "PUBLIC",
+      })
+
+      if (!result.ok) {
+        return reply.status(409).send({
+          error: "CHANNEL_NAME_CONFLICT",
+          message: result.message,
+        })
+      }
+
+      return reply.status(201).send({ channel: result.channel })
+    }
+  )
+
   app.get(
     "/",
     {
@@ -30,6 +67,34 @@ export const channelRoutes: FastifyPluginAsyncZod = async (app) => {
       return channelService.listChannels({
         workspaceId: request.workspace!.id,
       })
+    }
+  )
+
+  app.get(
+    "/:id",
+    {
+      preHandler: [app.verifySession, app.requireWorkspace],
+      schema: {
+        tags: ["Channel"],
+        summary: "Get a single channel",
+        params: channelParamsSchema,
+        response: {
+          200: channelSchema,
+          404: channelErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const channel = await channelService.getChannelById({
+        channelId: request.params.id,
+        workspaceId: request.workspace!.id,
+      })
+
+      if (!channel) {
+        return reply.status(404).send({ error: "CHANNEL_NOT_FOUND" })
+      }
+
+      return channel
     }
   )
 

@@ -21,7 +21,38 @@ export const channelRepo = {
         id: channelId,
         workspaceId,
       },
-      select: { id: true },
+      include: {
+        _count: {
+          select: {
+            meetings: true,
+          },
+        },
+      },
+    })
+  },
+
+  create(input: {
+    workspaceId: string
+    creatorId: string
+    name: string
+    description?: string | null
+    type: "PUBLIC" | "PRIVATE"
+  }) {
+    return prisma.channel.create({
+      data: {
+        workspaceId: input.workspaceId,
+        creatorId: input.creatorId,
+        name: input.name,
+        description: input.description,
+        type: input.type,
+      },
+      include: {
+        _count: {
+          select: {
+            meetings: true,
+          },
+        },
+      },
     })
   },
 
@@ -61,12 +92,8 @@ export const channelRepo = {
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: input.limit,
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        meetingUrl: true,
-        createdAt: true,
+      include: {
+        user: true,
       },
     })
   },

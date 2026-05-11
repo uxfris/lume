@@ -1,3 +1,4 @@
+import { channelApi } from "@workspace/api-client"
 import { Meeting } from "@workspace/types"
 import { MeetingsProvider } from "../../_hooks/use-meeting-context"
 import { MeetingToolbar } from "../../_components/meeting-toolbar"
@@ -6,91 +7,60 @@ import { MeetingBulkActionBar } from "../../_components/meeting-bulk-action-bar"
 import { MeetingChannelEmpty } from "../_components/meeting-channel-empty"
 import { ChannelTitleMenuDropdown } from "../_components/meeting-channel-title-menu-dropdown"
 import { ArrowLeft } from "@solar-icons/react/ssr"
+import { getServerApiFetchOptions } from "@/lib/server-api"
 import Link from "next/link"
+import { notFound } from "next/navigation"
 
+type PageProps = {
+  params: Promise<{ id: string }>
+}
 
-// ── Mock data ──────────────────────────────────────────
-const meetings: Meeting[] = [
-    {
-        id: "1",
-        title: "Client Onboarding: Helios",
-        summary: "Initial walkthrough of the API documentation and environment setup for...",
-        status: "analyzing",
-        timestamp: "10:30",
-        duration: "28m",
-        attendees: [
-            { id: "a", initials: "A" },
-            { id: "b", initials: "B" },
-        ],
-        extraAttendees: 3,
-    },
-    {
-        id: "2",
-        title: "Q4 Strategy Planning",
-        summary: "Focus on Q4 revenue targets, engineering headcount, and the new design system...",
-        status: "processed",
-        timestamp: "14:00",
-        duration: "42m",
-        attendees: [
-            { id: "a", initials: "A" },
-            { id: "b", initials: "B" },
-        ],
-        extraAttendees: 3,
-    },
-    {
-        id: "3",
-        title: "Weekly Design Sync",
-        summary: `Reviewing the new "Silent Partner" design system tokens. Team discussed the transition from standard grids to tonal architecture.`,
-        status: "processed",
-        timestamp: "Oct 22, 2024",
-        duration: "45m",
-        attendees: [
-            { id: "c", initials: "C" },
-            { id: "d", initials: "D" },
-        ],
-        extraAttendees: 3,
-    },
-    {
-        id: "4",
-        title: "Brand Refresh Kickoff",
-        summary: "Aligning on the new visual direction, moodboards, and stakeholder expectations for...",
-        status: "processed",
-        timestamp: "Oct 18, 2024",
-        duration: "2h 15m",
-        attendees: [
-            { id: "e", initials: "E" },
-        ],
-        extraAttendees: 2,
-    },
-]
+export default async function MeetingChannel({ params }: PageProps) {
+  const { id } = await params
+  const { cookie, workspaceId } = await getServerApiFetchOptions()
 
+  let channel
+  try {
+    channel = await channelApi.getChannel(id, { cookie, workspaceId })
+  } catch {
+    notFound()
+  }
 
+  const channelMeetings = await channelApi.getChannelMeetings(id, {
+    cookie,
+    workspaceId,
+    limit: 50,
+  })
+  const meetings: Meeting[] = channelMeetings
 
-export default function MeetingChannel() {
-    return (
-        <div className="relative h-full flex flex-col overflow-hidden gap-6">
-            <div className="hidden md:flex items-center gap-3 px-4 md:px-10 pt-4 md:pt-10">
-                <Link href="/dashboard/meetings" >
-                    <ArrowLeft />
-                </Link>
-                <h1 className="text-base font-semibold">Sprint Planning</h1>
-                <ChannelTitleMenuDropdown />
+  return (
+    <div className="relative flex h-full flex-col gap-6 overflow-hidden">
+      <div className="hidden items-center gap-3 px-4 pt-4 md:flex md:px-10 md:pt-10">
+        <Link href="/dashboard/meetings">
+          <ArrowLeft />
+        </Link>
+        <h1 className="text-base font-semibold">{channel.name}</h1>
+        <ChannelTitleMenuDropdown
+          channelId={channel.id}
+          channelName={channel.name}
+          channelType={channel.type}
+        />
+      </div>
+      {meetings.length === 0 ? (
+        <MeetingChannelEmpty />
+      ) : (
+        <>
+          <div className="space-y-4 overflow-y-auto px-4 pb-10 md:space-y-10 md:px-10">
+            <div className="space-y-3">
+              <MeetingsProvider meetings={meetings}>
+                <MeetingToolbar />
+              </MeetingsProvider>
             </div>
-            {meetings.length === 0
-                ?
-                <MeetingChannelEmpty />
-                :
-                <>
-                    <div className="overflow-y-auto px-4 md:px-10 pb-10 space-y-4 md:space-y-10">
-                        <div className="space-y-3">
-                            <MeetingsProvider meetings={meetings}>
-                                <MeetingToolbar />
-                            </MeetingsProvider>
-                        </div>
-                        <MeetingView meetings={meetings} />
-                    </div>
-                    <MeetingBulkActionBar meetings={meetings} isChannel={true} />
-                </>}
-        </div>
-    )
+            <MeetingView meetings={meetings} />
+          </div>
+          <MeetingBulkActionBar meetings={meetings} isChannel={true} />
+        </>
+      )}
+    </div>
+  )
 }

@@ -11,6 +11,12 @@ export const channelParamsSchema = z.object({
   id: z.string().min(1),
 })
 
+export const createChannelBodySchema = z.object({
+  name: z.string().min(1).max(120),
+  description: z.string().max(1000).nullable().optional(),
+  type: channelTypeSchema.optional().default("PUBLIC"),
+})
+
 export const patchChannelBodySchema = z
   .object({
     name: z.string().min(1).max(120).optional(),
@@ -37,6 +43,10 @@ export const removeChannelMeetingsBodySchema = z
 
 export const listChannelsResponseSchema = z.object({
   channels: z.array(channelSchema),
+})
+
+export const createChannelResponseSchema = z.object({
+  channel: channelSchema,
 })
 
 export const listChannelMeetingsResponseSchema = z.object({
