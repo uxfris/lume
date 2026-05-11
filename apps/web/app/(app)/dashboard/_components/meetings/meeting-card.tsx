@@ -16,7 +16,8 @@ type MeetingCardProps = {
 }
 
 export function MeetingCard({ meeting, selectionMode }: MeetingCardProps) {
-  const isAnalyzing = meeting.status !== "processed"
+  const isAnalyzing =
+    meeting.status !== "processed" && meeting.status !== "failed"
 
   const selectedIds = useMeetingSelection((s) => s.selectedIds)
   const toggleSelect = useMeetingSelection((s) => s.toggleSelect)

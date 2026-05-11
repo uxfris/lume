@@ -16,6 +16,7 @@ export async function dispatchMeetingRecallEvent(
         where: { id: ctx.meeting.id },
         data: { status: "LIVE" },
       })
+      return { ok: true, action: "NOTED" }
     case "recording.done":
       return handleRecordingDone(ctx)
     case "transcript.done":

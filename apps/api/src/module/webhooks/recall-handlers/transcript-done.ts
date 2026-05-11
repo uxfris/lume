@@ -10,7 +10,7 @@ export async function handleTranscriptDone(
   const { meeting, payload, traceId } = ctx
 
   // Idempotent: only run once per meeting.
-  if (meeting.status !== "SCHEDULED") {
+  if (meeting.status !== "TRANSCRIBING") {
     return { ok: false, reason: "ALREADY_PROCESSED" }
   }
   if (!meeting.externalBotId) {
