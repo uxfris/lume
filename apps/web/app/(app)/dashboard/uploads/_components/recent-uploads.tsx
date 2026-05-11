@@ -32,10 +32,7 @@ export function RecentUploads({
           {!loading && uploads.length === 0 && <UploadEmpty />}
           {uploads.map((upload) => {
             const progress = progressByMeetingId[upload.meetingId]
-            if (
-              upload.status === "SUMMARIZED" ||
-              upload.status === "TRANSCRIBED"
-            ) {
+            if (upload.status === "SUMMARIZED") {
               return (
                 <Link
                   key={upload.meetingId}

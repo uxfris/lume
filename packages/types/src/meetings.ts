@@ -65,6 +65,7 @@ export type UpcomingMeetingGroup = z.infer<typeof UpcomingMeetingGroupSchema>
 export const MeetingStatusEnum = z.enum([
   "PENDING_UPLOAD",
   "SCHEDULED",
+  "LIVE",
   "UPLOADED",
   "TRANSCRIBING",
   "TRANSCRIBED",
