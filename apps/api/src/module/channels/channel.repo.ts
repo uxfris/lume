@@ -1,9 +1,12 @@
 import { prisma, type Prisma } from "@workspace/database"
 
 export const channelRepo = {
-  listByWorkspace(workspaceId: string) {
+  listVisibleByWorkspace(workspaceId: string, userId: string) {
     return prisma.channel.findMany({
-      where: { workspaceId },
+      where: {
+        workspaceId,
+        OR: [{ type: "PUBLIC" }, { creatorId: userId }],
+      },
       orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
       include: {
         _count: {
@@ -15,11 +18,16 @@ export const channelRepo = {
     })
   },
 
-  findByIdForWorkspace(channelId: string, workspaceId: string) {
+  findAccessibleById(input: {
+    channelId: string
+    workspaceId: string
+    userId: string
+  }) {
     return prisma.channel.findFirst({
       where: {
-        id: channelId,
-        workspaceId,
+        id: input.channelId,
+        workspaceId: input.workspaceId,
+        OR: [{ type: "PUBLIC" }, { creatorId: input.userId }],
       },
       include: {
         _count: {

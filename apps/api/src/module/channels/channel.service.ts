@@ -23,8 +23,11 @@ function toChannelDTO(channel: {
   }
 }
 
-export async function listChannels(input: { workspaceId: string }) {
-  const channels = await channelRepo.listByWorkspace(input.workspaceId)
+export async function listChannels(input: { workspaceId: string; userId: string }) {
+  const channels = await channelRepo.listVisibleByWorkspace(
+    input.workspaceId,
+    input.userId
+  )
   return {
     channels: channels.map(toChannelDTO),
   }
@@ -61,11 +64,9 @@ export async function createChannel(input: {
 export async function getChannelById(input: {
   channelId: string
   workspaceId: string
+  userId: string
 }): Promise<ReturnType<typeof toChannelDTO> | null> {
-  const channel = await channelRepo.findByIdForWorkspace(
-    input.channelId,
-    input.workspaceId
-  )
+  const channel = await channelRepo.findAccessibleById(input)
   if (!channel) return null
   return toChannelDTO(channel)
 }
@@ -73,6 +74,7 @@ export async function getChannelById(input: {
 export async function updateChannel(input: {
   channelId: string
   workspaceId: string
+  userId: string
   name?: string
   description?: string | null
   type?: "PUBLIC" | "PRIVATE"
@@ -81,6 +83,13 @@ export async function updateChannel(input: {
   | { ok: false; reason: "NOT_FOUND" | "NAME_CONFLICT"; message?: string }
 > {
   try {
+    const exists = await channelRepo.findAccessibleById({
+      channelId: input.channelId,
+      workspaceId: input.workspaceId,
+      userId: input.userId,
+    })
+    if (!exists) return { ok: false, reason: "NOT_FOUND" }
+
     const result = await channelRepo.updateByWorkspace({
       channelId: input.channelId,
       workspaceId: input.workspaceId,
@@ -114,7 +123,15 @@ export async function updateChannel(input: {
 export async function deleteChannel(input: {
   channelId: string
   workspaceId: string
+  userId: string
 }): Promise<{ ok: true } | { ok: false; reason: "NOT_FOUND" }> {
+  const exists = await channelRepo.findAccessibleById({
+    channelId: input.channelId,
+    workspaceId: input.workspaceId,
+    userId: input.userId,
+  })
+  if (!exists) return { ok: false, reason: "NOT_FOUND" }
+
   const result = await channelRepo.removeByWorkspace(
     input.channelId,
     input.workspaceId
@@ -125,15 +142,13 @@ export async function deleteChannel(input: {
 export async function listChannelMeetings(input: {
   channelId: string
   workspaceId: string
+  userId: string
   limit: number
 }): Promise<
   | { ok: true; meetings: MeetingDTO[] }
   | { ok: false; reason: "NOT_FOUND" }
 > {
-  const exists = await channelRepo.findByIdForWorkspace(
-    input.channelId,
-    input.workspaceId
-  )
+  const exists = await channelRepo.findAccessibleById(input)
   if (!exists) return { ok: false, reason: "NOT_FOUND" }
 
   const meetings = await channelRepo.listMeetingsByChannel({
@@ -151,15 +166,13 @@ export async function listChannelMeetings(input: {
 export async function addMeetingsToChannel(input: {
   channelId: string
   workspaceId: string
+  userId: string
   meetingIds: string[]
 }): Promise<
   | { ok: true; updatedCount: number }
   | { ok: false; reason: "NOT_FOUND" }
 > {
-  const exists = await channelRepo.findByIdForWorkspace(
-    input.channelId,
-    input.workspaceId
-  )
+  const exists = await channelRepo.findAccessibleById(input)
   if (!exists) return { ok: false, reason: "NOT_FOUND" }
 
   const result = await channelRepo.assignMeetingsToChannel(input)
@@ -169,15 +182,13 @@ export async function addMeetingsToChannel(input: {
 export async function removeMeetingsFromChannel(input: {
   channelId: string
   workspaceId: string
+  userId: string
   meetingIds?: string[]
 }): Promise<
   | { ok: true; updatedCount: number }
   | { ok: false; reason: "NOT_FOUND" }
 > {
-  const exists = await channelRepo.findByIdForWorkspace(
-    input.channelId,
-    input.workspaceId
-  )
+  const exists = await channelRepo.findAccessibleById(input)
   if (!exists) return { ok: false, reason: "NOT_FOUND" }
 
   const result = await channelRepo.unassignMeetingsFromChannel(input)

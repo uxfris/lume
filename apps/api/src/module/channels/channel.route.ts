@@ -66,6 +66,7 @@ export const channelRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       return channelService.listChannels({
         workspaceId: request.workspace!.id,
+        userId: request.user!.id,
       })
     }
   )
@@ -88,6 +89,7 @@ export const channelRoutes: FastifyPluginAsyncZod = async (app) => {
       const channel = await channelService.getChannelById({
         channelId: request.params.id,
         workspaceId: request.workspace!.id,
+        userId: request.user!.id,
       })
 
       if (!channel) {
@@ -118,6 +120,7 @@ export const channelRoutes: FastifyPluginAsyncZod = async (app) => {
       const result = await channelService.updateChannel({
         channelId: request.params.id,
         workspaceId: request.workspace!.id,
+        userId: request.user!.id,
         name: request.body.name,
         description: request.body.description,
         type: request.body.type,
@@ -154,6 +157,7 @@ export const channelRoutes: FastifyPluginAsyncZod = async (app) => {
       const result = await channelService.deleteChannel({
         channelId: request.params.id,
         workspaceId: request.workspace!.id,
+        userId: request.user!.id,
       })
 
       if (!result.ok) {
@@ -183,6 +187,7 @@ export const channelRoutes: FastifyPluginAsyncZod = async (app) => {
       const result = await channelService.listChannelMeetings({
         channelId: request.params.id,
         workspaceId: request.workspace!.id,
+        userId: request.user!.id,
         limit: request.query.limit,
       })
 
@@ -212,6 +217,7 @@ export const channelRoutes: FastifyPluginAsyncZod = async (app) => {
       const result = await channelService.addMeetingsToChannel({
         channelId: request.params.id,
         workspaceId: request.workspace!.id,
+        userId: request.user!.id,
         meetingIds: request.body.meetingIds,
       })
 
@@ -242,6 +248,7 @@ export const channelRoutes: FastifyPluginAsyncZod = async (app) => {
       const result = await channelService.removeMeetingsFromChannel({
         channelId: request.params.id,
         workspaceId: request.workspace!.id,
+        userId: request.user!.id,
         meetingIds: request.body?.meetingIds,
       })
 
