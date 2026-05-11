@@ -1,5 +1,6 @@
 import { Prisma, prisma } from "@workspace/database"
 
+import { buildCalendarEventAttendeesJson } from "../calendar/calendar-attendees-from-raw"
 import { env } from "../../config/env"
 import type {
   RecallCalendarEventRecord,
@@ -61,9 +62,13 @@ async function resolveCalendarEventOwner(
   if (calendarEvent.calendar_id) {
     const connection = await prisma.recallCalendarConnection.findFirst({
       where: { recallCalendarId: calendarEvent.calendar_id },
-      select: { userId: true },
+      select: {
+        user: {
+          select: { id: true, email: true, name: true, image: true },
+        },
+      },
     })
-    if (connection) return { id: connection.userId }
+    if (connection?.user) return connection.user
   }
 
   const ownerEmail = extractCalendarOwnerEmail(calendarEvent)
@@ -71,7 +76,7 @@ async function resolveCalendarEventOwner(
 
   return prisma.user.findUnique({
     where: { email: ownerEmail },
-    select: { id: true },
+    select: { id: true, email: true, name: true, image: true },
   })
 }
 
@@ -215,6 +220,28 @@ async function upsertCalendarEventRecord(
     return false
   }
 
+  const rawObj =
+    calendarEvent.raw && typeof calendarEvent.raw === "object"
+      ? (calendarEvent.raw as Record<string, unknown>)
+      : null
+  const title =
+    (typeof rawObj?.summary === "string" ? rawObj.summary.trim() : "") ||
+    (typeof rawObj?.subject === "string" ? rawObj.subject.trim() : "") ||
+    "Scheduled meeting"
+
+  const attendeesJson = calendarEvent.is_deleted
+    ? null
+    : buildCalendarEventAttendeesJson({
+        raw: calendarEvent.raw,
+        externalId: calendarEvent.id,
+        owner: {
+          email: user.email,
+          name: user.name,
+          image: user.image,
+        },
+        fallbackTitle: title,
+      })
+
   for (const membership of memberships) {
     if (calendarEvent.is_deleted) {
       await prisma.calendarEvent.deleteMany({
@@ -227,15 +254,6 @@ async function upsertCalendarEventRecord(
       })
       continue
     }
-
-    const rawObj =
-      calendarEvent.raw && typeof calendarEvent.raw === "object"
-        ? (calendarEvent.raw as Record<string, unknown>)
-        : null
-    const title =
-      (typeof rawObj?.summary === "string" ? rawObj.summary.trim() : "") ||
-      (typeof rawObj?.subject === "string" ? rawObj.subject.trim() : "") ||
-      "Scheduled meeting"
 
     await prisma.calendarEvent.upsert({
       where: {
@@ -262,6 +280,7 @@ async function upsertCalendarEventRecord(
         platform: toMeetingPlatform(
           calendarEvent.meeting_platform ?? calendarEvent.platform
         ),
+        attendees: attendeesJson!,
         metadata: (calendarEvent.raw ?? calendarEvent) as Prisma.InputJsonValue,
       },
       update: {
@@ -276,6 +295,7 @@ async function upsertCalendarEventRecord(
         platform: toMeetingPlatform(
           calendarEvent.meeting_platform ?? calendarEvent.platform
         ),
+        attendees: attendeesJson!,
         metadata: (calendarEvent.raw ?? calendarEvent) as Prisma.InputJsonValue,
       },
     })
