@@ -8,10 +8,24 @@ import {
 } from "./tasks.presenter"
 import { tasksRepo } from "./tasks.repo"
 
+export type TaskListFilter =
+  | "all"
+  | "assigned_to_me"
+  | "from_last_meeting"
+  | "completed"
+
 export async function listTaskGroups(
-  workspaceId: string
+  input: {
+    workspaceId: string
+    currentUserId: string
+    filter: TaskListFilter
+  }
 ): Promise<TasksGroup[]> {
-  const rows = await tasksRepo.listForWorkspace(workspaceId)
+  const rows = await tasksRepo.listForWorkspace({
+    workspaceId: input.workspaceId,
+    filter: input.filter,
+    currentUserId: input.currentUserId,
+  })
   return groupTasksIntoMeetingGroups(rows)
 }
 

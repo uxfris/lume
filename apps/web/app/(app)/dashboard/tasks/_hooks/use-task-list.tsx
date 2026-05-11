@@ -1,12 +1,24 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { useNewTaskForm } from "./use-task-form"
 import { ActionItem, TasksGroup, UserSummary } from "@workspace/types"
 import { taskApi } from "@workspace/api-client"
+import { useQueryClient } from "@tanstack/react-query"
 
 export function useTaskList(tasksGroup: TasksGroup) {
+  const queryClient = useQueryClient()
   const [tasks, setTasks] = useState<ActionItem[]>(tasksGroup.tasks)
-  const [collapsibleOpen, setCollapsibleOpen] = useState(false)
+  const [collapsibleOpen, setCollapsibleOpen] = useState(
+    () => !tasksGroup.tasks.some((task) => !task.isCompleted)
+  )
+
+  useEffect(() => {
+    setTasks(tasksGroup.tasks)
+  }, [tasksGroup.id, tasksGroup.tasks])
+
+  function invalidateTaskQueries() {
+    return queryClient.invalidateQueries({ queryKey: ["tasks"] })
+  }
 
   // ─── Actions ──────────────────────────────────────────────────────────────
 
@@ -20,6 +32,7 @@ export function useTaskList(tasksGroup: TasksGroup) {
 
     try {
       await taskApi.toggle(id, !prev.isCompleted)
+      await invalidateTaskQueries()
     } catch {
       setTasks((curr) =>
         curr.map((t) =>
@@ -53,6 +66,7 @@ export function useTaskList(tasksGroup: TasksGroup) {
         meetingId: tasksGroup.id === "workspace" ? null : tasksGroup.id,
       })
       setTasks((curr) => curr.map((t) => (t.id === optimisticId ? created : t)))
+      await invalidateTaskQueries()
     } catch {
       setTasks((curr) => curr.filter((t) => t.id !== optimisticId))
       toast.error("Failed to add task. Please try again.")
@@ -75,6 +89,7 @@ export function useTaskList(tasksGroup: TasksGroup) {
 
       try {
         await taskApi.remove(id)
+        await invalidateTaskQueries()
       } catch {
         // rollback if API failed
         setTasks((curr) => {
@@ -117,6 +132,7 @@ export function useTaskList(tasksGroup: TasksGroup) {
 
     try {
       await taskApi.updateTitle(id, title)
+      await invalidateTaskQueries()
     } catch {
       setTasks((curr) =>
         curr.map((t) => (t.id === id ? { ...t, title: prev.title } : t))
@@ -133,6 +149,7 @@ export function useTaskList(tasksGroup: TasksGroup) {
 
     try {
       await taskApi.updateAssignee(id, assignee)
+      await invalidateTaskQueries()
     } catch {
       setTasks((curr) =>
         curr.map((t) => (t.id === id ? { ...t, assignee: prev.assignee } : t))
