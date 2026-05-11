@@ -12,6 +12,7 @@ export const getConversationParamsSchema = z.object({
 export const listMeetingsQuerySchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
+  isStarred: z.coerce.boolean().optional(),
 })
 
 export const listLiveMeetingsResponseSchema = z.object({
@@ -33,6 +34,7 @@ export const patchMeetingParamsSchema = z.object({
 export const patchMeetingBodySchema = z.object({
   title: z.string().min(1).max(500).optional(),
   isShared: z.boolean().optional(),
+  isStarred: z.boolean().optional(),
 })
 
 export const meetingSchema = MeetingSchema

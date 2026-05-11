@@ -11,9 +11,7 @@ type ListMeetingsResponse = {
 }
 
 export const meetingApi = {
-  async getLiveMeetings(
-    options?: RequestOptions
-  ): Promise<LiveMeeting[]> {
+  async getLiveMeetings(options?: RequestOptions): Promise<LiveMeeting[]> {
     const res = await client.get<{ meetings: LiveMeeting[] }>(
       "/meetings/live",
       options
@@ -27,13 +25,15 @@ export const meetingApi = {
     options?: {
       cursor?: string
       limit?: number
+      isStarred?: boolean
     } & RequestOptions
   ): Promise<ListMeetingsResponse> {
-    const { cursor, limit, ...fetchOpts } = options ?? {}
+    const { cursor, limit, isStarred, ...fetchOpts } = options ?? {}
     return client.get<ListMeetingsResponse>("/meetings", {
       params: {
         cursor,
         limit,
+        isStarred,
       },
       ...fetchOpts,
     })
@@ -41,11 +41,12 @@ export const meetingApi = {
 
   /** Convenience for views that only need the first page as an array. */
   async getMeetingsList(
-    options?: { limit?: number } & RequestOptions
+    options?: { limit?: number; isStarred?: boolean } & RequestOptions
   ): Promise<Meeting[]> {
-    const { limit, ...fetchOpts } = options ?? {}
+    const { limit, isStarred, ...fetchOpts } = options ?? {}
     const res = await meetingApi.getMeetings({
       limit: limit ?? 50,
+      isStarred,
       ...fetchOpts,
     })
     return res.meetings
@@ -63,7 +64,7 @@ export const meetingApi = {
 
   async updateMeeting(
     id: string,
-    body: { title?: string; isShared?: boolean },
+    body: { title?: string; isShared?: boolean; isStarred?: boolean },
     options?: RequestOptions
   ): Promise<void> {
     await client.patch(`/meetings/${id}`, body, options)

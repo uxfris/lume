@@ -249,6 +249,7 @@ model Meeting {
   workspaceId          String
   userId               String
   title                String
+  isStarred            Boolean          @default(false)
   source               MeetingSource    @default(UPLOAD)
   status               MeetingStatus    @default(PENDING_UPLOAD)
   audioKey             String?          @unique

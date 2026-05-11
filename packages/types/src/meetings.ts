@@ -29,6 +29,7 @@ export type LiveMeeting = z.infer<typeof LiveMeetingSchema>
 export const MeetingSchema = z.object({
   id: z.string(),
   title: z.string(),
+  isStarred: z.boolean(),
   summary: z.string(),
   status: MeetingStatusSchema,
   timestamp: z.string(), // display string, e.g. "10:30" or "Oct 22, 2024"

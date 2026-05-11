@@ -182,6 +182,7 @@ export function toMeetingDTO(
   return {
     id: row.id,
     title: row.title,
+    isStarred: row.isStarred,
     summary: summaryText,
     status: uiStatus(row.status),
     timestamp: formatMeetingTimestamp(row.createdAt),

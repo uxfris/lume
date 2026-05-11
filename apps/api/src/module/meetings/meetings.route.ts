@@ -36,6 +36,7 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
           workspaceId: request.workspace!.id,
           cursor: request.query.cursor,
           limit: request.query.limit,
+          isStarred: request.query.isStarred,
         })
       } catch (err) {
         if ((err as Error).message === "INVALID_CURSOR") {
@@ -223,6 +224,7 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
         workspaceId: request.workspace!.id,
         title: request.body.title,
         isShared: request.body.isShared,
+        isStarred: request.body.isStarred,
       })
 
       if (!result.ok) {

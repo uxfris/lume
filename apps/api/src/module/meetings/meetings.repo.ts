@@ -47,6 +47,7 @@ export const meetingsRepo = {
     workspaceId: string
     take: number
     cursor?: { createdAt: Date; id: string }
+    isStarred?: boolean
   }): Promise<MeetingWithOwner[]> {
     const where: Prisma.MeetingWhereInput = {
       workspaceId: input.workspaceId,
@@ -67,6 +68,7 @@ export const meetingsRepo = {
             ],
           }
         : {}),
+      ...(input.isStarred !== undefined ? { isStarred: input.isStarred } : {}),
     }
 
     return prisma.meeting.findMany({

@@ -33,6 +33,7 @@ export async function listMeetings(input: {
   workspaceId: string
   cursor?: string
   limit: number
+  isStarred?: boolean
 }): Promise<{ meetings: MeetingDTO[]; nextCursor: string | null }> {
   let decoded: { createdAt: Date; id: string } | undefined
   if (input.cursor) {
@@ -48,6 +49,7 @@ export async function listMeetings(input: {
     workspaceId: input.workspaceId,
     take: pageSize + 1,
     cursor: decoded,
+    isStarred: input.isStarred,
   })
 
   const hasMore = rows.length > pageSize
@@ -84,10 +86,12 @@ export async function patchMeeting(input: {
   workspaceId: string
   title?: string
   isShared?: boolean
+  isStarred?: boolean
 }): Promise<{ ok: true } | { ok: false; reason: "NOT_FOUND" }> {
   const data: Prisma.MeetingUpdateInput = {}
   if (input.title !== undefined) data.title = input.title
   if (input.isShared !== undefined) data.isShared = input.isShared
+  if (input.isStarred !== undefined) data.isStarred = input.isStarred
 
   if (Object.keys(data).length === 0) {
     const exists = await meetingsRepo.findByIdForWorkspace(
