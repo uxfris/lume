@@ -185,6 +185,7 @@ export function toMeetingDTO(
     isStarred: row.isStarred,
     summary: summaryText,
     status: uiStatus(row.status),
+    channelId: row.channelId,
     timestamp: formatMeetingTimestamp(row.createdAt),
     duration: formatDurationSeconds(row.durationSeconds),
     attendees: [

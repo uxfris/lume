@@ -37,7 +37,7 @@ export function LiveSyncCard() {
     setOpenForm(true)
   }
 
-  const onSuccess = () => {
+  const onSuccess = (meetingUrl: string) => {
     setOpenForm(false)
     setOpenSuccess(true)
   }

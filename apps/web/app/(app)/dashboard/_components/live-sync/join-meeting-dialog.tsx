@@ -35,7 +35,7 @@ const schema = z.object({
 type JoinMeetingDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSuccess: () => void
+  onSuccess: (meetingUrl: string) => void
   meetingUrl?: string
 }
 
@@ -75,7 +75,7 @@ export function JoinMeetingDialog({
       title: data.name,
     })
     setLoading(false)
-    onSuccess()
+    onSuccess(meetingUrl ?? data.url)
   }
 
   return (

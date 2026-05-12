@@ -38,6 +38,7 @@ export const MeetingSchema = z.object({
   extraAttendees: z.number().optional(),
   /** Present when returned from meeting detail API (AI analysis). */
   keyPoints: z.array(z.string()).optional(),
+  channelId: z.string().nullable(),
 })
 
 export type Meeting = z.infer<typeof MeetingSchema>
