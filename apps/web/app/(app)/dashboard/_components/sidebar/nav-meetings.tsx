@@ -21,13 +21,14 @@ import { cn } from "@workspace/ui/lib/utils"
 import { ChannelTitleMenuDropdown } from "../../(meetings)/meetings/channel/_components/meeting-channel-title-menu-dropdown"
 import { channelApi } from "@workspace/api-client"
 import { useQuery } from "@tanstack/react-query"
+import { channelKeys } from "../../(meetings)/meetings/channel/_lib/channel-keys"
 
 export function NavMeetings({ item }: { item: NavItem }) {
   const pathname = usePathname()
   const isActive = pathname === item.url
 
   const { data: channels = [], isLoading } = useQuery({
-    queryKey: ["channels"],
+    queryKey: channelKeys.all,
     queryFn: () => channelApi.getChannels(),
     staleTime: 300_000,
   })
