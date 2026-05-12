@@ -32,7 +32,7 @@ export function MeetingChannelEmpty({ channelId }: { channelId: string }) {
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={() => setOpenForm(true)}>Start meeting</Button>
-          <Button variant="secondary">
+          <Button variant="secondary" onClick={() => setOpenAdd(true)}>
             <Plus />
             Add existing
           </Button>
