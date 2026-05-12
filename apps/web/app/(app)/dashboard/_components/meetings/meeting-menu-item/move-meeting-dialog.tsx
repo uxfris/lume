@@ -1,9 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
-
 import { Meeting } from "@workspace/types"
-import { channelApi } from "@workspace/api-client"
 
 import { Button } from "@workspace/ui/components/button"
 import { Badge } from "@workspace/ui/components/badge"
@@ -32,14 +29,10 @@ import {
   RadioGroupItem,
 } from "@workspace/ui/components/radio-group"
 
-import { useQuery } from "@tanstack/react-query"
 import { Hashtag, MinimalisticMagnifier } from "@solar-icons/react"
 import { Plus } from "lucide-react"
-import { toast } from "sonner"
 import { Spinner } from "@workspace/ui/components/spinner"
-import { useRouter } from "next/navigation"
-
-const NO_CHANNEL = "no-channel"
+import { NO_CHANNEL, useMoveMeeting } from "../../../_hooks/use-move-meeting"
 
 export function MoveMeeting({
   meeting,
@@ -52,53 +45,18 @@ export function MoveMeeting({
   onOpenChange: (open: boolean) => void
   onCreateChannel: () => void
 }) {
-  const router = useRouter()
-
-  const [moveLoading, setMoveLoading] = useState(false)
-  const [search, setSearch] = useState("")
-  const [selectedChannelId, setSelectedChannelId] = useState<string>(
-    meeting.channelId ?? NO_CHANNEL
-  )
-
   const {
-    data: channels = [],
+    search,
+    setSearch,
+    selectedChannelId,
+    setSelectedChannelId,
+    currentChannelId,
     isLoading,
     isError,
-  } = useQuery({
-    queryKey: ["channels"],
-    queryFn: () => channelApi.getChannels(),
-    staleTime: 300_000,
-  })
-
-  const query = search.trim().toLowerCase()
-
-  const filteredChannels = !query
-    ? channels
-    : channels.filter((channel) => channel.name.toLowerCase().includes(query))
-
-  const currentChannelId = meeting.channelId ?? NO_CHANNEL
-
-  const moveMeeting = async () => {
-    try {
-      setMoveLoading(true)
-      if (selectedChannelId === NO_CHANNEL && meeting.channelId) {
-        await channelApi.removeMeetingsFromChannel(meeting.channelId, [
-          meeting.id,
-        ])
-        router.refresh()
-      } else {
-        await channelApi.addMeetingsToChannel(selectedChannelId, [meeting.id])
-        router.push(`/dashboard/meetings/channel/${selectedChannelId}`)
-      }
-      toast.success("Meeting moved successfully")
-      onOpenChange(false)
-    } catch {
-      toast.error("Failed to move meeting")
-    } finally {
-      setMoveLoading(false)
-    }
-  }
-
+    filteredChannels,
+    moveMeeting,
+    moveLoading,
+  } = useMoveMeeting({ meeting, onOpenChange })
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
