@@ -21,6 +21,13 @@ export const toggleTaskBodySchema = z.object({
   isCompleted: z.boolean(),
 })
 
+export const listTasksQuerySchema = z.object({
+  filter: z
+    .enum(["all", "assigned_to_me", "from_last_meeting", "completed"])
+    .optional()
+    .default("all"),
+})
+
 export const listTasksResponseSchema = z.array(TasksGroupSchema)
 
 export const assigneesResponseSchema = z.array(UserSummarySchema)

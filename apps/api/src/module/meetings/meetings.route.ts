@@ -6,6 +6,7 @@ import {
   getConversationParamsSchema,
   getConversationResponseSchema,
   getMeetingParamsSchema,
+  listLiveMeetingsResponseSchema,
   listMeetingsQuerySchema,
   listMeetingsResponseSchema,
   meetingErrorSchema,
@@ -33,8 +34,12 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
       try {
         return await meetingsService.listMeetings({
           workspaceId: request.workspace!.id,
+          userId: request.user!.id,
           cursor: request.query.cursor,
           limit: request.query.limit,
+          isStarred: request.query.isStarred,
+          isCreatedByMe: request.query.isCreatedByMe,
+          isSharedWithMe: request.query.isSharedWithMe,
         })
       } catch (err) {
         if ((err as Error).message === "INVALID_CURSOR") {
@@ -45,6 +50,25 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
         }
         throw err
       }
+    }
+  )
+
+  app.get(
+    "/live",
+    {
+      preHandler: [app.verifySession, app.requireWorkspace],
+      schema: {
+        tags: ["Meetings"],
+        summary: "List live meetings in current workspace",
+        response: {
+          200: listLiveMeetingsResponseSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      return await meetingsService.listLiveMeetings({
+        workspaceId: request.workspace!.id,
+      })
     }
   )
 
@@ -203,6 +227,7 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
         workspaceId: request.workspace!.id,
         title: request.body.title,
         isShared: request.body.isShared,
+        isStarred: request.body.isStarred,
       })
 
       if (!result.ok) {

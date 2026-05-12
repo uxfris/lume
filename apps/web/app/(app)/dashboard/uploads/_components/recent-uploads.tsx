@@ -6,6 +6,7 @@ import type { UploadSummary } from "@workspace/types"
 import Link from "next/link"
 import { UploadEmpty } from "./upload-empty"
 import { RecentUploadItem } from "./recent-upload-item"
+import { routes } from "@/lib/routes"
 
 export function RecentUploads({
   uploads,
@@ -32,14 +33,11 @@ export function RecentUploads({
           {!loading && uploads.length === 0 && <UploadEmpty />}
           {uploads.map((upload) => {
             const progress = progressByMeetingId[upload.meetingId]
-            if (
-              upload.status === "SUMMARIZED" ||
-              upload.status === "TRANSCRIBED"
-            ) {
+            if (upload.status === "SUMMARIZED") {
               return (
                 <Link
                   key={upload.meetingId}
-                  href={`/meeting/${upload.meetingId}`}
+                  href={routes.meeting(upload.meetingId)}
                 >
                   <RecentUploadItem
                     item={upload}

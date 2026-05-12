@@ -23,6 +23,27 @@ export interface RecallStatusEnvelope {
   }
 }
 
+/**
+ * Subset of [Google Calendar API v3 Event](https://developers.google.com/workspace/calendar/api/v3/reference/events#resource)
+ * as returned in Recall calendar event payloads.
+ */
+export interface GoogleCalendarEventRaw {
+  htmlLink?: string
+  summary?: string
+  creator?: { email?: string }
+  organizer?: { email?: string }
+}
+
+/**
+ * Subset of [Microsoft Graph event](https://learn.microsoft.com/en-us/graph/api/resources/event?view=graph-rest-1.0#properties)
+ * as returned in Recall calendar event payloads.
+ */
+export interface MicrosoftGraphEventRaw {
+  webLink?: string
+  subject?: string
+  organizer?: { emailAddress?: { address?: string } }
+}
+
 export interface RecallCalendarEventRecord {
   id: string
   start_time: string
@@ -32,6 +53,10 @@ export interface RecallCalendarEventRecord {
   meeting_platform?: string | null
   platform?: string | null
   is_deleted: boolean
+  /**
+   * Raw calendar event JSON from the provider (Recall forwards it).
+   * Shape matches {@link GoogleCalendarEventRaw} or {@link MicrosoftGraphEventRaw} depending on platform.
+   */
   raw?: unknown
   ical_uid?: string
   calendar?: { oauth_email?: string | null; platform_email?: string | null }

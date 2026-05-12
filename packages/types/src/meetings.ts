@@ -1,6 +1,11 @@
 import { z } from "zod"
 
-export const MeetingStatusSchema = z.enum(["analyzing", "processed"])
+export const MeetingStatusSchema = z.enum([
+  "transcribing",
+  "analyzing",
+  "processed",
+  "failed",
+])
 export type MeetingStatus = z.infer<typeof MeetingStatusSchema>
 
 export const MeetingPlatformSchema = z.enum(["Google Meet", "Zoom", "Teams"])
@@ -13,9 +18,18 @@ export const AttendeeSchema = z.object({
 })
 export type Attendee = z.infer<typeof AttendeeSchema>
 
+export const LiveMeetingSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  timestamp: z.string(),
+  meetingUrl: z.url().nullable(),
+})
+export type LiveMeeting = z.infer<typeof LiveMeetingSchema>
+
 export const MeetingSchema = z.object({
   id: z.string(),
   title: z.string(),
+  isStarred: z.boolean(),
   summary: z.string(),
   status: MeetingStatusSchema,
   timestamp: z.string(), // display string, e.g. "10:30" or "Oct 22, 2024"
@@ -24,7 +38,9 @@ export const MeetingSchema = z.object({
   extraAttendees: z.number().optional(),
   /** Present when returned from meeting detail API (AI analysis). */
   keyPoints: z.array(z.string()).optional(),
+  channelId: z.string().nullable(),
 })
+
 export type Meeting = z.infer<typeof MeetingSchema>
 
 export const UpcomingMeetingSchema = z.object({
@@ -33,7 +49,9 @@ export const UpcomingMeetingSchema = z.object({
   timestamp: z.string(), // display string, e.g. "10:30" or "Oct 22, 2024"
   duration: z.string(), // e.g. "28m"
   platform: MeetingPlatformSchema,
-  action: z.enum(["join", "prepare"]),
+  action: z.enum(["join", "view event"]),
+  calendarUrl: z.string(),
+  meetingUrl: z.string().nullable(),
   attendees: z.array(AttendeeSchema),
   extraAttendees: z.number().optional(),
 })
@@ -48,6 +66,7 @@ export type UpcomingMeetingGroup = z.infer<typeof UpcomingMeetingGroupSchema>
 export const MeetingStatusEnum = z.enum([
   "PENDING_UPLOAD",
   "SCHEDULED",
+  "LIVE",
   "UPLOADED",
   "TRANSCRIBING",
   "TRANSCRIBED",

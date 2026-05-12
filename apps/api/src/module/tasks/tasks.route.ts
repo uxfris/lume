@@ -5,6 +5,7 @@ import {
   assigneesResponseSchema,
   createTaskBodySchema,
   createTaskResponseSchema,
+  listTasksQuerySchema,
   listTasksResponseSchema,
   patchTaskBodySchema,
   taskErrorSchema,
@@ -37,13 +38,18 @@ export const tasksRoutes: FastifyPluginAsyncZod = async (app) => {
       schema: {
         tags: ["Tasks"],
         summary: "Tasks grouped by meeting",
+        querystring: listTasksQuerySchema,
         response: {
           200: listTasksResponseSchema,
         },
       },
     },
     async (request) => {
-      return tasksService.listTaskGroups(request.workspace!.id)
+      return tasksService.listTaskGroups({
+        workspaceId: request.workspace!.id,
+        currentUserId: request.user!.id,
+        filter: request.query.filter,
+      })
     }
   )
 

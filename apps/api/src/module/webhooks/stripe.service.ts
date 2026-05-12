@@ -2,15 +2,21 @@ import { prisma } from "@workspace/database"
 import type Stripe from "stripe"
 import { getStripe } from "../../lib/stripe"
 
-const ACTIVE_SUBSCRIPTION_STATUSES = new Set<
-  Stripe.Subscription.Status
->(["active", "trialing"])
+const ACTIVE_SUBSCRIPTION_STATUSES = new Set<Stripe.Subscription.Status>([
+  "active",
+  "trialing",
+])
 
-const INACTIVE_SUBSCRIPTION_STATUSES = new Set<
-  Stripe.Subscription.Status
->(["canceled", "unpaid", "incomplete_expired", "paused"])
+const INACTIVE_SUBSCRIPTION_STATUSES = new Set<Stripe.Subscription.Status>([
+  "canceled",
+  "unpaid",
+  "incomplete_expired",
+  "paused",
+])
 
-function getSubscriptionPeriodEnd(subscription: Stripe.Subscription): Date | null {
+function getSubscriptionPeriodEnd(
+  subscription: Stripe.Subscription
+): Date | null {
   const itemEnd = subscription.items.data.reduce<number | null>((max, item) => {
     const value = item.current_period_end
     if (typeof value !== "number") return max
@@ -26,17 +32,15 @@ export async function processStripeWebhookEvent(
 ): Promise<void> {
   switch (event.type) {
     case "checkout.session.completed":
-      await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session)
+      await handleCheckoutSessionCompleted(
+        event.data.object as Stripe.Checkout.Session
+      )
       break
     case "customer.subscription.updated":
-      await handleSubscriptionUpdated(
-        event.data.object as Stripe.Subscription
-      )
+      await handleSubscriptionUpdated(event.data.object as Stripe.Subscription)
       break
     case "customer.subscription.deleted":
-      await handleSubscriptionDeleted(
-        event.data.object as Stripe.Subscription
-      )
+      await handleSubscriptionDeleted(event.data.object as Stripe.Subscription)
       break
     default:
       break

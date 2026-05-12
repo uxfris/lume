@@ -1,4 +1,8 @@
-import type { Meeting, UpcomingMeetingGroup } from "@workspace/types"
+import type {
+  LiveMeeting,
+  Meeting,
+  UpcomingMeetingGroup,
+} from "@workspace/types"
 import { client, type RequestOptions } from "./client"
 
 type ListMeetingsResponse = {
@@ -7,6 +11,13 @@ type ListMeetingsResponse = {
 }
 
 export const meetingApi = {
+  async getLiveMeetings(options?: RequestOptions): Promise<LiveMeeting[]> {
+    const res = await client.get<{ meetings: LiveMeeting[] }>(
+      "/meetings/live",
+      options
+    )
+    return res.meetings
+  },
   /**
    * Cursor-paginated list; defaults match the API (`limit` 20).
    */
@@ -14,13 +25,26 @@ export const meetingApi = {
     options?: {
       cursor?: string
       limit?: number
+      isStarred?: boolean
+      isCreatedByMe?: boolean
+      isSharedWithMe?: boolean
     } & RequestOptions
   ): Promise<ListMeetingsResponse> {
-    const { cursor, limit, ...fetchOpts } = options ?? {}
+    const {
+      cursor,
+      limit,
+      isStarred,
+      isCreatedByMe,
+      isSharedWithMe,
+      ...fetchOpts
+    } = options ?? {}
     return client.get<ListMeetingsResponse>("/meetings", {
       params: {
         cursor,
         limit,
+        isStarred,
+        isCreatedByMe,
+        isSharedWithMe,
       },
       ...fetchOpts,
     })
@@ -28,11 +52,20 @@ export const meetingApi = {
 
   /** Convenience for views that only need the first page as an array. */
   async getMeetingsList(
-    options?: { limit?: number } & RequestOptions
+    options?: {
+      limit?: number
+      isStarred?: boolean
+      isCreatedByMe?: boolean
+      isSharedWithMe?: boolean
+    } & RequestOptions
   ): Promise<Meeting[]> {
-    const { limit, ...fetchOpts } = options ?? {}
+    const { limit, isStarred, isCreatedByMe, isSharedWithMe, ...fetchOpts } =
+      options ?? {}
     const res = await meetingApi.getMeetings({
       limit: limit ?? 50,
+      isStarred,
+      isCreatedByMe,
+      isSharedWithMe,
       ...fetchOpts,
     })
     return res.meetings
@@ -50,7 +83,7 @@ export const meetingApi = {
 
   async updateMeeting(
     id: string,
-    body: { title?: string; isShared?: boolean },
+    body: { title?: string; isShared?: boolean; isStarred?: boolean },
     options?: RequestOptions
   ): Promise<void> {
     await client.patch(`/meetings/${id}`, body, options)

@@ -1,151 +1,186 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { useNewTaskForm } from "./use-task-form"
 import { ActionItem, TasksGroup, UserSummary } from "@workspace/types"
 import { taskApi } from "@workspace/api-client"
+import { useQueryClient } from "@tanstack/react-query"
 
-export function useTaskList(
-    tasksGroup: TasksGroup
-) {
-    const [tasks, setTasks] = useState<ActionItem[]>(tasksGroup.tasks)
-    const [collapsibleOpen, setCollapsibleOpen] = useState(false)
+export function useTaskList(tasksGroup: TasksGroup) {
+  const queryClient = useQueryClient()
+  const [tasks, setTasks] = useState<ActionItem[]>(tasksGroup.tasks)
+  const [collapsibleOpen, setCollapsibleOpen] = useState(
+    () => !tasksGroup.tasks.some((task) => !task.isCompleted)
+  )
 
+  useEffect(() => {
+    setTasks(tasksGroup.tasks)
+  }, [tasksGroup.id, tasksGroup.tasks])
 
+  function invalidateTaskQueries() {
+    return queryClient.invalidateQueries({ queryKey: ["tasks"] })
+  }
 
-    // ─── Actions ──────────────────────────────────────────────────────────────
+  // ─── Actions ──────────────────────────────────────────────────────────────
 
-    async function toggleTask(id: string) {
-        const prev = tasks.find((t) => t.id === id)
-        if (!prev) return
+  async function toggleTask(id: string) {
+    const prev = tasks.find((t) => t.id === id)
+    if (!prev) return
 
-        setTasks((curr) =>
-            curr.map((t) => (t.id === id ? { ...t, isCompleted: !t.isCompleted } : t))
+    setTasks((curr) =>
+      curr.map((t) => (t.id === id ? { ...t, isCompleted: !t.isCompleted } : t))
+    )
+
+    try {
+      await taskApi.toggle(id, !prev.isCompleted)
+      await invalidateTaskQueries()
+    } catch {
+      setTasks((curr) =>
+        curr.map((t) =>
+          t.id === id ? { ...t, isCompleted: prev.isCompleted } : t
         )
+      )
+      toast.error("Failed to update task. Please try again.")
+    }
+  }
 
-        try {
-            await taskApi.toggle(id, !prev.isCompleted)
-        } catch {
-            setTasks((curr) =>
-                curr.map((t) => (t.id === id ? { ...t, isCompleted: prev.isCompleted } : t))
-            )
-            toast.error("Failed to update task. Please try again.")
-        }
+  async function addTask(
+    title: string,
+    assignee: UserSummary | null,
+    isCompleted: boolean
+  ) {
+    const optimisticId = crypto.randomUUID()
+    const optimisticTask: ActionItem = {
+      id: optimisticId,
+      title,
+      isCompleted,
+      assignee,
     }
 
-    async function addTask(title: string, assignee: UserSummary | null, isCompleted: boolean) {
-        const optimisticId = crypto.randomUUID()
-        const optimisticTask: ActionItem = {
-            id: optimisticId,
-            title,
-            isCompleted,
-            assignee,
-        }
+    setTasks((curr) => [...curr, optimisticTask])
 
-        setTasks((curr) => [...curr, optimisticTask])
-
-        try {
-            const created = await taskApi.add({
-                title,
-                assignee,
-                isCompleted,
-                meetingId:
-                    tasksGroup.id === "workspace" ? null : tasksGroup.id,
-            })
-            setTasks((curr) =>
-                curr.map((t) => (t.id === optimisticId ? created : t))
-            )
-        } catch {
-            setTasks((curr) => curr.filter((t) => t.id !== optimisticId))
-            toast.error("Failed to add task. Please try again.")
-        }
+    try {
+      const created = await taskApi.add({
+        title,
+        assignee,
+        isCompleted,
+        meetingId: tasksGroup.id === "workspace" ? null : tasksGroup.id,
+      })
+      setTasks((curr) => curr.map((t) => (t.id === optimisticId ? created : t)))
+      await invalidateTaskQueries()
+    } catch {
+      setTasks((curr) => curr.filter((t) => t.id !== optimisticId))
+      toast.error("Failed to add task. Please try again.")
     }
+  }
 
-    async function deleteTask(id: string) {
-        const index = tasks.findIndex((t) => t.id === id)
-        const snapshot = tasks[index]
-        if (!snapshot) return
+  async function deleteTask(id: string) {
+    const index = tasks.findIndex((t) => t.id === id)
+    const snapshot = tasks[index]
 
-        setTasks((curr) => curr.filter((t) => t.id !== id))
+    if (!snapshot) return
 
-        toast("Task deleted", {
-            position: "bottom-center",
-            action: {
-                label: "Undo",
-                onClick: () => {
-                    setTasks((curr) => {
-                        const restored = [...curr]
-                        restored.splice(index, 0, snapshot)
-                        return restored
-                    })
-                },
-            },
+    // remove locally first
+    setTasks((curr) => curr.filter((t) => t.id !== id))
+
+    let undone = false
+
+    const timeout = setTimeout(async () => {
+      if (undone) return
+
+      try {
+        await taskApi.remove(id)
+        await invalidateTaskQueries()
+      } catch {
+        // rollback if API failed
+        setTasks((curr) => {
+          if (curr.find((t) => t.id === id)) return curr
+
+          const restored = [...curr]
+          restored.splice(index, 0, snapshot)
+
+          return restored
         })
 
-        try {
-            await taskApi.remove(id)
-        } catch {
-            // Only rollback if the user didn't already undo
-            setTasks((curr) => {
-                if (curr.find((t) => t.id === id)) return curr
-                const restored = [...curr]
-                restored.splice(index, 0, snapshot)
-                return restored
-            })
-            toast.error("Failed to delete task.")
-        }
+        toast.error("Failed to delete task.")
+      }
+    }, 5000) // undo window
+
+    toast("Task deleted", {
+      position: "bottom-center",
+      duration: 5000,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          undone = true
+          clearTimeout(timeout)
+
+          setTasks((curr) => {
+            const restored = [...curr]
+            restored.splice(index, 0, snapshot)
+            return restored
+          })
+        },
+      },
+    })
+  }
+
+  async function updateTaskTitle(id: string, title: string) {
+    const prev = tasks.find((t) => t.id === id)
+    if (!prev) return
+
+    setTasks((curr) => curr.map((t) => (t.id === id ? { ...t, title } : t)))
+
+    try {
+      await taskApi.updateTitle(id, title)
+      await invalidateTaskQueries()
+    } catch {
+      setTasks((curr) =>
+        curr.map((t) => (t.id === id ? { ...t, title: prev.title } : t))
+      )
+      toast.error("Failed to update task title.")
     }
+  }
 
-    async function updateTaskTitle(id: string, title: string) {
-        const prev = tasks.find((t) => t.id === id)
-        if (!prev) return
+  async function updateAssignee(id: string, assignee: UserSummary | null) {
+    const prev = tasks.find((t) => t.id === id)
+    if (!prev) return
 
-        setTasks((curr) => curr.map((t) => (t.id === id ? { ...t, title } : t)))
+    setTasks((curr) => curr.map((t) => (t.id === id ? { ...t, assignee } : t)))
 
-        try {
-            await taskApi.updateTitle(id, title)
-        } catch {
-            setTasks((curr) => curr.map((t) => (t.id === id ? { ...t, title: prev.title } : t)))
-            toast.error("Failed to update task title.")
-        }
+    try {
+      await taskApi.updateAssignee(id, assignee)
+      await invalidateTaskQueries()
+    } catch {
+      setTasks((curr) =>
+        curr.map((t) => (t.id === id ? { ...t, assignee: prev.assignee } : t))
+      )
+      toast.error("Failed to update assignee.")
     }
+  }
 
-    async function updateAssignee(id: string, assignee: UserSummary | null) {
-        const prev = tasks.find((t) => t.id === id)
-        if (!prev) return
+  // ─── Form (delegates to useNewTaskForm) ───────────────────────────────────
 
-        setTasks((curr) => curr.map((t) => (t.id === id ? { ...t, assignee } : t)))
+  const form = useNewTaskForm({ onCommit: addTask })
 
-        try {
-            await taskApi.updateAssignee(id, assignee)
-        } catch {
-            setTasks((curr) => curr.map((t) => (t.id === id ? { ...t, assignee: prev.assignee } : t)))
-            toast.error("Failed to update assignee.")
-        }
-    }
+  // ─── Derived ──────────────────────────────────────────────────────────────
+  const incompleteTasks = tasks.filter((t) => !t.isCompleted)
+  const completedTasks = tasks.filter((t) => t.isCompleted)
 
-    // ─── Form (delegates to useNewTaskForm) ───────────────────────────────────
-
-    const form = useNewTaskForm({ onCommit: addTask })
-
-    // ─── Derived ──────────────────────────────────────────────────────────────
-    const incompleteTasks = tasks.filter((t) => !t.isCompleted)
-    const completedTasks = tasks.filter((t) => t.isCompleted)
-
-    return {
-        // task state
-        tasks,
-        incompleteTasks,
-        completedTasks,
-        // ui state
-        collapsibleOpen,
-        setCollapsibleOpen,
-        // actions
-        toggleTask,
-        addTask,
-        deleteTask,
-        updateTaskTitle,
-        updateAssignee,
-        // form (spread or pass as a group — consumer's choice)
-        form,
-    }
+  return {
+    // task state
+    tasks,
+    incompleteTasks,
+    completedTasks,
+    // ui state
+    collapsibleOpen,
+    setCollapsibleOpen,
+    // actions
+    toggleTask,
+    addTask,
+    deleteTask,
+    updateTaskTitle,
+    updateAssignee,
+    // form (spread or pass as a group — consumer's choice)
+    form,
+  }
 }

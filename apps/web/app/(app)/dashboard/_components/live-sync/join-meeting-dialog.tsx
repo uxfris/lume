@@ -1,166 +1,135 @@
 import { Button } from "@workspace/ui/components/button"
 import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@workspace/ui/components/dialog"
 import { Input } from "@workspace/ui/components/input"
 import { Separator } from "@workspace/ui/components/separator"
-import { Field, FieldContent, FieldError, FieldLabel } from "@workspace/ui/components/field"
+import { Field, FieldLabel } from "@workspace/ui/components/field"
 import z from "zod"
-import { Controller, useForm } from "react-hook-form"
+import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@workspace/ui/components/select"
-import { useEffect } from "react"
-
-const spokenLanguages = [
-    { label: "English", value: "en" },
-    { label: "Spanish", value: "es" },
-    { label: "French", value: "fr" },
-    { label: "German", value: "de" },
-    { label: "Italian", value: "it" },
-    { label: "Chinese", value: "zh" },
-    { label: "Japanese", value: "ja" },
-] as const
+import { useEffect, useState } from "react"
+import { botsApi } from "@workspace/api-client"
+import { Spinner } from "@workspace/ui/components/spinner"
 
 const schema = z.object({
-    url: z.string()
-        .min(1, "Meeting url is required")
-        .url("Must be a valid URL (https://example.com)")
-        .refine((val) => val.includes("meet.google.com") ||
-            val.includes("teams.microsoft.com"),
-            "Only Google Meet or Microsoft Teams link are allowed"
-        ),
-    name: z.string().optional(),
-    language: z.string()
+  url: z
+    .url("Must be a valid URL (https://example.com)")
+    .min(1, "Meeting url is required")
+    .refine(
+      (val) =>
+        val.includes("meet.google.com") ||
+        val.includes("teams.microsoft.com") ||
+        val.includes("https://zoom.us"),
+      "Only Google Meet,Microsoft Teams, and Zoom link are allowed"
+    ),
+  name: z.string().optional(),
 })
 
-
-
-
 type JoinMeetingDialogProps = {
-    open: boolean
-    onOpenChange: (open: boolean) => void
-    onSuccess: () => void,
-    meetingUrl?: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSuccess: (meetingUrl: string) => void
+  meetingUrl?: string
 }
 
-export function JoinMeetingDialog({ open, onOpenChange, onSuccess, meetingUrl }: JoinMeetingDialogProps) {
+export function JoinMeetingDialog({
+  open,
+  onOpenChange,
+  onSuccess,
+  meetingUrl,
+}: JoinMeetingDialogProps) {
+  const [loading, setLoading] = useState(false)
 
+  const form = useForm({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      url: meetingUrl,
+      name: "",
+    },
+  })
 
-
-
-    const form = useForm({
-        resolver: zodResolver(schema),
-        defaultValues: {
-            url: "",
-            name: "",
-            language: "en",
-        }
-    })
-
-    useEffect(() => {
-        if (!open) {
-            form.reset()
-        }
-    }, [open, form])
-
-
-
-    const joinMeeting = async (data: z.infer<typeof schema>) => {
-        if (meetingUrl) {
-            console.log("Joining:", meetingUrl)
-        }
-        else {
-            console.log("Joining:", data.url)
-        }
-        await new Promise((res) => setTimeout(res, 500))
-
-        // Trigger success flow
-        onSuccess()
+  useEffect(() => {
+    if (open) {
+      // defaultValues only apply on mount; parent passes meetingUrl after outer form submit,
+      // so we must sync or hidden-field validation fails and handleSubmit never runs joinMeeting.
+      form.reset({
+        url: meetingUrl ?? "",
+        name: "",
+      })
+    } else {
+      form.reset()
     }
+  }, [open, meetingUrl, form])
 
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md gap-4">
-                <DialogHeader>
-                    <DialogTitle>Join Meeting</DialogTitle>
-                </DialogHeader>
-                <Separator />
-                <form className="space-y-6 py-2" onSubmit={form.handleSubmit(joinMeeting)}>
-                    {!meetingUrl &&
-                        <Field>
-                            <FieldLabel htmlFor="meeting-url">
-                                Meeting Url
-                            </FieldLabel>
-                            <Input
-                                {...form.register("url")}
-                                id="meeting-url"
-                                placeholder="Paste meeting URL (Google Meet, Teams)"
-                                className="h-12"
-                            />
-                            {form.formState.errors.url?.message && <p className="text-sm text-destructive">{form.formState.errors.url.message}</p>}
-                        </Field>}
-                    <Field className="gap-3">
-                        <FieldLabel htmlFor="meeting-name">
-                            Meeting name (Optional)
-                        </FieldLabel>
-                        <Input
-                            {...form.register("name")}
-                            id="meeting-name"
-                            placeholder="e.g., Weekly Sync"
-                        />
-                    </Field>
-                    <Controller
-                        name="language"
-                        control={form.control}
-                        render={({ field, fieldState }) => (
-                            <Field orientation="responsive" data-invalid={fieldState.invalid}>
-                                <FieldContent>
-                                    <FieldLabel htmlFor="meeting-language">
-                                        Meeting Language
-                                    </FieldLabel>
-                                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                                </FieldContent>
-                                <Select
-                                    name={field.name}
-                                    value={field.value}
-                                    onValueChange={field.onChange}
-                                >
-                                    <SelectTrigger
-                                        id="meeting-language"
-                                        aria-invalid={fieldState.invalid}
-                                        className="min-w-[120px]"
-                                    >
-                                        <SelectValue placeholder="Select" />
-                                    </SelectTrigger>
-                                    <SelectContent position="item-aligned">
-                                        <SelectItem value="auto">Auto</SelectItem>
-                                        <SelectSeparator />
-                                        {spokenLanguages.map((language) => (
-                                            <SelectItem key={language.value} value={language.value}>
-                                                {language.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </Field>
-                        )}
-                    />
-                    <DialogFooter>
-                        <div className="flex justify-end gap-3">
-                            <DialogClose asChild>
-                                <Button variant="ghost" type="button">Close</Button>
-                            </DialogClose>
-                            <Button type="submit">Join Now</Button>
-                        </div>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
-    )
+  const joinMeeting = async (data: z.infer<typeof schema>) => {
+    setLoading(true)
+    await botsApi.startBotMeeting({
+      meetingUrl: meetingUrl ?? data.url,
+      title: data.name,
+    })
+    setLoading(false)
+    onSuccess(meetingUrl ?? data.url)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="gap-4 sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Join Meeting</DialogTitle>
+          <DialogDescription />
+        </DialogHeader>
+        <Separator />
+        <form
+          className="space-y-6 py-2"
+          onSubmit={form.handleSubmit(joinMeeting)}
+        >
+          {!meetingUrl && (
+            <Field>
+              <FieldLabel htmlFor="meeting-url">Meeting Url</FieldLabel>
+              <Input
+                {...form.register("url")}
+                id="meeting-url"
+                placeholder="Paste meeting URL (Google Meet, Teams)"
+                className="h-12"
+              />
+              {form.formState.errors.url?.message && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.url.message}
+                </p>
+              )}
+            </Field>
+          )}
+          <Field className="gap-3">
+            <FieldLabel htmlFor="meeting-name">
+              Meeting name (Optional)
+            </FieldLabel>
+            <Input
+              {...form.register("name")}
+              id="meeting-name"
+              placeholder="e.g., Weekly Sync"
+            />
+          </Field>
+          <DialogFooter>
+            <div className="flex justify-end gap-3">
+              <DialogClose asChild>
+                <Button variant="ghost" type="button">
+                  Close
+                </Button>
+              </DialogClose>
+              <Button type="submit" disabled={loading}>
+                {loading ? <Spinner /> : "Join Now"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
 }
-

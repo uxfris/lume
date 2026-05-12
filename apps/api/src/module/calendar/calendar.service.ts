@@ -1,17 +1,65 @@
 import type {
+  Attendee,
   MeetingPlatform,
   UpcomingMeeting,
   UpcomingMeetingGroup,
 } from "@workspace/types"
+import type { Prisma } from "@workspace/database"
 import { prisma } from "@workspace/database"
 import { calendarRepo, type CalendarEventRow } from "./calendar.repo"
+import { initialsFromTitle } from "./calendar-attendees-from-raw"
 import { env } from "../../config/env"
 
-function initialsFromTitle(title: string): string {
-  const parts = title.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return "EV"
-  if (parts.length === 1) return (parts[0] ?? "EV").slice(0, 2).toUpperCase()
-  return `${parts[0]?.[0] ?? "E"}${parts[1]?.[0] ?? "V"}`.toUpperCase()
+const TEN_MINUTES = 10 * 60 * 1000
+const MAX_ATTENDEE_AVATARS = 4
+
+function parseAttendeesFromJson(
+  value: Prisma.JsonValue | null | undefined
+): Attendee[] | null {
+  if (value == null || !Array.isArray(value)) return null
+  const out: Attendee[] = []
+  for (const item of value) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue
+    const rec = item as Record<string, unknown>
+    const id = rec.id
+    const initials = rec.initials
+    if (typeof id !== "string" || typeof initials !== "string") continue
+    const row: Attendee = { id, initials }
+    const avatarUrl = rec.avatarUrl
+    if (
+      typeof avatarUrl === "string" &&
+      (avatarUrl.startsWith("https://") || avatarUrl.startsWith("http://"))
+    ) {
+      row.avatarUrl = avatarUrl
+    }
+    out.push(row)
+  }
+  return out.length > 0 ? out : null
+}
+
+function attendeesForUpcomingMeeting(row: CalendarEventRow): Pick<
+  UpcomingMeeting,
+  "attendees" | "extraAttendees"
+> {
+  const parsed = parseAttendeesFromJson(row.attendees)
+  if (parsed && parsed.length > 0) {
+    if (parsed.length <= MAX_ATTENDEE_AVATARS) {
+      return { attendees: parsed }
+    }
+    return {
+      attendees: parsed.slice(0, MAX_ATTENDEE_AVATARS),
+      extraAttendees: parsed.length - MAX_ATTENDEE_AVATARS,
+    }
+  }
+
+  return {
+    attendees: [
+      {
+        id: `calendar-${row.id}`,
+        initials: initialsFromTitle(row.title),
+      },
+    ],
+  }
 }
 
 function formatDuration(startAt: Date, endAt: Date): string {
@@ -50,20 +98,30 @@ function toDisplayPlatform(
   return "Google Meet"
 }
 
+function toDisplayAction(
+  startAt: Date,
+  joinUrl: string | null
+): "join" | "view event" {
+  // const canJoin = joinUrl && Date.now() >= startAt.getTime() - TEN_MINUTES
+
+  // const action = canJoin ? "join" : "view event"
+  // return action
+  return "view event"
+}
+
 function toUpcomingMeeting(row: CalendarEventRow): UpcomingMeeting {
+  const { attendees, extraAttendees } = attendeesForUpcomingMeeting(row)
   return {
     id: row.id,
     title: row.title,
     timestamp: formatTimestamp(row.startAt),
     duration: formatDuration(row.startAt, row.endAt),
     platform: toDisplayPlatform(row.platform),
-    action: row.startAt.getTime() <= Date.now() ? "join" : "prepare",
-    attendees: [
-      {
-        id: `calendar-${row.id}`,
-        initials: initialsFromTitle(row.title),
-      },
-    ],
+    action: toDisplayAction(row.startAt, row.joinUrl),
+    meetingUrl: row.joinUrl,
+    calendarUrl: row.calendarUrl,
+    attendees,
+    ...(extraAttendees != null ? { extraAttendees } : {}),
   }
 }
 

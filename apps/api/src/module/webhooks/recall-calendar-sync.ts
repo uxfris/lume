@@ -1,5 +1,6 @@
 import { Prisma, prisma } from "@workspace/database"
 
+import { buildCalendarEventAttendeesJson } from "../calendar/calendar-attendees-from-raw"
 import { env } from "../../config/env"
 import type {
   RecallCalendarEventRecord,
@@ -10,6 +11,28 @@ function normalizeEmail(input: unknown): string | null {
   if (typeof input !== "string") return null
   const email = input.trim().toLowerCase()
   return email || null
+}
+
+/**
+ * Browser link to the event in the provider calendar UI.
+ * Google Calendar uses `htmlLink`; Microsoft Graph uses `webLink`.
+ * Falls back to the meeting join URL when neither is present (DB requires a non-null string).
+ */
+function calendarWebUrlFromRaw(
+  raw: unknown,
+  fallbackJoinUrl?: string | null
+): string {
+  if (!raw || typeof raw !== "object") {
+    const fb = typeof fallbackJoinUrl === "string" ? fallbackJoinUrl.trim() : ""
+    return fb || ""
+  }
+  const rec = raw as Record<string, unknown>
+  const htmlLink = rec.htmlLink
+  if (typeof htmlLink === "string" && htmlLink.trim()) return htmlLink.trim()
+  const webLink = rec.webLink
+  if (typeof webLink === "string" && webLink.trim()) return webLink.trim()
+  const fb = typeof fallbackJoinUrl === "string" ? fallbackJoinUrl.trim() : ""
+  return fb || ""
 }
 
 function readRawEmail(
@@ -39,9 +62,13 @@ async function resolveCalendarEventOwner(
   if (calendarEvent.calendar_id) {
     const connection = await prisma.recallCalendarConnection.findFirst({
       where: { recallCalendarId: calendarEvent.calendar_id },
-      select: { userId: true },
+      select: {
+        user: {
+          select: { id: true, email: true, name: true, image: true },
+        },
+      },
     })
-    if (connection) return { id: connection.userId }
+    if (connection?.user) return connection.user
   }
 
   const ownerEmail = extractCalendarOwnerEmail(calendarEvent)
@@ -49,7 +76,7 @@ async function resolveCalendarEventOwner(
 
   return prisma.user.findUnique({
     where: { email: ownerEmail },
-    select: { id: true },
+    select: { id: true, email: true, name: true, image: true },
   })
 }
 
@@ -193,6 +220,28 @@ async function upsertCalendarEventRecord(
     return false
   }
 
+  const rawObj =
+    calendarEvent.raw && typeof calendarEvent.raw === "object"
+      ? (calendarEvent.raw as Record<string, unknown>)
+      : null
+  const title =
+    (typeof rawObj?.summary === "string" ? rawObj.summary.trim() : "") ||
+    (typeof rawObj?.subject === "string" ? rawObj.subject.trim() : "") ||
+    "Scheduled meeting"
+
+  const attendeesJson = calendarEvent.is_deleted
+    ? null
+    : buildCalendarEventAttendeesJson({
+        raw: calendarEvent.raw,
+        externalId: calendarEvent.id,
+        owner: {
+          email: user.email,
+          name: user.name,
+          image: user.image,
+        },
+        fallbackTitle: title,
+      })
+
   for (const membership of memberships) {
     if (calendarEvent.is_deleted) {
       await prisma.calendarEvent.deleteMany({
@@ -205,15 +254,6 @@ async function upsertCalendarEventRecord(
       })
       continue
     }
-
-    const rawObj =
-      calendarEvent.raw && typeof calendarEvent.raw === "object"
-        ? (calendarEvent.raw as Record<string, unknown>)
-        : null
-    const title =
-      (typeof rawObj?.summary === "string" ? rawObj.summary.trim() : "") ||
-      (typeof rawObj?.subject === "string" ? rawObj.subject.trim() : "") ||
-      "Scheduled meeting"
 
     await prisma.calendarEvent.upsert({
       where: {
@@ -233,9 +273,14 @@ async function upsertCalendarEventRecord(
         startAt,
         endAt,
         joinUrl: calendarEvent.meeting_url ?? null,
+        calendarUrl: calendarWebUrlFromRaw(
+          calendarEvent.raw,
+          calendarEvent.meeting_url
+        ),
         platform: toMeetingPlatform(
           calendarEvent.meeting_platform ?? calendarEvent.platform
         ),
+        attendees: attendeesJson!,
         metadata: (calendarEvent.raw ?? calendarEvent) as Prisma.InputJsonValue,
       },
       update: {
@@ -243,9 +288,14 @@ async function upsertCalendarEventRecord(
         startAt,
         endAt,
         joinUrl: calendarEvent.meeting_url ?? null,
+        calendarUrl: calendarWebUrlFromRaw(
+          calendarEvent.raw,
+          calendarEvent.meeting_url
+        ),
         platform: toMeetingPlatform(
           calendarEvent.meeting_platform ?? calendarEvent.platform
         ),
+        attendees: attendeesJson!,
         metadata: (calendarEvent.raw ?? calendarEvent) as Prisma.InputJsonValue,
       },
     })
@@ -253,7 +303,9 @@ async function upsertCalendarEventRecord(
   return true
 }
 
-export async function handleCalendarSyncEvent(payload: unknown): Promise<boolean> {
+export async function handleCalendarSyncEvent(
+  payload: unknown
+): Promise<boolean> {
   if (!payload || typeof payload !== "object") return false
   const root = payload as RecallStatusEnvelope
   const calendarId = root.data?.calendar_id ?? root.data?.calendar?.id
@@ -269,11 +321,12 @@ export async function handleCalendarSyncEvent(payload: unknown): Promise<boolean
   for (const evt of changed) {
     const didHandle = await upsertCalendarEventRecord(evt)
     // Calendar V2 scheduling policy: keep one bot per meeting url + start time.
-    if (evt.is_deleted) {
-      await unscheduleBotForCalendarEvent(evt)
-    } else {
-      await scheduleBotForCalendarEvent(evt)
-    }
+    //POSTPONE FOR NOW: Wait until the meeting creation logic based on calendar event is handled
+    // if (evt.is_deleted) {
+    //   await unscheduleBotForCalendarEvent(evt)
+    // } else {
+    //   await scheduleBotForCalendarEvent(evt)
+    // }
     handled = handled || didHandle
   }
   return handled

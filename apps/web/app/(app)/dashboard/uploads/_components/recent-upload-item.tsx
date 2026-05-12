@@ -58,15 +58,15 @@ export function RecentUploadItem({
             ? "Transcribing..."
             : null
 
-  const cancelUpload = () => {
-    toast("Upload cancelled", {
-      position: "bottom-center",
-      action: {
-        label: "Undo",
-        onClick: () => {},
-      },
-    })
-  }
+  // const cancelUpload = () => {
+  //   toast("Upload cancelled", {
+  //     position: "bottom-center",
+  //     action: {
+  //       label: "Undo",
+  //       onClick: () => {},
+  //     },
+  //   })
+  // }
 
   return (
     <div
@@ -137,7 +137,7 @@ export function RecentUploadItem({
           />
         )}
       </div>
-      {progress && (
+      {/* {progress && (
         <Button
           variant="ghost"
           className="h-9 w-9 rounded-full"
@@ -145,7 +145,7 @@ export function RecentUploadItem({
         >
           <CloseCircle />
         </Button>
-      )}
+      )} */}
       {status !== "ANALYZING" &&
         status !== "PENDING_UPLOAD" &&
         status !== "UPLOADED" &&

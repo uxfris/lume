@@ -25,10 +25,9 @@ import { CreditLeftCard } from "@/components/credit-left-card"
 import { workspaceApi } from "@workspace/api-client"
 import type { WorkspaceMembership } from "@workspace/types"
 import { NewWorkspacePage } from "./new-workspace-page"
-import {
-  resolveInitialWorkspaceId,
-} from "@/lib/workspace"
+import { resolveInitialWorkspaceId } from "@/lib/workspace"
 import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
+import { routes } from "@/lib/routes"
 
 function getInitial(name: string): string {
   return name.trim().charAt(0).toUpperCase() || "W"
@@ -130,7 +129,7 @@ export function WorkspaceSwitcher() {
               </div>
               {/* Menu */}
               <div className="flex w-full items-center gap-1">
-                <Link href="/settings/workspace">
+                <Link href={routes.settings.workspace}>
                   <Button
                     size="xs"
                     variant="ghost"
@@ -143,7 +142,7 @@ export function WorkspaceSwitcher() {
                     Settings
                   </Button>
                 </Link>
-                <Link href="/settings/people?invite=true">
+                <Link href={`${routes.settings.people}?invite=true`}>
                   <Button
                     size="xs"
                     variant="ghost"

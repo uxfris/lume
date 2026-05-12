@@ -1,15 +1,37 @@
 import { prisma, type Prisma } from "@workspace/database"
 
 export const tasksRepo = {
-  listForWorkspace(workspaceId: string) {
+  async listForWorkspace(input: {
+    workspaceId: string
+    currentUserId: string
+    filter: "all" | "assigned_to_me" | "from_last_meeting" | "completed"
+  }) {
+    const { workspaceId, currentUserId, filter } = input
+
+    const where: Prisma.TaskWhereInput = {
+      workspaceId,
+      OR: [{ meetingId: null }, { meeting: { deletedAt: null } }],
+    }
+
+    if (filter === "completed") {
+      where.isCompleted = true
+    } else if (filter === "assigned_to_me") {
+      where.assigneeId = currentUserId
+    } else if (filter === "from_last_meeting") {
+      where.isCompleted = false
+
+      const latestMeeting = await prisma.meeting.findFirst({
+        where: { workspaceId, deletedAt: null },
+        select: { id: true },
+        orderBy: { updatedAt: "desc" },
+      })
+
+      if (!latestMeeting) return []
+      where.meetingId = latestMeeting.id
+    }
+
     return prisma.task.findMany({
-      where: {
-        workspaceId,
-        OR: [
-          { meetingId: null },
-          { meeting: { deletedAt: null } },
-        ],
-      },
+      where,
       include: {
         assignee: true,
         meeting: true,

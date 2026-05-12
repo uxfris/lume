@@ -10,6 +10,9 @@ export const calendarRepo = {
     return prisma.calendarEvent.findMany({
       where: {
         workspaceId: input.workspaceId,
+        joinUrl: {
+          not: null,
+        },
         startAt: {
           gte: input.from,
           lt: input.to,
@@ -19,7 +22,10 @@ export const calendarRepo = {
       take: input.take,
     })
   },
-  findOAuthAccount(input: { userId: string; providerId: "google" | "microsoft" }) {
+  findOAuthAccount(input: {
+    userId: string
+    providerId: "google" | "microsoft"
+  }) {
     return prisma.account.findFirst({
       where: {
         userId: input.userId,
@@ -32,4 +38,6 @@ export const calendarRepo = {
   },
 }
 
-export type CalendarEventRow = Prisma.CalendarEventGetPayload<Record<string, never>>
+export type CalendarEventRow = Prisma.CalendarEventGetPayload<
+  Record<string, never>
+>

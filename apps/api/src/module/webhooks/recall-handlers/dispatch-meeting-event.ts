@@ -1,3 +1,4 @@
+import { prisma } from "@workspace/database"
 import type { RecallEventResult } from "../recall-webhook.types"
 import type { MeetingRecallContext } from "./context"
 import { handleTranscriptFailedOrBotFatal } from "./fatal"
@@ -10,6 +11,12 @@ export async function dispatchMeetingRecallEvent(
   ctx: MeetingRecallContext
 ): Promise<RecallEventResult | null> {
   switch (eventType) {
+    case "bot.in_call_recording":
+      await prisma.meeting.update({
+        where: { id: ctx.meeting.id },
+        data: { status: "LIVE" },
+      })
+      return { ok: true, action: "NOTED" }
     case "recording.done":
       return handleRecordingDone(ctx)
     case "transcript.done":

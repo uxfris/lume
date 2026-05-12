@@ -1,27 +1,63 @@
-import { prisma, type Prisma } from "@workspace/database"
+import {
+  prisma,
+  transcribedMinutesFromDuration,
+  utcBillingPeriod,
+  type Prisma,
+} from "@workspace/database"
 
 export type MeetingWithOwner = Prisma.MeetingGetPayload<{
   include: { user: true }
 }>
-export type TranscriptSegmentWithParticipant = Prisma.TranscriptSegmentGetPayload<{
-  include: {
-    participant: { select: { name: true; externalId: true } }
-    transcriptWords: { select: { id: true; text: true; startMs: true; endMs: true; position: true } }
-  }
-}>
+export type TranscriptSegmentWithParticipant =
+  Prisma.TranscriptSegmentGetPayload<{
+    include: {
+      participant: { select: { name: true; externalId: true } }
+      transcriptWords: {
+        select: {
+          id: true
+          text: true
+          startMs: true
+          endMs: true
+          position: true
+        }
+      }
+    }
+  }>
 
 export const meetingsRepo = {
+  listLiveByWorkspace(input: { workspaceId: string }) {
+    return prisma.meeting.findMany({
+      where: {
+        workspaceId: input.workspaceId,
+        deletedAt: null,
+        status: "LIVE",
+      },
+      select: {
+        id: true,
+        createdAt: true,
+        title: true,
+        meetingUrl: true,
+      },
+    })
+  },
   /**
    * Ordered page of meetings; caller passes `take` (e.g. limit + 1 for has-next detection).
    */
   listByWorkspace(input: {
     workspaceId: string
+    userId: string
     take: number
     cursor?: { createdAt: Date; id: string }
+    isStarred?: boolean
+    isCreatedByMe?: boolean
+    isSharedWithMe?: boolean
   }): Promise<MeetingWithOwner[]> {
     const where: Prisma.MeetingWhereInput = {
       workspaceId: input.workspaceId,
       deletedAt: null,
+      status: {
+        notIn: ["SCHEDULED", "LIVE"],
+      },
       ...(input.cursor
         ? {
             OR: [
@@ -34,6 +70,11 @@ export const meetingsRepo = {
               },
             ],
           }
+        : {}),
+      ...(input.isStarred !== undefined ? { isStarred: input.isStarred } : {}),
+      ...(input.isCreatedByMe === true ? { userId: input.userId } : {}),
+      ...(input.isSharedWithMe === true
+        ? { isShared: true, NOT: { userId: input.userId } }
         : {}),
     }
 
@@ -137,14 +178,73 @@ export const meetingsRepo = {
   },
 
   async softDelete(meetingId: string, workspaceId: string): Promise<number> {
-    const result = await prisma.meeting.updateMany({
-      where: {
-        id: meetingId,
-        workspaceId,
-        deletedAt: null,
-      },
-      data: { deletedAt: new Date() },
+    return prisma.$transaction(async (tx) => {
+      const meeting = await tx.meeting.findFirst({
+        where: {
+          id: meetingId,
+          workspaceId,
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          createdAt: true,
+          durationSeconds: true,
+          billingUsageRecorded: true,
+        },
+      })
+
+      if (!meeting) {
+        return 0
+      }
+
+      await tx.meeting.update({
+        where: { id: meeting.id },
+        data: { deletedAt: new Date() },
+      })
+
+      if (!meeting.billingUsageRecorded) {
+        return 1
+      }
+
+      const period = utcBillingPeriod(meeting.createdAt)
+      const minutesToSubtract = transcribedMinutesFromDuration(
+        meeting.durationSeconds
+      )
+
+      const usage = await tx.usageCounter.findUnique({
+        where: {
+          workspaceId_period: {
+            workspaceId,
+            period,
+          },
+        },
+        select: {
+          minutesTranscribed: true,
+          meetingsTranscribed: true,
+        },
+      })
+
+      if (!usage) {
+        return 1
+      }
+
+      await tx.usageCounter.update({
+        where: {
+          workspaceId_period: {
+            workspaceId,
+            period,
+          },
+        },
+        data: {
+          minutesTranscribed: Math.max(
+            0,
+            usage.minutesTranscribed - minutesToSubtract
+          ),
+          meetingsTranscribed: Math.max(0, usage.meetingsTranscribed - 1),
+        },
+      })
+
+      return 1
     })
-    return result.count
   },
 }

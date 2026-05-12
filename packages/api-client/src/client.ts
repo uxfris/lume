@@ -101,19 +101,16 @@ async function request<T>(
       process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "")) ||
     "http://localhost:3001"
 
-  const baseUrl =
-    typeof window === "undefined" ? serverBase : "/api"
+  const baseUrl = typeof window === "undefined" ? serverBase : "/api"
 
   const fullUrl = buildUrl(`${baseUrl}${url}`, params)
   const activeWorkspaceId =
-    workspaceIdOption !== undefined
-      ? workspaceIdOption
-      : getActiveWorkspaceId()
+    workspaceIdOption !== undefined ? workspaceIdOption : getActiveWorkspaceId()
 
   const res = await fetch(fullUrl, {
     method,
     headers: {
-      "Content-Type": "application/json",
+      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
       ...(activeWorkspaceId ? { "x-workspace-id": activeWorkspaceId } : {}),
       ...headers,
       ...(cookie ? { Cookie: cookie } : {}),
@@ -140,9 +137,7 @@ async function request<T>(
       detail:
         errorBody?.["detail"] ||
         errorBody?.["message"] ||
-        (typeof errorBody?.["error"] === "string"
-          ? errorBody.error
-          : "") ||
+        (typeof errorBody?.["error"] === "string" ? errorBody.error : "") ||
         "",
       traceId: errorBody?.["trace_id"] || "",
     })

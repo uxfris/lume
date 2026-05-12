@@ -9,9 +9,19 @@ export type CreateTaskInput = {
   meetingId?: string | null
 }
 
+export type TaskListFilter =
+  | "all"
+  | "assigned_to_me"
+  | "from_last_meeting"
+  | "completed"
+
 export const taskApi = {
-  async fetchTasksGroup(options?: RequestOptions): Promise<TasksGroup[]> {
-    return client.get<TasksGroup[]>("/tasks", options)
+  async fetchTasksGroup(
+    options?: RequestOptions,
+    filter: TaskListFilter = "all"
+  ): Promise<TasksGroup[]> {
+    const query = new URLSearchParams({ filter }).toString()
+    return client.get<TasksGroup[]>(`/tasks?${query}`, options)
   },
 
   async fetchAssignees(options?: RequestOptions): Promise<UserSummary[]> {

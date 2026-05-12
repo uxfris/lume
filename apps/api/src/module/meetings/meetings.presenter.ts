@@ -48,7 +48,7 @@ function formatDurationSeconds(seconds: number | null): string {
 }
 
 /** Display time or calendar date for meeting cards. */
-function formatMeetingTimestamp(createdAt: Date): string {
+export function formatMeetingTimestamp(createdAt: Date): string {
   const now = new Date()
   const startOfToday = new Date(
     now.getFullYear(),
@@ -75,7 +75,13 @@ function formatMeetingTimestamp(createdAt: Date): string {
 }
 
 function uiStatus(status: MeetingWithOwner["status"]): MeetingDTO["status"] {
-  return status === "SUMMARIZED" ? "processed" : "analyzing"
+  return status === "SUMMARIZED"
+    ? "processed"
+    : status === "TRANSCRIBING"
+      ? "transcribing"
+      : status === "FAILED"
+        ? "failed"
+        : "analyzing"
 }
 
 /**
@@ -176,8 +182,10 @@ export function toMeetingDTO(
   return {
     id: row.id,
     title: row.title,
+    isStarred: row.isStarred,
     summary: summaryText,
     status: uiStatus(row.status),
+    channelId: row.channelId,
     timestamp: formatMeetingTimestamp(row.createdAt),
     duration: formatDurationSeconds(row.durationSeconds),
     attendees: [

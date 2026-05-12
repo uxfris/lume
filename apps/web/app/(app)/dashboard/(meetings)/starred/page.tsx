@@ -1,85 +1,37 @@
-import { Meeting } from "@workspace/types";
-import { MeetingsProvider } from "../meetings/_hooks/use-meeting-context";
-import { MeetingToolbar } from "../meetings/_components/meeting-toolbar";
-import { MeetingView } from "../meetings/_components/meeting-view";
-import { MeetingBulkActionBar } from "../meetings/_components/meeting-bulk-action-bar";
-import { MeetingEmptyGlobal } from "../_components/meeting-empty-global";
+import { MeetingsProvider } from "../meetings/_hooks/use-meeting-context"
+import { MeetingToolbar } from "../meetings/_components/meeting-toolbar"
+import { MeetingView } from "../meetings/_components/meeting-view"
+import { MeetingBulkActionBar } from "../meetings/_components/meeting-bulk-action-bar"
+import { MeetingEmptyGlobal } from "../_components/meeting-empty-global"
+import { meetingApi } from "@workspace/api-client"
+import { getServerApiFetchOptions } from "@/lib/server-api"
 
+export default async function Starred() {
+  const { cookie, workspaceId } = await getServerApiFetchOptions()
+  const meetings = (
+    await meetingApi.getMeetingsList({
+      limit: 50,
+      isStarred: true,
+      cookie,
+      workspaceId,
+    })
+  )
 
-
-// ── Mock data ──────────────────────────────────────────
-const meetings: Meeting[] = [
-    {
-        id: "1",
-        title: "Client Onboarding: Helios",
-        summary: "Initial walkthrough of the API documentation and environment setup for...",
-        status: "analyzing",
-        timestamp: "10:30",
-        duration: "28m",
-        attendees: [
-            { id: "a", initials: "A" },
-            { id: "b", initials: "B" },
-        ],
-        extraAttendees: 3,
-    },
-    {
-        id: "2",
-        title: "Q4 Strategy Planning",
-        summary: "Focus on Q4 revenue targets, engineering headcount, and the new design system...",
-        status: "processed",
-        timestamp: "14:00",
-        duration: "42m",
-        attendees: [
-            { id: "a", initials: "A" },
-            { id: "b", initials: "B" },
-        ],
-        extraAttendees: 3,
-    },
-    {
-        id: "3",
-        title: "Weekly Design Sync",
-        summary: `Reviewing the new "Silent Partner" design system tokens. Team discussed the transition from standard grids to tonal architecture.`,
-        status: "processed",
-        timestamp: "Oct 22, 2024",
-        duration: "45m",
-        attendees: [
-            { id: "c", initials: "C" },
-            { id: "d", initials: "D" },
-        ],
-        extraAttendees: 3,
-    },
-    {
-        id: "4",
-        title: "Brand Refresh Kickoff",
-        summary: "Aligning on the new visual direction, moodboards, and stakeholder expectations for...",
-        status: "processed",
-        timestamp: "Oct 18, 2024",
-        duration: "2h 15m",
-        attendees: [
-            { id: "e", initials: "E" },
-        ],
-        extraAttendees: 2,
-    },
-]
-
-
-
-export default function Starred() {
-    if (meetings.length === 0) return <MeetingEmptyGlobal variant="starred" />
-    return (
-        <div className="relative h-full flex flex-col overflow-hidden gap-6">
-            <div className="hidden md:flex items-center gap-3 px-4 md:px-10 pt-4 md:pt-10">
-                <h1 className="text-base font-semibold">Starred Meetings</h1>
-            </div>
-            <div className="overflow-y-auto px-4 md:px-10 pb-10 space-y-4 md:space-y-10">
-                <div className="space-y-3">
-                    <MeetingsProvider meetings={meetings}>
-                        <MeetingToolbar />
-                    </MeetingsProvider>
-                </div>
-                <MeetingView meetings={meetings} />
-            </div>
-            <MeetingBulkActionBar meetings={meetings} isStarred={true} />
+  if (meetings.length === 0) return <MeetingEmptyGlobal variant="starred" />
+  return (
+    <div className="relative flex h-full flex-col gap-6 overflow-hidden">
+      <div className="hidden items-center gap-3 px-4 pt-4 md:flex md:px-10 md:pt-10">
+        <h1 className="text-base font-semibold">Starred Meetings</h1>
+      </div>
+      <div className="space-y-4 overflow-y-auto px-4 pb-10 md:space-y-10 md:px-10">
+        <div className="space-y-3">
+          <MeetingsProvider meetings={meetings}>
+            <MeetingToolbar />
+          </MeetingsProvider>
         </div>
-    )
+        <MeetingView meetings={meetings} />
+      </div>
+      <MeetingBulkActionBar meetings={meetings} isStarred={true} />
+    </div>
+  )
 }

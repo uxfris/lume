@@ -1,5 +1,9 @@
 import { z } from "zod"
-import { ConversationSchema, MeetingSchema } from "@workspace/types"
+import {
+  ConversationSchema,
+  LiveMeetingSchema,
+  MeetingSchema,
+} from "@workspace/types"
 
 export const getConversationParamsSchema = z.object({
   id: z.string().min(1),
@@ -8,8 +12,14 @@ export const getConversationParamsSchema = z.object({
 export const listMeetingsQuerySchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
+  isStarred: z.coerce.boolean().optional(),
+  isCreatedByMe: z.coerce.boolean().optional(),
+  isSharedWithMe: z.coerce.boolean().optional(),
 })
 
+export const listLiveMeetingsResponseSchema = z.object({
+  meetings: z.array(LiveMeetingSchema),
+})
 export const listMeetingsResponseSchema = z.object({
   meetings: z.array(MeetingSchema),
   nextCursor: z.string().nullable(),
@@ -26,6 +36,7 @@ export const patchMeetingParamsSchema = z.object({
 export const patchMeetingBodySchema = z.object({
   title: z.string().min(1).max(500).optional(),
   isShared: z.boolean().optional(),
+  isStarred: z.boolean().optional(),
 })
 
 export const meetingSchema = MeetingSchema

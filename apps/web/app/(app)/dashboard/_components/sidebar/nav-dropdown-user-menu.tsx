@@ -33,6 +33,8 @@ import { cn } from "@workspace/ui/lib/utils"
 import { useTheme } from "next-themes"
 import { authClient } from "@/lib/auth-client"
 import { useRouter } from "next/navigation"
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
+import { routes } from "@/lib/routes"
 
 export function DropdownUserMenu({ className }: { className?: string }) {
   const { theme, setTheme } = useTheme()
@@ -42,7 +44,8 @@ export function DropdownUserMenu({ className }: { className?: string }) {
     await authClient.signOut({
       fetchOptions: {
         onSuccess: () => {
-          router.push("/authentication")
+          useCurrentWorkspace().setWorkspaceId(null)
+          router.push(routes.authentication)
         },
       },
     })

@@ -1,24 +1,28 @@
-import { Hashtag } from "@solar-icons/react/ssr";
-import { Button } from "@workspace/ui/components/button";
-import Link from "next/link";
+import { routes } from "@/lib/routes"
+import { getServerApiFetchOptions } from "@/lib/server-api"
+import { Hashtag } from "@solar-icons/react/ssr"
+import { channelApi } from "@workspace/api-client"
+import { Button } from "@workspace/ui/components/button"
+import Link from "next/link"
 
-export function MeetingChannelButtons() {
-    return (
-        <div className="flex flex-wrap items-center gap-2">
-            {[
-                { id: "1", label: "Sprint Planning" },
-                { id: "2", label: "Design Reviews" },
-
-            ].map((channel) => (
-                <Button key={channel.id} variant="outline"
-                    className="shrink-0 flex-1 md:flex-none"
-                    asChild>
-                    <Link href={`/meetings/${channel.id}`}>
-                        <Hashtag />
-                        {channel.label}
-                    </Link>
-                </Button>
-            ))}
-        </div>
-    )
+export async function MeetingChannelButtons() {
+  const { cookie, workspaceId } = await getServerApiFetchOptions()
+  const channels = await channelApi.getChannels({ cookie, workspaceId })
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {channels.map((channel) => (
+        <Button
+          key={channel.id}
+          variant="outline"
+          className="flex-1 shrink-0 md:flex-none"
+          asChild
+        >
+          <Link href={routes.dashboard.meetings.channel(channel.id)}>
+            <Hashtag />
+            {channel.name}
+          </Link>
+        </Button>
+      ))}
+    </div>
+  )
 }
