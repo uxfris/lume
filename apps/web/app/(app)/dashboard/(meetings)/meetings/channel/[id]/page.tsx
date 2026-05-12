@@ -47,7 +47,7 @@ export default async function MeetingChannel({ params }: PageProps) {
         />
       </div>
       {meetings.length === 0 ? (
-        <MeetingChannelEmpty />
+        <MeetingChannelEmpty channelId={channel.id} />
       ) : (
         <>
           <div className="space-y-4 overflow-y-auto px-4 pb-10 md:space-y-10 md:px-10">

@@ -8,7 +8,7 @@ import { Plus } from "lucide-react"
 import { Hashtag } from "@solar-icons/react"
 import { AddMeetingToChannelDialog } from "./channel-menu-action/add-meeting-to-channel-dialog"
 
-export function MeetingChannelEmpty() {
+export function MeetingChannelEmpty({ channelId }: { channelId: string }) {
   const [meetingUrl, setMeetingUrl] = useState("")
   const [openForm, setOpenForm] = useState(false)
   const [openSuccess, setOpenSuccess] = useState(false)
@@ -47,7 +47,11 @@ export function MeetingChannelEmpty() {
           onOpenChange={setOpenSuccess}
           meetingUrl={meetingUrl}
         />
-        <AddMeetingToChannelDialog open={openAdd} onOpenChange={setOpenAdd} />
+        <AddMeetingToChannelDialog
+          channelId={channelId}
+          open={openAdd}
+          onOpenChange={setOpenAdd}
+        />
       </div>
     </div>
   )

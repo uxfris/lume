@@ -68,7 +68,11 @@ export function ChannelTitleMenuDropdown({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <AddMeetingToChannelDialog open={openAdd} onOpenChange={setOpenAdd} />
+      <AddMeetingToChannelDialog
+        channelId={channelId}
+        open={openAdd}
+        onOpenChange={setOpenAdd}
+      />
       <CreateChannelDialog
         open={openEdit}
         onOpenChange={setOpenEdit}

@@ -37,7 +37,6 @@ import { Hashtag, MinimalisticMagnifier } from "@solar-icons/react"
 import { Plus } from "lucide-react"
 import { toast } from "sonner"
 import { Spinner } from "@workspace/ui/components/spinner"
-import { router } from "better-auth/api"
 import { useRouter } from "next/navigation"
 
 const NO_CHANNEL = "no-channel"
@@ -86,12 +85,11 @@ export function MoveMeeting({
         await channelApi.removeMeetingsFromChannel(meeting.channelId, [
           meeting.id,
         ])
-        // router.push(`/dashboard/meetings`)
+        router.refresh()
       } else {
         await channelApi.addMeetingsToChannel(selectedChannelId, [meeting.id])
         router.push(`/dashboard/meetings/channel/${selectedChannelId}`)
       }
-
       toast.success("Meeting moved successfully")
       onOpenChange(false)
     } catch {
