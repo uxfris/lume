@@ -1,4 +1,5 @@
 import LogoIcon from "@/assets/icons/logo-icon"
+import { routes } from "@/lib/routes"
 import { Button } from "@workspace/ui/components/button"
 import Link from "next/link"
 
@@ -31,7 +32,7 @@ export function MeetingEmptyGlobal({ variant }: { variant: Variant }) {
         </h1>
         {showBrowse && (
           <Button variant="outline" asChild>
-            <Link href="/dashboard/meetings">Browse meetings</Link>
+            <Link href={routes.dashboard.meetings.root}>Browse meetings</Link>
           </Button>
         )}
       </div>

@@ -27,6 +27,7 @@ import { CreateChannelDialog } from "../../(meetings)/meetings/_components/creat
 import { toast } from "sonner"
 import { meetingApi } from "@workspace/api-client"
 import { useRouter } from "next/navigation"
+import { routes } from "@/lib/routes"
 
 export function MeetingItemMenu({ meeting }: { meeting: Meeting }) {
   const router = useRouter()
@@ -69,7 +70,7 @@ export function MeetingItemMenu({ meeting }: { meeting: Meeting }) {
           <DropdownMenuGroup className="space-y-3">
             <DropdownMenuItem asChild>
               <Link
-                href={`/meeting/${meeting.id}`}
+                href={routes.meeting(meeting.id)}
                 target="_blank"
                 rel="noopener noreferrer"
               >

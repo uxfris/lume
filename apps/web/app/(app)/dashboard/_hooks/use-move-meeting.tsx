@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { Meeting } from "@workspace/types"
+import { routes } from "@/lib/routes"
 
 export const NO_CHANNEL = "no-channel"
 
@@ -53,7 +54,7 @@ export function useMoveMeeting({
         router.refresh()
       } else {
         await channelApi.addMeetingsToChannel(selectedChannelId, [meeting.id])
-        router.push(`/dashboard/meetings/channel/${selectedChannelId}`)
+        router.push(routes.dashboard.meetings.channel(selectedChannelId))
       }
       toast.success("Meeting moved successfully")
       onOpenChange(false)

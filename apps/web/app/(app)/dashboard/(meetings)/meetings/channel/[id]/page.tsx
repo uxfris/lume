@@ -10,6 +10,7 @@ import { ArrowLeft } from "@solar-icons/react/ssr"
 import { getServerApiFetchOptions } from "@/lib/server-api"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { routes } from "@/lib/routes"
 
 type PageProps = {
   params: Promise<{ id: string }>
@@ -36,7 +37,7 @@ export default async function MeetingChannel({ params }: PageProps) {
   return (
     <div className="relative flex h-full flex-col gap-6 overflow-hidden">
       <div className="hidden items-center gap-3 px-4 pt-4 md:flex md:px-10 md:pt-10">
-        <Link href="/dashboard/meetings">
+        <Link href={routes.dashboard.meetings.root}>
           <ArrowLeft />
         </Link>
         <h1 className="text-base font-semibold">{channel.name}</h1>

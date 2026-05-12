@@ -6,6 +6,7 @@ import { toast } from "sonner"
 
 import { channelApi } from "@workspace/api-client"
 import { channelKeys } from "../_lib/channel-keys"
+import { routes } from "@/lib/routes"
 
 export type CreateChannelPayload = {
   name: string
@@ -42,7 +43,7 @@ export function useCreateChannelMutation(
 
       onOpenChange(false)
 
-      router.push(`/dashboard/meetings/channel/${created.id}`)
+      router.push(routes.dashboard.meetings.channel(created.id))
     },
 
     onError: (error) => {

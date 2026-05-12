@@ -22,6 +22,7 @@ import { ChannelTitleMenuDropdown } from "../../(meetings)/meetings/channel/_com
 import { channelApi } from "@workspace/api-client"
 import { useQuery } from "@tanstack/react-query"
 import { channelKeys } from "../../(meetings)/meetings/channel/_lib/channel-keys"
+import { routes } from "@/lib/routes"
 
 export function NavMeetings({ item }: { item: NavItem }) {
   const pathname = usePathname()
@@ -83,7 +84,7 @@ export function NavMeetings({ item }: { item: NavItem }) {
                 id: item.id,
                 icon: Hashtag,
                 label: item.name,
-                url: `/dashboard/meetings/channel/${item.id}`,
+                url: routes.dashboard.meetings.channel(item.id),
               }
               return (
                 <SidebarMenuSubItem

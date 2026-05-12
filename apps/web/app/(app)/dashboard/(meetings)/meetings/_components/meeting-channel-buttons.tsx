@@ -1,3 +1,4 @@
+import { routes } from "@/lib/routes"
 import { getServerApiFetchOptions } from "@/lib/server-api"
 import { Hashtag } from "@solar-icons/react/ssr"
 import { channelApi } from "@workspace/api-client"
@@ -16,7 +17,7 @@ export async function MeetingChannelButtons() {
           className="flex-1 shrink-0 md:flex-none"
           asChild
         >
-          <Link href={`/dashboard/meetings/channel/${channel.id}`}>
+          <Link href={routes.dashboard.meetings.channel(channel.id)}>
             <Hashtag />
             {channel.name}
           </Link>

@@ -1,59 +1,75 @@
-import { ChecklistMinimalistic, Home, LayersMinimalistic, MinimalisticMagnifier, Star, User, UsersGroupRounded, Widget } from "@solar-icons/react"
+import {
+  ChecklistMinimalistic,
+  Home,
+  LayersMinimalistic,
+  MinimalisticMagnifier,
+  Star,
+  User,
+  UsersGroupRounded,
+  Widget,
+} from "@solar-icons/react"
 import { NavItem } from "../_types/nav-item.js"
+import { routes } from "@/lib/routes.js"
 
 const navMain: NavItem[] = [
-    {
-        label: "Home",
-        url: "/dashboard",
-        icon: Home
-    },
-    {
-        label: "Search",
-        url: "#",
-        icon: MinimalisticMagnifier,
-        isSearch: true
-    },
-    {
-        label: "Tasks",
-        url: "/dashboard/tasks",
-        icon: ChecklistMinimalistic,
-    },
+  {
+    label: "Home",
+    url: "/dashboard",
+    icon: Home,
+  },
+  {
+    label: "Search",
+    url: "#",
+    icon: MinimalisticMagnifier,
+    isSearch: true,
+  },
+  {
+    label: "Tasks",
+    url: routes.dashboard.tasks,
+    icon: ChecklistMinimalistic,
+  },
 ]
 
 const navMeetings: NavItem[] = [
-    {
-        label: "Meetings",
-        url: "/dashboard/meetings",
-        icon: Widget,
-        isMeetings: true,
-    },
-    {
-        label: "Starred",
-        url: "/dashboard/starred",
-        icon: Star,
-    },
-    {
-        label: "Created by me",
-        url: "/dashboard/created-by-me",
-        icon: User,
-    },
-    {
-        label: "Shared with me",
-        url: "/dashboard/shared-with-me",
-        icon: UsersGroupRounded,
-    }
+  {
+    label: "Meetings",
+    url: routes.dashboard.meetings.root,
+    icon: Widget,
+    isMeetings: true,
+  },
+  {
+    label: "Starred",
+    url: routes.dashboard.meetings.starred,
+    icon: Star,
+  },
+  {
+    label: "Created by me",
+    url: routes.dashboard.meetings.createdByMe,
+    icon: User,
+  },
+  {
+    label: "Shared with me",
+    url: routes.dashboard.meetings.sharedWithMe,
+    icon: UsersGroupRounded,
+  },
 ]
 
-const navUploads: NavItem[] = [{
+const navUploads: NavItem[] = [
+  {
     label: "Uploads",
-    url: "/dashboard/uploads",
+    url: routes.dashboard.uploads,
+
     icon: ChecklistMinimalistic,
-}]
+  },
+]
 
-const navIntegrations: NavItem[] = [{
+const navIntegrations: NavItem[] = [
+  {
     label: "Integrations",
-    url: "/dashboard/integrations",
-    icon: LayersMinimalistic,
-}]
+    url: routes.dashboard.integrations.root,
 
-export { navMain, navMeetings, navUploads, navIntegrations };
+    icon: LayersMinimalistic,
+  },
+]
+
+export { navMain, navMeetings, navUploads, navIntegrations }
