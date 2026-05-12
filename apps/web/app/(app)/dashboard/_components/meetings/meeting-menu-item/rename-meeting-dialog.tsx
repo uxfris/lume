@@ -44,7 +44,13 @@ export function RenameMeeting({
     }
   }
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (loading) return
+        onOpenChange(nextOpen)
+      }}
+    >
       <DialogContent className="sm:min-w-md">
         <DialogHeader>
           <DialogTitle>Rename Meeting</DialogTitle>

@@ -4,44 +4,20 @@ import { Bolt } from "@solar-icons/react"
 import { Button } from "@workspace/ui/components/button"
 import { Card, CardContent } from "@workspace/ui/components/card"
 import { Input } from "@workspace/ui/components/input"
-import { useState } from "react"
 import { JoinMeetingDialog } from "./join-meeting-dialog"
 import { JoinMeetingSuccessfulDialog } from "./join-meeting-successful-dialog"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import z from "zod"
-
-const schema = z.object({
-  url: z
-    .url("Must be a valid URL (https://example.com)")
-    .min(1, "Meeting url is required")
-    .refine(
-      (val) =>
-        val.includes("meet.google.com") || val.includes("teams.microsoft.com"),
-      "Only Google Meet or Microsoft Teams link are allowed"
-    ),
-})
+import { useLiveSyncCard } from "../../_hooks/use-live-sync-card"
 
 export function LiveSyncCard() {
-  const [openForm, setOpenForm] = useState(false)
-  const [openSuccess, setOpenSuccess] = useState(false)
-
-  const form = useForm({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      url: "",
-    },
-  })
-
-  const joinMeeting = (data: { url: string }) => {
-    setOpenForm(true)
-  }
-
-  const onSuccess = (meetingUrl: string) => {
-    setOpenForm(false)
-    setOpenSuccess(true)
-  }
-
+  const {
+    form,
+    joinMeeting,
+    openForm,
+    setOpenForm,
+    onSuccess,
+    openSuccess,
+    setOpenSuccess,
+  } = useLiveSyncCard()
   return (
     <Card className="w-full p-0">
       <CardContent className="space-y-6 p-8">

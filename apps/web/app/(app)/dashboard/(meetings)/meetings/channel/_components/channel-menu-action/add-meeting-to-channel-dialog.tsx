@@ -43,7 +43,13 @@ export function AddMeetingToChannelDialog({
   } = useAddMeetingsToChannel({ channelId, onOpenChange })
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (isAddLoading) return
+        onOpenChange(nextOpen)
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add meetings to channel</DialogTitle>
