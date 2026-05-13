@@ -19,7 +19,7 @@ import {
   InputGroupInput,
 } from "@workspace/ui/components/input-group"
 import { Spinner } from "@workspace/ui/components/spinner"
-import { useAddMeetingsToChannel } from "../../../_hooks/use-add-meetings-to-channel"
+import { useAddMeetingsToChannel } from "../../../_hooks/use-add-meeting-to-channel"
 
 export function AddMeetingToChannelDialog({
   channelId,
