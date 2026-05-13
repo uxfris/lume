@@ -69,7 +69,7 @@ export const channelApi = {
   ): Promise<{ updatedCount: number }> {
     return client.delete<{ updatedCount: number }>(`/channels/${id}/meetings`, {
       ...options,
-      body: meetingIds,
+      body: { meetingIds },
     })
   },
 }

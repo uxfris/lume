@@ -96,7 +96,10 @@ export function MeetingBulkActionBar({
             ) : (
               <>
                 {isChannel ? (
-                  <RemoveFromChannelDialog />
+                  <RemoveFromChannelDialog
+                    meetings={meetings}
+                    selectedMeetingIds={selectedIds}
+                  />
                 ) : (
                   <MoveToChannelDialog meetingIds={selectedIds} />
                 )}
