@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { taskApi } from "@workspace/api-client"
 
 import type { ActionItem, TasksGroup } from "@workspace/types"
-import { taskKeys } from "../../_lib/task-query-keys"
+import { taskKeys } from "../../_lib/task.keys"
 
 function removeTaskFromGroups(
   groups: TasksGroup[],

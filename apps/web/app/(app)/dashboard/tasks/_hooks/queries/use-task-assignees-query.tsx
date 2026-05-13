@@ -1,6 +1,6 @@
 import { UseQueryResult, useQuery } from "@tanstack/react-query"
 import { taskApi } from "@workspace/api-client"
-import { taskKeys } from "../../_lib/task-query-keys"
+import { taskKeys } from "../../_lib/task.keys"
 import { UserSummary } from "@workspace/types"
 
 export function useTaskAssigneesQuery(): UseQueryResult<UserSummary[], Error> {

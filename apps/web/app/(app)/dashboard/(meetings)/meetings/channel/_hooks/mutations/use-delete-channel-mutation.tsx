@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
 import { channelApi } from "@workspace/api-client"
-import { channelKeys } from "../../_lib/channel-query-keys"
+import { channelKeys } from "../../_lib/channel.keys"
 import { useRouter } from "next/navigation"
 import { routes } from "@/lib/routes"
 

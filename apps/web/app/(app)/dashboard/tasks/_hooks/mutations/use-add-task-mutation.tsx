@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { taskApi, type CreateTaskInput } from "@workspace/api-client"
 
 import type { ActionItem, TasksGroup, UserSummary } from "@workspace/types"
-import { taskKeys } from "../../_lib/task-query-keys"
+import { taskKeys } from "../../_lib/task.keys"
 
 function insertTaskIntoGroups(
   groups: TasksGroup[],
