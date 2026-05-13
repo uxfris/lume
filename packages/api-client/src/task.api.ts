@@ -17,8 +17,8 @@ export type TaskListFilter =
 
 export const taskApi = {
   async fetchTasksGroup(
-    options?: RequestOptions,
-    filter: TaskListFilter = "all"
+    filter: TaskListFilter = "all",
+    options?: RequestOptions
   ): Promise<TasksGroup[]> {
     const query = new URLSearchParams({ filter }).toString()
     return client.get<TasksGroup[]>(`/tasks?${query}`, options)

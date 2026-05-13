@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
 import { channelApi } from "@workspace/api-client"
-import { channelKeys } from "../_lib/channel-keys"
+import { channelKeys } from "../_lib/channel-query-keys"
 import { routes } from "@/lib/routes"
 
 export type CreateChannelPayload = {

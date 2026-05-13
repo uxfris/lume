@@ -1,186 +1,109 @@
-import { useEffect, useState } from "react"
-import { toast } from "sonner"
+"use client"
+
+import { useState } from "react"
+
+import type { TasksGroup, UserSummary } from "@workspace/types"
+
 import { useNewTaskForm } from "./use-task-form"
-import { ActionItem, TasksGroup, UserSummary } from "@workspace/types"
-import { taskApi } from "@workspace/api-client"
-import { useQueryClient } from "@tanstack/react-query"
+import { useAddTaskMutation } from "./mutations/use-add-task-mutation"
+import { useToggleTaskMutation } from "./mutations/use-toggle-task-mutation"
+import { useDeleteTaskMutation } from "./mutations/use-delete-task-mutation"
+import { useUpdateTaskTitleMutation } from "./mutations/use-update-task-title-mutation"
+import { useUpdateTaskAssigneeMutation } from "./mutations/use-update-task-asignee-mutation"
 
 export function useTaskList(tasksGroup: TasksGroup) {
-  const queryClient = useQueryClient()
-  const [tasks, setTasks] = useState<ActionItem[]>(tasksGroup.tasks)
   const [collapsibleOpen, setCollapsibleOpen] = useState(
     () => !tasksGroup.tasks.some((task) => !task.isCompleted)
   )
 
-  useEffect(() => {
-    setTasks(tasksGroup.tasks)
-  }, [tasksGroup.id, tasksGroup.tasks])
+  // ─── Mutations ─────────────────────
 
-  function invalidateTaskQueries() {
-    return queryClient.invalidateQueries({ queryKey: ["tasks"] })
+  const addTaskMutation = useAddTaskMutation()
+
+  const toggleTaskMutation = useToggleTaskMutation()
+
+  const deleteTaskMutation = useDeleteTaskMutation()
+
+  const updateTitleMutation = useUpdateTaskTitleMutation()
+
+  const updateAssigneeMutation = useUpdateTaskAssigneeMutation()
+
+  // ─── Actions ───────────────────────
+
+  function toggleTask(id: string, isCompleted: boolean) {
+    toggleTaskMutation.toggleTask({
+      id,
+      isCompleted,
+    })
   }
 
-  // ─── Actions ──────────────────────────────────────────────────────────────
-
-  async function toggleTask(id: string) {
-    const prev = tasks.find((t) => t.id === id)
-    if (!prev) return
-
-    setTasks((curr) =>
-      curr.map((t) => (t.id === id ? { ...t, isCompleted: !t.isCompleted } : t))
-    )
-
-    try {
-      await taskApi.toggle(id, !prev.isCompleted)
-      await invalidateTaskQueries()
-    } catch {
-      setTasks((curr) =>
-        curr.map((t) =>
-          t.id === id ? { ...t, isCompleted: prev.isCompleted } : t
-        )
-      )
-      toast.error("Failed to update task. Please try again.")
-    }
-  }
-
-  async function addTask(
+  function addTask(
     title: string,
     assignee: UserSummary | null,
     isCompleted: boolean
   ) {
-    const optimisticId = crypto.randomUUID()
-    const optimisticTask: ActionItem = {
-      id: optimisticId,
+    addTaskMutation.addTask({
       title,
-      isCompleted,
       assignee,
-    }
+      isCompleted,
 
-    setTasks((curr) => [...curr, optimisticTask])
-
-    try {
-      const created = await taskApi.add({
-        title,
-        assignee,
-        isCompleted,
-        meetingId: tasksGroup.id === "workspace" ? null : tasksGroup.id,
-      })
-      setTasks((curr) => curr.map((t) => (t.id === optimisticId ? created : t)))
-      await invalidateTaskQueries()
-    } catch {
-      setTasks((curr) => curr.filter((t) => t.id !== optimisticId))
-      toast.error("Failed to add task. Please try again.")
-    }
-  }
-
-  async function deleteTask(id: string) {
-    const index = tasks.findIndex((t) => t.id === id)
-    const snapshot = tasks[index]
-
-    if (!snapshot) return
-
-    // remove locally first
-    setTasks((curr) => curr.filter((t) => t.id !== id))
-
-    let undone = false
-
-    const timeout = setTimeout(async () => {
-      if (undone) return
-
-      try {
-        await taskApi.remove(id)
-        await invalidateTaskQueries()
-      } catch {
-        // rollback if API failed
-        setTasks((curr) => {
-          if (curr.find((t) => t.id === id)) return curr
-
-          const restored = [...curr]
-          restored.splice(index, 0, snapshot)
-
-          return restored
-        })
-
-        toast.error("Failed to delete task.")
-      }
-    }, 5000) // undo window
-
-    toast("Task deleted", {
-      position: "bottom-center",
-      duration: 5000,
-      action: {
-        label: "Undo",
-        onClick: () => {
-          undone = true
-          clearTimeout(timeout)
-
-          setTasks((curr) => {
-            const restored = [...curr]
-            restored.splice(index, 0, snapshot)
-            return restored
-          })
-        },
-      },
+      meetingId: tasksGroup.id === "workspace" ? null : tasksGroup.id,
     })
   }
 
-  async function updateTaskTitle(id: string, title: string) {
-    const prev = tasks.find((t) => t.id === id)
-    if (!prev) return
+  function deleteTask(taskId: string) {
+    const task = tasksGroup.tasks.find((t) => t.id === taskId)
 
-    setTasks((curr) => curr.map((t) => (t.id === id ? { ...t, title } : t)))
+    if (!task) return
 
-    try {
-      await taskApi.updateTitle(id, title)
-      await invalidateTaskQueries()
-    } catch {
-      setTasks((curr) =>
-        curr.map((t) => (t.id === id ? { ...t, title: prev.title } : t))
-      )
-      toast.error("Failed to update task title.")
-    }
+    deleteTaskMutation.deleteTask(task)
   }
 
-  async function updateAssignee(id: string, assignee: UserSummary | null) {
-    const prev = tasks.find((t) => t.id === id)
-    if (!prev) return
-
-    setTasks((curr) => curr.map((t) => (t.id === id ? { ...t, assignee } : t)))
-
-    try {
-      await taskApi.updateAssignee(id, assignee)
-      await invalidateTaskQueries()
-    } catch {
-      setTasks((curr) =>
-        curr.map((t) => (t.id === id ? { ...t, assignee: prev.assignee } : t))
-      )
-      toast.error("Failed to update assignee.")
-    }
+  function updateTaskTitle(id: string, title: string) {
+    updateTitleMutation.updateTask({
+      id,
+      title,
+    })
   }
 
-  // ─── Form (delegates to useNewTaskForm) ───────────────────────────────────
+  function updateAssignee(id: string, assignee: UserSummary | null) {
+    updateAssigneeMutation.updateTask({
+      id,
+      assignee,
+    })
+  }
 
-  const form = useNewTaskForm({ onCommit: addTask })
+  // ─── Form ──────────────────────────
 
-  // ─── Derived ──────────────────────────────────────────────────────────────
-  const incompleteTasks = tasks.filter((t) => !t.isCompleted)
-  const completedTasks = tasks.filter((t) => t.isCompleted)
+  const form = useNewTaskForm({
+    onCommit: addTask,
+  })
+
+  // ─── Derived ───────────────────────
+
+  const incompleteTasks = tasksGroup.tasks.filter((task) => !task.isCompleted)
+
+  const completedTasks = tasksGroup.tasks.filter((task) => task.isCompleted)
 
   return {
-    // task state
-    tasks,
+    tasks: tasksGroup.tasks,
+
     incompleteTasks,
     completedTasks,
-    // ui state
+
     collapsibleOpen,
     setCollapsibleOpen,
-    // actions
+
     toggleTask,
     addTask,
     deleteTask,
     updateTaskTitle,
     updateAssignee,
-    // form (spread or pass as a group — consumer's choice)
+
     form,
+
+    isAddingTask: addTaskMutation.loading,
+
+    isDeletingTask: deleteTaskMutation.loading,
   }
 }

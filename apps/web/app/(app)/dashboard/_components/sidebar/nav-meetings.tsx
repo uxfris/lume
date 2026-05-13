@@ -21,7 +21,7 @@ import { cn } from "@workspace/ui/lib/utils"
 import { ChannelTitleMenuDropdown } from "../../(meetings)/meetings/channel/_components/meeting-channel-title-menu-dropdown"
 import { channelApi } from "@workspace/api-client"
 import { useQuery } from "@tanstack/react-query"
-import { channelKeys } from "../../(meetings)/meetings/channel/_lib/channel-keys"
+import { channelKeys } from "../../(meetings)/meetings/channel/_lib/channel-query-keys"
 import { routes } from "@/lib/routes"
 
 export function NavMeetings({ item }: { item: NavItem }) {

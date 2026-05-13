@@ -1,7 +1,12 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs"
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@workspace/ui/components/tabs"
 import { TaskList } from "./_components/task-list"
 import { TaskAIInsight } from "./_components/task-ai-insight"
 import { TaskProductivityStats } from "./_components/task-productivity"
@@ -9,18 +14,13 @@ import { EmptyState } from "@/components/empty-state"
 import { taskApi } from "@workspace/api-client"
 import { AssigneesProvider } from "./_hooks/use-task-assigness"
 import type { TaskListFilter } from "@workspace/api-client"
+import { useTasksQuery } from "./_hooks/queries/use-tasks-query"
+import { useTaskAssigneesQuery } from "./_hooks/queries/use-task-assignees-query"
 
 function TasksTabPanel({ filter }: { filter: TaskListFilter }) {
-  const { data: groups = [], isLoading, isError } = useQuery({
-    queryKey: ["tasks", filter],
-    queryFn: () => taskApi.fetchTasksGroup(undefined, filter),
-    staleTime: 20_000,
-  })
-  const { data: assignees = [] } = useQuery({
-    queryKey: ["tasks-assignees"],
-    queryFn: () => taskApi.fetchAssignees(),
-    staleTime: 300_000,
-  })
+  const { data: groups = [], isLoading, isError } = useTasksQuery(filter)
+
+  const { data: assignees = [] } = useTaskAssigneesQuery()
 
   if (isLoading) {
     return (
