@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@workspace/ui/components/dialog"
 import { toast } from "sonner"
-import { useDeleteChannelMutation } from "../../_hooks/use-delete-channel-mutation"
+import { useDeleteChannelMutation } from "../../_hooks/mutations/use-delete-channel-mutation"
 import { Spinner } from "@workspace/ui/components/spinner"
 
 export function DeleteChannelDialog({
