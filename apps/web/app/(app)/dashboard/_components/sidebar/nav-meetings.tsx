@@ -23,19 +23,36 @@ import { channelApi } from "@workspace/api-client"
 import { useQuery } from "@tanstack/react-query"
 import { channelKeys } from "../../(meetings)/meetings/channel/_lib/channel-query-keys"
 import { routes } from "@/lib/routes"
+import { useChannelQuery } from "../../(meetings)/meetings/channel/_hooks/mutations/queries/use-channel-query"
+import { useEffect, useState } from "react"
 
 export function NavMeetings({ item }: { item: NavItem }) {
   const pathname = usePathname()
+
+  const { channels, isLoading } = useChannelQuery()
+
   const isActive = pathname === item.url
 
-  const { data: channels = [], isLoading } = useQuery({
-    queryKey: channelKeys.all,
-    queryFn: () => channelApi.getChannels(),
-    staleTime: 300_000,
-  })
+  const isChannelRoute = channels.some((channel) =>
+    pathname.startsWith(routes.dashboard.meetings.channel(channel.id))
+  )
+
+  const isMeetingsOpen = isChannelRoute
+
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    if (isMeetingsOpen) {
+      setOpen(true)
+    }
+  }, [isMeetingsOpen])
 
   return (
-    <Collapsible className="group/collapsible">
+    <Collapsible
+      open={open}
+      onOpenChange={setOpen}
+      className="group/collapsible"
+    >
       <SidebarMenuItem
         className={cn(
           "group/trigger flex items-center gap-0.5 rounded-md px-1 hover:bg-sidebar-accent",

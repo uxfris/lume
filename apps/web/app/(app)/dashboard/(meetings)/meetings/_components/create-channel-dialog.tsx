@@ -39,11 +39,11 @@ import { Spinner } from "@workspace/ui/components/spinner"
 import {
   UpdateChannelPayload,
   useUpdateChannelMutation,
-} from "../channel/_hooks/use-update-channel-mutation"
+} from "../channel/_hooks/mutations/use-update-channel-mutation"
 import {
   CreateChannelPayload,
   useCreateChannelMutation,
-} from "../channel/_hooks/use-create-channel-mutation"
+} from "../channel/_hooks/mutations/use-create-channel-mutation"
 import { useChannelForm } from "../channel/_hooks/use-channel-form"
 
 type Props = {
