@@ -3,6 +3,7 @@ import { getRedisConnection } from "@workspace/queue"
 import { z } from "zod"
 import * as meetingsService from "./meetings.service"
 import {
+  deleteMeetingsBodySchema,
   getConversationParamsSchema,
   getConversationResponseSchema,
   getMeetingParamsSchema,
@@ -256,6 +257,34 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
       const result = await meetingsService.deleteMeeting({
         meetingId: request.params.id,
         workspaceId: request.workspace!.id,
+      })
+
+      if (!result.ok) {
+        return reply.status(404).send({ error: "MEETING_NOT_FOUND" })
+      }
+
+      return reply.status(204).send()
+    }
+  )
+
+  app.delete(
+    "/",
+    {
+      preHandler: [app.verifySession, app.requireWorkspace],
+      schema: {
+        tags: ["Meetings"],
+        summary: "Soft-delete selected meetings",
+        body: deleteMeetingsBodySchema,
+        response: {
+          204: z.undefined(),
+          404: meetingErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await meetingsService.deleteMeetings({
+        workspaceId: request.workspace!.id,
+        meetingIds: request.body.meetingIds,
       })
 
       if (!result.ok) {

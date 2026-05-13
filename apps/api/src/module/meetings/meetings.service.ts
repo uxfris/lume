@@ -124,6 +124,19 @@ export async function deleteMeeting(input: {
   return n > 0 ? { ok: true } : { ok: false, reason: "NOT_FOUND" }
 }
 
+export async function deleteMeetings(input: {
+  workspaceId: string
+  meetingIds: string[]
+}): Promise<{ ok: true } | { ok: false; reason: "NOT_FOUND" }> {
+  const uniqueIds = [...new Set(input.meetingIds)]
+  const result = await meetingsRepo.softDeleteMany({
+    workspaceId: input.workspaceId,
+    meetingIds: uniqueIds,
+  })
+
+  return result.ok ? { ok: true } : { ok: false, reason: "NOT_FOUND" }
+}
+
 export async function getConversation(input: {
   meetingId: string
   workspaceId: string

@@ -24,6 +24,13 @@ export type TranscriptSegmentWithParticipant =
     }
   }>
 
+class SoftDeleteManyConflictError extends Error {
+  constructor() {
+    super("soft delete conflict")
+    this.name = "SoftDeleteManyConflictError"
+  }
+}
+
 export const meetingsRepo = {
   listLiveByWorkspace(input: { workspaceId: string }) {
     return prisma.meeting.findMany({
@@ -177,74 +184,103 @@ export const meetingsRepo = {
     return { updated: result.count }
   },
 
+  /**
+   * Soft-deletes meetings and adjusts usage counters (same semantics as the former per-meeting flow).
+   * One transaction: validate rows, updateMany meetings, then one atomic decrement per billing period.
+   */
+  async softDeleteMany(input: {
+    workspaceId: string
+    meetingIds: string[]
+  }): Promise<{ ok: true; deleted: number } | { ok: false }> {
+    const uniqueIds = [...new Set(input.meetingIds)]
+    if (uniqueIds.length === 0) {
+      return { ok: false }
+    }
+
+    const deletedAt = new Date()
+
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const meetings = await tx.meeting.findMany({
+          where: {
+            id: { in: uniqueIds },
+            workspaceId: input.workspaceId,
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+            createdAt: true,
+            durationSeconds: true,
+            billingUsageRecorded: true,
+          },
+        })
+
+        if (meetings.length !== uniqueIds.length) {
+          return { ok: false }
+        }
+
+        const usageDeltaByPeriod = new Map<
+          string,
+          { minutes: number; meetings: number }
+        >()
+
+        for (const m of meetings) {
+          if (!m.billingUsageRecorded) continue
+
+          const period = utcBillingPeriod(m.createdAt)
+          const minutesToSubtract = transcribedMinutesFromDuration(
+            m.durationSeconds
+          )
+
+          const prev = usageDeltaByPeriod.get(period) ?? {
+            minutes: 0,
+            meetings: 0,
+          }
+          prev.minutes += minutesToSubtract
+          prev.meetings += 1
+          usageDeltaByPeriod.set(period, prev)
+        }
+
+        const updated = await tx.meeting.updateMany({
+          where: {
+            id: { in: uniqueIds },
+            workspaceId: input.workspaceId,
+            deletedAt: null,
+          },
+          data: { deletedAt },
+        })
+
+        if (updated.count !== uniqueIds.length) {
+          throw new SoftDeleteManyConflictError()
+        }
+
+        for (const [period, delta] of usageDeltaByPeriod) {
+          await tx.$executeRaw`
+            UPDATE "usage_counter"
+            SET
+              "minutesTranscribed" = GREATEST(0, "minutesTranscribed" - ${delta.minutes}),
+              "meetingsTranscribed" = GREATEST(0, "meetingsTranscribed" - ${delta.meetings}),
+              "updatedAt" = CURRENT_TIMESTAMP
+            WHERE "workspaceId" = ${input.workspaceId}
+              AND "period" = ${period}
+          `
+        }
+
+        return { ok: true, deleted: uniqueIds.length }
+      })
+    } catch (err) {
+      if (err instanceof SoftDeleteManyConflictError) {
+        return { ok: false }
+      }
+      throw err
+    }
+  },
+
   async softDelete(meetingId: string, workspaceId: string): Promise<number> {
-    return prisma.$transaction(async (tx) => {
-      const meeting = await tx.meeting.findFirst({
-        where: {
-          id: meetingId,
-          workspaceId,
-          deletedAt: null,
-        },
-        select: {
-          id: true,
-          createdAt: true,
-          durationSeconds: true,
-          billingUsageRecorded: true,
-        },
-      })
-
-      if (!meeting) {
-        return 0
-      }
-
-      await tx.meeting.update({
-        where: { id: meeting.id },
-        data: { deletedAt: new Date() },
-      })
-
-      if (!meeting.billingUsageRecorded) {
-        return 1
-      }
-
-      const period = utcBillingPeriod(meeting.createdAt)
-      const minutesToSubtract = transcribedMinutesFromDuration(
-        meeting.durationSeconds
-      )
-
-      const usage = await tx.usageCounter.findUnique({
-        where: {
-          workspaceId_period: {
-            workspaceId,
-            period,
-          },
-        },
-        select: {
-          minutesTranscribed: true,
-          meetingsTranscribed: true,
-        },
-      })
-
-      if (!usage) {
-        return 1
-      }
-
-      await tx.usageCounter.update({
-        where: {
-          workspaceId_period: {
-            workspaceId,
-            period,
-          },
-        },
-        data: {
-          minutesTranscribed: Math.max(
-            0,
-            usage.minutesTranscribed - minutesToSubtract
-          ),
-          meetingsTranscribed: Math.max(0, usage.meetingsTranscribed - 1),
-        },
-      })
-
-      return 1
+    const result = await meetingsRepo.softDeleteMany({
+      workspaceId,
+      meetingIds: [meetingId],
     })
+    return result.ok ? 1 : 0
   },
 }
