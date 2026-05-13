@@ -1,5 +1,9 @@
 import { z } from "zod"
-import { ChannelMeetingSchema, ChannelSchema, ChannelTypeSchema } from "@workspace/types"
+import {
+  ChannelMeetingSchema,
+  ChannelSchema,
+  ChannelTypeSchema,
+} from "@workspace/types"
 
 export const channelTypeSchema = ChannelTypeSchema
 
@@ -35,11 +39,9 @@ export const updateChannelMeetingsBodySchema = z.object({
   meetingIds: z.array(z.string().min(1)).min(1).max(100),
 })
 
-export const removeChannelMeetingsBodySchema = z
-  .object({
-    meetingIds: z.array(z.string().min(1)).min(1).max(100).optional(),
-  })
-  .optional()
+export const removeChannelMeetingsBodySchema = z.object({
+  meetingIds: z.array(z.string().min(1)).min(1).max(100),
+})
 
 export const listChannelsResponseSchema = z.object({
   channels: z.array(channelSchema),

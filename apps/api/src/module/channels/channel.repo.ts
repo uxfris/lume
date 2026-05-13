@@ -126,14 +126,14 @@ export const channelRepo = {
   unassignMeetingsFromChannel(input: {
     workspaceId: string
     channelId: string
-    meetingIds?: string[]
+    meetingIds: string[]
   }) {
     return prisma.meeting.updateMany({
       where: {
         workspaceId: input.workspaceId,
         channelId: input.channelId,
         deletedAt: null,
-        ...(input.meetingIds?.length ? { id: { in: input.meetingIds } } : {}),
+        id: { in: input.meetingIds },
       },
       data: {
         channelId: null,
