@@ -1,3 +1,5 @@
+"use client"
+
 import { Hashtag } from "@solar-icons/react"
 import { Meeting } from "@workspace/types"
 import {
@@ -14,6 +16,7 @@ import {
 import { Button } from "@workspace/ui/components/button"
 import { Spinner } from "@workspace/ui/components/spinner"
 import { removeMeetingsFromChannel } from "../../_hooks/use-remove-meetings-from-channel"
+import { useState } from "react"
 
 export function RemoveFromChannelDialog({
   meetings,
@@ -22,7 +25,9 @@ export function RemoveFromChannelDialog({
   meetings: Meeting[]
   selectedMeetingIds: string[]
 }) {
-  const { open, setOpen, loading, removeMeetings } = removeMeetingsFromChannel({
+  const [open, setOpen] = useState(false)
+
+  const { loading, removeMeetings } = removeMeetingsFromChannel({
     selectedMeetingIds,
   })
 

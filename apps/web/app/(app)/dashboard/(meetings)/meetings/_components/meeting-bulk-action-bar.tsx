@@ -105,7 +105,10 @@ export function MeetingBulkActionBar({
                 )}
                 <MoveToWorkspaceDialog />
                 <VerticalDivider />
-                <DeleteMeetingsDialog />
+                <DeleteMeetingsDialog
+                  meetings={meetings}
+                  selectedMeetingIds={selectedIds}
+                />
               </>
             )}
             <VerticalDivider />

@@ -92,4 +92,11 @@ export const meetingApi = {
   async deleteMeeting(id: string, options?: RequestOptions): Promise<void> {
     await client.delete(`/meetings/${id}`, options)
   },
+
+  async deleteMeetings(
+    meetingIds: string[],
+    options?: RequestOptions
+  ): Promise<void> {
+    await client.delete("/meetings", { ...options, body: { meetingIds } })
+  },
 }
