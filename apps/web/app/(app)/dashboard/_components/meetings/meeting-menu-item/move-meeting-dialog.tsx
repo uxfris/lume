@@ -58,7 +58,13 @@ export function MoveMeeting({
     moveLoading,
   } = useMoveMeeting({ meeting, onOpenChange })
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (moveLoading) return
+        onOpenChange(nextOpen)
+      }}
+    >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Move to channel</DialogTitle>

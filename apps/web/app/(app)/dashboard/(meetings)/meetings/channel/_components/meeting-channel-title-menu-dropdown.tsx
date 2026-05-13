@@ -81,7 +81,13 @@ export function ChannelTitleMenuDropdown({
         channelId={channelId}
         channelType={channelType}
       />
-      <DeleteChannelDialog open={openDelete} onOpenChange={setOpenDelete} />
+      <DeleteChannelDialog
+        channelId={channelId}
+        channelName={channelName}
+        isFromChannel={true}
+        open={openDelete}
+        onOpenChange={setOpenDelete}
+      />
     </>
   )
 }

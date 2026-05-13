@@ -102,7 +102,13 @@ export function CreateChannelDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (loading) return
+        onOpenChange(nextOpen)
+      }}
+    >
       <DialogContent className="sm:min-w-md">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit" : "Create"} channel</DialogTitle>

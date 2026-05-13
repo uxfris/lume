@@ -1,18 +1,14 @@
 import { UpcomingMeetingItem } from "./upcoming-meeting-item"
 import { UpcomingMeetingsEmpty } from "./upcoming-meetings-empty"
 import { ScheduleNewMeetingButton } from "./schedule-new-meeting-button"
-import { meetingApi } from "@workspace/api-client"
-import { getServerApiFetchOptions } from "@/lib/server-api"
+import { UpcomingMeetingGroup } from "@workspace/types"
 
-export async function UpcomingMeetings() {
-  const { cookie, workspaceId } = await getServerApiFetchOptions()
-  const groups = await meetingApi.getUpcomingMeetings({
-    cookie,
-    workspaceId,
-  })
-
+export async function UpcomingMeetings({
+  groups,
+}: {
+  groups: UpcomingMeetingGroup[]
+}) {
   const total = groups.reduce((acc, g) => acc + g.meetings.length, 0)
-
   return (
     <div className="flex w-full flex-col gap-8">
       <div>

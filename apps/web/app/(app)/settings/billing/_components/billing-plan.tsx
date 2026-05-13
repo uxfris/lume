@@ -9,51 +9,19 @@ import {
 } from "@workspace/ui/components/card"
 import { Button } from "@workspace/ui/components/button"
 import { Check } from "lucide-react"
-import {
-  pricingPlans,
-  type BillingCheckoutBody,
-  type BillingPlanId,
-  type BillingUsageResponse,
-} from "@workspace/types"
-import { billingApi } from "@workspace/api-client"
+import { type BillingUsageResponse } from "@workspace/types"
 import { Separator } from "@workspace/ui/components/separator"
 import { Switch } from "@workspace/ui/components/switch"
 import { Badge } from "@workspace/ui/components/badge"
 import { cn } from "@workspace/ui/lib/utils"
-import { useMemo, useState } from "react"
+import { useCheckout } from "../_hooks/use-checkout"
 
 const STUDIO_PRO_MONTHLY_PRICE = 25
 const STUDIO_PRO_YEARLY_PRICE = STUDIO_PRO_MONTHLY_PRICE * 12 - 60
 
-function resolvePlansWithCurrent(active: BillingPlanId | null) {
-  return pricingPlans.map((p) => ({
-    ...p,
-    currentPlan: p.id === active,
-    ctaDisabled: p.price === "Custom" || p.id === active,
-  }))
-}
-
 export function BillingPlan({ usage }: { usage: BillingUsageResponse | null }) {
-  const activePlan: BillingPlanId | null = usage?.plan ?? null
-  const plans = useMemo(() => resolvePlansWithCurrent(activePlan), [activePlan])
-  const [checkoutBusy, setCheckoutBusy] = useState(false)
-  const [isAnnual, setIsAnnual] = useState(false)
-
-  async function upgradeStudioPro() {
-    setCheckoutBusy(true)
-    try {
-      const billingPeriod: BillingCheckoutBody["billingPeriod"] = isAnnual
-        ? "yearly"
-        : "monthly"
-      const { url } = await billingApi.createStudioProCheckout({
-        billingPeriod,
-      })
-      window.location.href = url
-    } catch {
-      setCheckoutBusy(false)
-    }
-  }
-
+  const { plans, isAnnual, setIsAnnual, checkoutBusy, upgradeStudioPro } =
+    useCheckout(usage)
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
       {plans.map((plan) => {
