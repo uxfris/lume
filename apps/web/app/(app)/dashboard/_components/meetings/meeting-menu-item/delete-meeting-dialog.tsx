@@ -1,4 +1,3 @@
-import { meetingApi } from "@workspace/api-client"
 import { Meeting } from "@workspace/types"
 import {
   AlertDialog,
@@ -11,9 +10,7 @@ import {
   AlertDialogTitle,
 } from "@workspace/ui/components/alert-dialog"
 import { Spinner } from "@workspace/ui/components/spinner"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
-import { toast } from "sonner"
+import { useDeleteMeeting } from "../../../_hooks/use-delete-meeting"
 
 export function DeleteMeetingDialog({
   meeting,
@@ -24,20 +21,10 @@ export function DeleteMeetingDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const deleteMeeting = async () => {
-    try {
-      setLoading(true)
-      await meetingApi.deleteMeeting(meeting.id)
-      toast.success("Meeting deleted successfully")
-      onOpenChange(false)
-
-      router.refresh()
-    } finally {
-      setLoading(false)
-    }
-  }
+  const { deleteMeeting, loading } = useDeleteMeeting({
+    meetingId: meeting.id,
+    onOpenChange,
+  })
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>

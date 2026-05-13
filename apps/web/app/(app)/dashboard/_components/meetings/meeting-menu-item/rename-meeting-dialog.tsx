@@ -9,13 +9,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog"
-import { toast } from "sonner"
 import { Field, FieldLabel } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
-import { useState } from "react"
-import { meetingApi } from "@workspace/api-client"
 import { Spinner } from "@workspace/ui/components/spinner"
-import { useRouter } from "next/navigation"
+import { useRenameMeeting } from "../../../_hooks/use-rename-meeting"
 
 export function RenameMeeting({
   meeting,
@@ -26,23 +23,11 @@ export function RenameMeeting({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const router = useRouter()
-
-  const [loading, setLoading] = useState(false)
-  const [title, setTitle] = useState(meeting.title)
-
-  const renameMeeting = async () => {
-    try {
-      setLoading(true)
-      await meetingApi.updateMeeting(meeting.id, { title: title })
-      toast.success("Meeting renamed successfully")
-      onOpenChange(false)
-
-      router.refresh()
-    } finally {
-      setLoading(false)
-    }
-  }
+  const { loading, title, setTitle, renameMeeting } = useRenameMeeting({
+    meetingId: meeting.id,
+    meetingTitle: meeting.title,
+    onOpenChange,
+  })
   return (
     <Dialog
       open={open}
