@@ -7,6 +7,7 @@ import { taskApi } from "@workspace/api-client"
 
 import type { TasksGroup, UserSummary } from "@workspace/types"
 import { taskKeys } from "../../_lib/task.keys"
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
 
 function updateTaskAssigneeInGroups(
   groups: TasksGroup[],
@@ -39,6 +40,8 @@ type useUpdateTaskMutationReturn = {
 }
 
 export function useUpdateTaskAssigneeMutation(): useUpdateTaskMutationReturn {
+  const { workspaceId } = useCurrentWorkspace()
+
   const queryClient = useQueryClient()
 
   const mutation = useMutation({
@@ -52,11 +55,11 @@ export function useUpdateTaskAssigneeMutation(): useUpdateTaskMutationReturn {
 
     onMutate: async ({ id, assignee }) => {
       await queryClient.cancelQueries({
-        queryKey: taskKeys.lists(),
+        queryKey: taskKeys.lists(workspaceId),
       })
 
       const previousLists = queryClient.getQueriesData<TasksGroup[]>({
-        queryKey: taskKeys.lists(),
+        queryKey: taskKeys.lists(workspaceId),
       })
 
       previousLists.forEach(([queryKey, groups]) => {
@@ -83,7 +86,7 @@ export function useUpdateTaskAssigneeMutation(): useUpdateTaskMutationReturn {
 
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: taskKeys.lists(),
+        queryKey: taskKeys.lists(workspaceId),
       })
     },
   })

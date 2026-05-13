@@ -5,6 +5,7 @@ import { toast } from "sonner"
 
 import { channelApi } from "@workspace/api-client"
 import { channelKeys } from "../../_lib/channel.keys"
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
 
 export type UpdateChannelPayload = {
   id: string
@@ -21,6 +22,8 @@ type UseUpdateChannelMutationReturn = {
 export function useUpdateChannelMutation(
   onOpenChange: (open: boolean) => void
 ): UseUpdateChannelMutationReturn {
+  const { workspaceId } = useCurrentWorkspace()
+  
   const queryClient = useQueryClient()
 
   const mutation = useMutation({
@@ -34,7 +37,7 @@ export function useUpdateChannelMutation(
 
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: channelKeys.all,
+        queryKey: channelKeys.all(workspaceId),
       })
 
       toast.success("Channel updated successfully")

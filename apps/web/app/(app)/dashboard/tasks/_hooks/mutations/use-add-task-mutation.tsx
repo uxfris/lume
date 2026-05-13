@@ -7,6 +7,7 @@ import { taskApi, type CreateTaskInput } from "@workspace/api-client"
 
 import type { ActionItem, TasksGroup, UserSummary } from "@workspace/types"
 import { taskKeys } from "../../_lib/task.keys"
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
 
 function insertTaskIntoGroups(
   groups: TasksGroup[],
@@ -43,6 +44,7 @@ type useAddTaskMutationReturn = {
 }
 
 export function useAddTaskMutation(): useAddTaskMutationReturn {
+  const { workspaceId } = useCurrentWorkspace()
   const queryClient = useQueryClient()
 
   const mutation = useMutation({
@@ -50,11 +52,11 @@ export function useAddTaskMutation(): useAddTaskMutationReturn {
 
     onMutate: async (input) => {
       await queryClient.cancelQueries({
-        queryKey: taskKeys.lists(),
+        queryKey: taskKeys.lists(workspaceId),
       })
 
       const previousLists = queryClient.getQueriesData<TasksGroup[]>({
-        queryKey: taskKeys.lists(),
+        queryKey: taskKeys.lists(workspaceId),
       })
 
       const optimisticTask: ActionItem = {
@@ -89,7 +91,7 @@ export function useAddTaskMutation(): useAddTaskMutationReturn {
 
     onSuccess: (createdTask, _input, context) => {
       const allLists = queryClient.getQueriesData<TasksGroup[]>({
-        queryKey: taskKeys.lists(),
+        queryKey: taskKeys.lists(workspaceId),
       })
 
       allLists.forEach(([queryKey, groups]) => {
@@ -109,7 +111,7 @@ export function useAddTaskMutation(): useAddTaskMutationReturn {
 
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: taskKeys.lists(),
+        queryKey: taskKeys.lists(workspaceId),
       })
     },
   })

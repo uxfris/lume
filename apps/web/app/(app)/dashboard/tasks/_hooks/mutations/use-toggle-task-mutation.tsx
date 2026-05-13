@@ -7,6 +7,7 @@ import { taskApi } from "@workspace/api-client"
 
 import type { TasksGroup } from "@workspace/types"
 import { taskKeys } from "../../_lib/task.keys"
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
 
 function updateTaskCompletion(
   groups: TasksGroup[],
@@ -39,6 +40,8 @@ type useToggleTaskMutationReturn = {
 }
 
 export function useToggleTaskMutation(): useToggleTaskMutationReturn {
+  const { workspaceId } = useCurrentWorkspace()
+
   const queryClient = useQueryClient()
 
   const mutation = useMutation({
@@ -48,11 +51,11 @@ export function useToggleTaskMutation(): useToggleTaskMutationReturn {
     onMutate: async ({ id, isCompleted }) => {
       console.log(`toggle: ${id}\n${isCompleted}`)
       await queryClient.cancelQueries({
-        queryKey: taskKeys.lists(),
+        queryKey: taskKeys.lists(workspaceId),
       })
 
       const previousLists = queryClient.getQueriesData<TasksGroup[]>({
-        queryKey: taskKeys.lists(),
+        queryKey: taskKeys.lists(workspaceId),
       })
 
       previousLists.forEach(([queryKey, groups]) => {
@@ -77,7 +80,7 @@ export function useToggleTaskMutation(): useToggleTaskMutationReturn {
 
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: taskKeys.lists(),
+        queryKey: taskKeys.lists(workspaceId),
       })
     },
   })

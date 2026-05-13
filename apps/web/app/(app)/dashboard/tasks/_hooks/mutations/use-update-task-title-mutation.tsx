@@ -7,6 +7,7 @@ import { taskApi } from "@workspace/api-client"
 
 import type { TasksGroup } from "@workspace/types"
 import { taskKeys } from "../../_lib/task.keys"
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
 
 function updateTaskTitleInGroups(
   groups: TasksGroup[],
@@ -39,6 +40,7 @@ type useUpdateTaskMutationReturn = {
 }
 
 export function useUpdateTaskTitleMutation(): useUpdateTaskMutationReturn {
+  const { workspaceId } = useCurrentWorkspace()
   const queryClient = useQueryClient()
 
   const mutation = useMutation({
@@ -47,11 +49,11 @@ export function useUpdateTaskTitleMutation(): useUpdateTaskMutationReturn {
 
     onMutate: async ({ id, title }) => {
       await queryClient.cancelQueries({
-        queryKey: taskKeys.lists(),
+        queryKey: taskKeys.lists(workspaceId),
       })
 
       const previousLists = queryClient.getQueriesData<TasksGroup[]>({
-        queryKey: taskKeys.lists(),
+        queryKey: taskKeys.lists(workspaceId),
       })
 
       previousLists.forEach(([queryKey, groups]) => {
@@ -78,7 +80,7 @@ export function useUpdateTaskTitleMutation(): useUpdateTaskMutationReturn {
 
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: taskKeys.lists(),
+        queryKey: taskKeys.lists(workspaceId),
       })
     },
   })

@@ -1,11 +1,14 @@
 import { TaskListFilter } from "@workspace/api-client"
 
 export const taskKeys = {
-  all: () => ["tasks"] as const,
+  all: (workspaceId: string | null) => ["tasks", workspaceId] as const,
 
-  lists: () => [...taskKeys.all(), "list"] as const,
+  lists: (workspaceId: string | null) =>
+    [...taskKeys.all(workspaceId), "list"] as const,
 
-  list: (filter: TaskListFilter) => [...taskKeys.lists(), filter] as const,
+  list: (workspaceId: string | null, filter: TaskListFilter) =>
+    [...taskKeys.lists(workspaceId), filter] as const,
 
-  assignees: () => [...taskKeys.all(), "assignees"] as const,
+  assignees: (workspaceId: string | null) =>
+    [...taskKeys.all(workspaceId), "assignees"] as const,
 }

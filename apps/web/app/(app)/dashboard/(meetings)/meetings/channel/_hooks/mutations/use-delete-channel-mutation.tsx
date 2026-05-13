@@ -7,6 +7,7 @@ import { channelApi } from "@workspace/api-client"
 import { channelKeys } from "../../_lib/channel.keys"
 import { useRouter } from "next/navigation"
 import { routes } from "@/lib/routes"
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
 
 export type DeleteChannelPayload = {
   id: string
@@ -24,7 +25,8 @@ export function useDeleteChannelMutation({
 }: {
   isFromChannel: boolean
   onOpenChange: (open: boolean) => void
-}): UseDeleteChannelMutationReturn {
+  }): UseDeleteChannelMutationReturn {
+    const { workspaceId } = useCurrentWorkspace()
   const router = useRouter()
   const queryClient = useQueryClient()
 
@@ -35,7 +37,7 @@ export function useDeleteChannelMutation({
 
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: channelKeys.all,
+        queryKey: channelKeys.all(workspaceId),
       })
 
       toast.success("Channel deleted successfully")

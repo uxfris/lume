@@ -1,3 +1,3 @@
 export const channelKeys = {
-  all: ["channels"] as const,
+  all: (workspaceId: string | null) => ["channels", workspaceId] as const,
 }

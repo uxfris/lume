@@ -30,13 +30,16 @@ import { NewWorkspacePage } from "./new-workspace-page"
 import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
 import { routes } from "@/lib/routes"
 import { useWorkspacesQuery } from "@/app/(app)/settings/workspace/_hooks/queries/use-workpsace-query"
-import { useSetWorkspaceMutation } from "@/app/(app)/settings/workspace/_hooks/mutations/set-workspace-mutation"
+import { useSetWorkspaceMutation } from "@/app/(app)/settings/workspace/_hooks/mutations/use-set-workspace-mutation"
+import { useRouter } from "next/navigation"
 
 function getInitial(name: string): string {
   return name.trim().charAt(0).toUpperCase() || "W"
 }
 
 export function WorkspaceSwitcher() {
+  const router = useRouter()
+
   const { workspaceId, setWorkspaceId } = useCurrentWorkspace()
   const [newWorkspaceOpen, setNewWorkspaceOpen] = useState(false)
 
@@ -60,6 +63,7 @@ export function WorkspaceSwitcher() {
   function handleWorkspaceChange(id: string) {
     setWorkspaceId(id) // local/global state
     setWorkspaceMutation.setWorkspace({ workspaceId: id })
+    router.refresh()
   }
 
   return (
@@ -198,10 +202,6 @@ export function WorkspaceSwitcher() {
 
       {newWorkspaceOpen && (
         <NewWorkspacePage
-          setWorkspaces={(next) => {
-            // ideally this should be a mutation invalidation instead
-            // but keeping compatibility with your current API
-          }}
           handleWorkspaceChange={handleWorkspaceChange}
           setNewWorkspaceOpen={setNewWorkspaceOpen}
         />
