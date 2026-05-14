@@ -7,6 +7,10 @@ import { cn } from "@workspace/ui/lib/utils"
 import { useMeetingView } from "../_stores/meeting-view-store"
 import { useInfiniteScroll } from "../../../_hooks/use-infinite-scroll"
 import { meetingApi } from "@workspace/api-client"
+import { useMemo } from "react"
+import { useMeetingListSearch } from "../_stores/meeting-list-search-store"
+import { filterMeetingsByQuery } from "../_lib/filter-meetings-by-query"
+import { useDebounce } from "@workspace/ui/hooks/use-debounce"
 
 export function MeetingView({
   initialMeetings,
@@ -40,8 +44,26 @@ export function MeetingView({
     },
   })
 
+  const searchQuery = useMeetingListSearch((s) => s.searchQuery)
+
+  const debouncedQuery = useDebounce(searchQuery, 350)
+
+  const visibleMeetings = useMemo(
+    () => filterMeetingsByQuery(meetings, debouncedQuery),
+    [meetings, debouncedQuery]
+  )
+
+  const trimmedQuery = debouncedQuery.trim()
+  const showSearchEmpty =
+    trimmedQuery.length > 0 && visibleMeetings.length === 0
+
   return (
     <>
+      {showSearchEmpty && (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          {`No meetings match "${trimmedQuery}". Try different keywords or load more meetings below.`}
+        </p>
+      )}
       <div
         className={cn(
           meetingView === "list"
@@ -49,7 +71,7 @@ export function MeetingView({
             : "grid grid-cols-1 items-stretch gap-5 md:grid-cols-2 lg:grid-cols-3"
         )}
       >
-        {meetings.map((meeting) => (
+        {visibleMeetings.map((meeting) => (
           <MeetingItem
             key={meeting.id}
             meeting={meeting}
