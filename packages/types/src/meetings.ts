@@ -15,6 +15,7 @@ export const AttendeeSchema = z.object({
   id: z.string(),
   avatarUrl: z.url().optional(),
   initials: z.string(),
+  isHost: z.boolean().nullable().default(false),
 })
 export type Attendee = z.infer<typeof AttendeeSchema>
 

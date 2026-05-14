@@ -24,7 +24,11 @@ function parseAttendeesFromJson(
     const id = rec.id
     const initials = rec.initials
     if (typeof id !== "string" || typeof initials !== "string") continue
-    const row: Attendee = { id, initials }
+    const row: Attendee = { id, initials, isHost: null }
+    const hostFlag = rec.isHost
+    if (hostFlag === true || hostFlag === false) {
+      row.isHost = hostFlag
+    }
     const avatarUrl = rec.avatarUrl
     if (
       typeof avatarUrl === "string" &&
@@ -37,10 +41,9 @@ function parseAttendeesFromJson(
   return out.length > 0 ? out : null
 }
 
-function attendeesForUpcomingMeeting(row: CalendarEventRow): Pick<
-  UpcomingMeeting,
-  "attendees" | "extraAttendees"
-> {
+function attendeesForUpcomingMeeting(
+  row: CalendarEventRow
+): Pick<UpcomingMeeting, "attendees" | "extraAttendees"> {
   const parsed = parseAttendeesFromJson(row.attendees)
   if (parsed && parsed.length > 0) {
     if (parsed.length <= MAX_ATTENDEE_AVATARS) {
@@ -57,6 +60,7 @@ function attendeesForUpcomingMeeting(row: CalendarEventRow): Pick<
       {
         id: `calendar-${row.id}`,
         initials: initialsFromTitle(row.title),
+        isHost: true,
       },
     ],
   }

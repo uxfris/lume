@@ -1,6 +1,14 @@
 import type { Meeting } from "@workspace/types"
 
-/** Meetings whose owner appears in `attendees` with an id in `hostIds` (list API uses the owner as attendees). */
+/** User ids to compare against the toolbar filter (workspace member ids). */
+function attendeeIdsTreatedAsHosts(meeting: Meeting): string[] {
+  const hosts = meeting.attendees.filter((a) => a.isHost === true)
+  if (hosts.length > 0) return hosts.map((a) => a.id)
+  // Legacy rows before `isHost` was stored: treat every listed attendee as a possible host match.
+  return meeting.attendees.map((a) => a.id)
+}
+
+/** Meetings where at least one host attendee id is in `hostIds`. */
 export function filterMeetingsByHosts(
   meetings: Meeting[],
   hostIds: string[]
@@ -8,6 +16,6 @@ export function filterMeetingsByHosts(
   if (hostIds.length === 0) return meetings
   const allowed = new Set(hostIds)
   return meetings.filter((m) =>
-    m.attendees.some((a) => allowed.has(a.id))
+    attendeeIdsTreatedAsHosts(m).some((id) => allowed.has(id))
   )
 }
