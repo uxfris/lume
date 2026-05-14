@@ -9,7 +9,9 @@ import { useInfiniteScroll } from "../../../_hooks/use-infinite-scroll"
 import { meetingApi } from "@workspace/api-client"
 import { useMemo } from "react"
 import { useMeetingListSearch } from "../_stores/meeting-list-search-store"
+import { useMeetingListHostFilter } from "../_stores/meeting-list-host-filter-store"
 import { filterMeetingsByQuery } from "../_lib/filter-meetings-by-query"
+import { filterMeetingsByHosts } from "../_lib/filter-meetings-by-hosts"
 import { useDebounce } from "@workspace/ui/hooks/use-debounce"
 
 export function MeetingView({
@@ -48,20 +50,37 @@ export function MeetingView({
 
   const debouncedQuery = useDebounce(searchQuery, 350)
 
-  const visibleMeetings = useMemo(
+  const selectedHostIds = useMeetingListHostFilter((s) => s.selectedHostIds)
+
+  const queryFiltered = useMemo(
     () => filterMeetingsByQuery(meetings, debouncedQuery),
     [meetings, debouncedQuery]
   )
 
+  const visibleMeetings = useMemo(
+    () => filterMeetingsByHosts(queryFiltered, selectedHostIds),
+    [queryFiltered, selectedHostIds]
+  )
+
   const trimmedQuery = debouncedQuery.trim()
   const showSearchEmpty =
-    trimmedQuery.length > 0 && visibleMeetings.length === 0
+    trimmedQuery.length > 0 && queryFiltered.length === 0
+  const showHostEmpty =
+    selectedHostIds.length > 0 &&
+    queryFiltered.length > 0 &&
+    visibleMeetings.length === 0
 
   return (
     <>
       {showSearchEmpty && (
         <p className="py-8 text-center text-sm text-muted-foreground">
           {`No meetings match "${trimmedQuery}". Try different keywords or load more meetings below.`}
+        </p>
+      )}
+      {showHostEmpty && (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          No meetings from the selected hosts in this list. Clear the host filter
+          or load more meetings.
         </p>
       )}
       <div
