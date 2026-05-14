@@ -349,4 +349,44 @@ export const meetingsRepo = {
       return { ok: true }
     })
   },
+
+  async unstarManyInWorkspace(input: {
+    workspaceId: string
+    meetingIds: string[]
+  }): Promise<{ ok: true } | { ok: false }> {
+    const uniqueIds = [...new Set(input.meetingIds)]
+    if (uniqueIds.length === 0) {
+      return { ok: false }
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      const meetings = await tx.meeting.findMany({
+        where: {
+          id: { in: uniqueIds },
+          workspaceId: input.workspaceId,
+          deletedAt: null,
+        },
+        select: { id: true },
+      })
+
+      if (meetings.length !== uniqueIds.length) {
+        return { ok: false }
+      }
+
+      const updated = await tx.meeting.updateMany({
+        where: {
+          id: { in: uniqueIds },
+          workspaceId: input.workspaceId,
+          deletedAt: null,
+        },
+        data: { isStarred: false },
+      })
+
+      if (updated.count !== uniqueIds.length) {
+        return { ok: false }
+      }
+
+      return { ok: true }
+    })
+  },
 }

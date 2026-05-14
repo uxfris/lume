@@ -137,6 +137,19 @@ export async function deleteMeetings(input: {
   return result.ok ? { ok: true } : { ok: false, reason: "NOT_FOUND" }
 }
 
+export async function unstarMeetings(input: {
+  workspaceId: string
+  meetingIds: string[]
+}): Promise<{ ok: true } | { ok: false; reason: "NOT_FOUND" }> {
+  const uniqueIds = [...new Set(input.meetingIds)]
+  const result = await meetingsRepo.unstarManyInWorkspace({
+    workspaceId: input.workspaceId,
+    meetingIds: uniqueIds,
+  })
+
+  return result.ok ? { ok: true } : { ok: false, reason: "NOT_FOUND" }
+}
+
 export async function moveMeetingsToWorkspace(input: {
   userId: string
   sourceWorkspaceId: string

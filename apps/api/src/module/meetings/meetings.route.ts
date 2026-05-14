@@ -118,6 +118,34 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
     }
   )
 
+  app.post(
+    "/unstar",
+    {
+      preHandler: [app.verifySession, app.requireWorkspace],
+      schema: {
+        tags: ["Meetings"],
+        summary: "Clear starred flag on selected meetings in the workspace",
+        body: deleteMeetingsBodySchema,
+        response: {
+          204: z.undefined(),
+          404: meetingErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await meetingsService.unstarMeetings({
+        workspaceId: request.workspace!.id,
+        meetingIds: request.body.meetingIds,
+      })
+
+      if (!result.ok) {
+        return reply.status(404).send({ error: "MEETING_NOT_FOUND" })
+      }
+
+      return reply.status(204).send()
+    }
+  )
+
   app.get(
     "/:id/conversation",
     {

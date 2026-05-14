@@ -111,4 +111,11 @@ export const meetingApi = {
       options
     )
   },
+
+  async unstarMeetings(
+    meetingIds: string[],
+    options?: RequestOptions
+  ): Promise<void> {
+    await client.post("/meetings/unstar", { meetingIds }, options)
+  },
 }

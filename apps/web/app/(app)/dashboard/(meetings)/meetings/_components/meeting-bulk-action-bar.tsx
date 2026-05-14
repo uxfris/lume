@@ -17,8 +17,9 @@ import { MoveToChannelDialog } from "./meeting-action/move-to-channel-dialog"
 import { MoveToWorkspaceDialog } from "./meeting-action/move-to-workspace-dialog"
 import { RemoveFromChannelDialog } from "./meeting-action/remove-from-channel-dialog"
 import { DeleteMeetingsDialog } from "./meeting-action/delete-meetings-dialog"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { Star } from "lucide-react"
+import { meetingApi } from "@workspace/api-client"
 
 export function MeetingBulkActionBar({
   isChannel,
@@ -30,6 +31,7 @@ export function MeetingBulkActionBar({
   meetings: Meeting[]
 }) {
   const pathname = usePathname()
+  const router = useRouter()
 
   const selectionMode = useMeetingSelection((s) => s.selectionMode)
   const setSelectionMode = useMeetingSelection((s) => s.setSelectionMode)
@@ -56,6 +58,13 @@ export function MeetingBulkActionBar({
     clearSelection()
     setSelectionMode(false)
   }, [pathname])
+
+  const unstarMeetings = async () => {
+    clearSelection()
+    setSelectionMode(false)
+    await meetingApi.unstarMeetings(selectedIds)
+    router.refresh()
+  }
 
   if (selectionMode)
     return (
@@ -89,7 +98,7 @@ export function MeetingBulkActionBar({
           <>
             <VerticalDivider />
             {isStarred ? (
-              <Button size="xs" variant="ghost">
+              <Button size="xs" variant="ghost" onClick={unstarMeetings}>
                 <Star />
                 Unstar
               </Button>
