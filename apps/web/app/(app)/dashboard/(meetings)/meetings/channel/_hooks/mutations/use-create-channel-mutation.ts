@@ -5,8 +5,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
 import { channelApi } from "@workspace/api-client"
-import { channelKeys } from "../../_lib/channel-query-keys"
+import { channelKeys } from "../../_lib/channel.keys"
 import { routes } from "@/lib/routes"
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
 
 export type CreateChannelPayload = {
   name: string
@@ -22,6 +23,7 @@ type UseCreateChannelMutationReturn = {
 export function useCreateChannelMutation(
   onOpenChange: (open: boolean) => void
 ): UseCreateChannelMutationReturn {
+  const { workspaceId } = useCurrentWorkspace()
   const router = useRouter()
   const queryClient = useQueryClient()
 
@@ -36,7 +38,7 @@ export function useCreateChannelMutation(
 
     onSuccess: (created) => {
       queryClient.invalidateQueries({
-        queryKey: channelKeys.all,
+        queryKey: channelKeys.all(workspaceId),
       })
 
       toast.success("Channel created successfully")

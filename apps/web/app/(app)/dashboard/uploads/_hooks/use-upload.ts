@@ -5,6 +5,7 @@ import type { UploadSummary } from "@workspace/types"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
 
 type InFlightUpload = {
   meetingId: string
@@ -37,11 +38,13 @@ function deriveTitle(fileName: string): string {
 }
 
 export function useUpload() {
+  const { workspaceId } = useCurrentWorkspace()
+
   const queryClient = useQueryClient()
 
   // ✅ Server state handled by React Query
   const { data: uploads = [], isLoading } = useQuery({
-    queryKey: ["uploads"],
+    queryKey: ["uploads", workspaceId],
     queryFn: () => uploadsApi.list({ limit: 20 }),
   })
 
@@ -198,7 +201,7 @@ export function useUpload() {
         })
 
         // ✅ tell React Query data is stale
-        queryClient.invalidateQueries({ queryKey: ["uploads"] })
+        queryClient.invalidateQueries({ queryKey: ["uploads", workspaceId] })
 
         toast.success("Upload queued for transcription")
       } catch (error) {

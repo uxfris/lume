@@ -6,7 +6,8 @@ import { toast } from "sonner"
 import { taskApi } from "@workspace/api-client"
 
 import type { ActionItem, TasksGroup } from "@workspace/types"
-import { taskKeys } from "../../_lib/task-query-keys"
+import { taskKeys } from "../../_lib/task.keys"
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
 
 function removeTaskFromGroups(
   groups: TasksGroup[],
@@ -20,6 +21,8 @@ function removeTaskFromGroups(
 }
 
 export function useDeleteTaskMutation() {
+  const { workspaceId } = useCurrentWorkspace()
+  
   const queryClient = useQueryClient()
 
   const mutation = useMutation({
@@ -31,14 +34,14 @@ export function useDeleteTaskMutation() {
 
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: taskKeys.lists(),
+        queryKey: taskKeys.lists(workspaceId),
       })
     },
   })
 
   function deleteTask(task: ActionItem) {
     const previousLists = queryClient.getQueriesData<TasksGroup[]>({
-      queryKey: taskKeys.lists(),
+      queryKey: taskKeys.lists(workspaceId),
     })
 
     // optimistic remove

@@ -1,4 +1,4 @@
-import type { Prisma } from "@workspace/database"
+import { prisma, type Prisma } from "@workspace/database"
 import type { Conversation, Meeting as MeetingDTO } from "@workspace/types"
 import {
   decodeMeetingListCursor,
@@ -122,6 +122,67 @@ export async function deleteMeeting(input: {
 }): Promise<{ ok: true } | { ok: false; reason: "NOT_FOUND" }> {
   const n = await meetingsRepo.softDelete(input.meetingId, input.workspaceId)
   return n > 0 ? { ok: true } : { ok: false, reason: "NOT_FOUND" }
+}
+
+export async function deleteMeetings(input: {
+  workspaceId: string
+  meetingIds: string[]
+}): Promise<{ ok: true } | { ok: false; reason: "NOT_FOUND" }> {
+  const uniqueIds = [...new Set(input.meetingIds)]
+  const result = await meetingsRepo.softDeleteMany({
+    workspaceId: input.workspaceId,
+    meetingIds: uniqueIds,
+  })
+
+  return result.ok ? { ok: true } : { ok: false, reason: "NOT_FOUND" }
+}
+
+export async function unstarMeetings(input: {
+  workspaceId: string
+  meetingIds: string[]
+}): Promise<{ ok: true } | { ok: false; reason: "NOT_FOUND" }> {
+  const uniqueIds = [...new Set(input.meetingIds)]
+  const result = await meetingsRepo.unstarManyInWorkspace({
+    workspaceId: input.workspaceId,
+    meetingIds: uniqueIds,
+  })
+
+  return result.ok ? { ok: true } : { ok: false, reason: "NOT_FOUND" }
+}
+
+export async function moveMeetingsToWorkspace(input: {
+  userId: string
+  sourceWorkspaceId: string
+  targetWorkspaceId: string
+  meetingIds: string[]
+}): Promise<
+  | { ok: true }
+  | {
+      ok: false
+      reason: "SAME_WORKSPACE" | "TARGET_ACCESS_DENIED" | "NOT_FOUND"
+    }
+> {
+  if (input.targetWorkspaceId === input.sourceWorkspaceId) {
+    return { ok: false, reason: "SAME_WORKSPACE" }
+  }
+
+  const targetMembership = await meetingsRepo.findTargetMembership({
+    userId: input.userId,
+    targetWorkspaceId: input.targetWorkspaceId,
+  })
+
+  if (!targetMembership) {
+    return { ok: false, reason: "TARGET_ACCESS_DENIED" }
+  }
+
+  const uniqueIds = [...new Set(input.meetingIds)]
+  const result = await meetingsRepo.moveManyToWorkspace({
+    fromWorkspaceId: input.sourceWorkspaceId,
+    toWorkspaceId: input.targetWorkspaceId,
+    meetingIds: uniqueIds,
+  })
+
+  return result.ok ? { ok: true } : { ok: false, reason: "NOT_FOUND" }
 }
 
 export async function getConversation(input: {

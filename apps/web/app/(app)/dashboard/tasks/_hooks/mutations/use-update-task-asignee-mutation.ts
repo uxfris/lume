@@ -5,13 +5,14 @@ import { toast } from "sonner"
 
 import { taskApi } from "@workspace/api-client"
 
-import type { TasksGroup } from "@workspace/types"
-import { taskKeys } from "../../_lib/task-query-keys"
+import type { TasksGroup, UserSummary } from "@workspace/types"
+import { taskKeys } from "../../_lib/task.keys"
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
 
-function updateTaskCompletion(
+function updateTaskAssigneeInGroups(
   groups: TasksGroup[],
   taskId: string,
-  isCompleted: boolean
+  assignee: UserSummary | null
 ): TasksGroup[] {
   return groups.map((group) => ({
     ...group,
@@ -20,39 +21,45 @@ function updateTaskCompletion(
       task.id === taskId
         ? {
             ...task,
-            isCompleted,
+            assignee,
           }
         : task
     ),
   }))
 }
 
-export type ToggleTaskPayload = {
+export type UpdateTaskPayload = {
   id: string
-  isCompleted: boolean
+  assignee: UserSummary | null
 }
 
-type useToggleTaskMutationReturn = {
-  toggleTask: (payload: ToggleTaskPayload) => void
-  toggleTaskAsync: (payload: ToggleTaskPayload) => Promise<any>
+type useUpdateTaskMutationReturn = {
+  updateTask: (payload: UpdateTaskPayload) => void
+  updateTaskAsync: (payload: UpdateTaskPayload) => void
   loading: boolean
 }
 
-export function useToggleTaskMutation(): useToggleTaskMutationReturn {
+export function useUpdateTaskAssigneeMutation(): useUpdateTaskMutationReturn {
+  const { workspaceId } = useCurrentWorkspace()
+
   const queryClient = useQueryClient()
 
   const mutation = useMutation({
-    mutationFn: ({ id, isCompleted }: { id: string; isCompleted: boolean }) =>
-      taskApi.toggle(id, isCompleted),
+    mutationFn: ({
+      id,
+      assignee,
+    }: {
+      id: string
+      assignee: UserSummary | null
+    }) => taskApi.updateAssignee(id, assignee),
 
-    onMutate: async ({ id, isCompleted }) => {
-      console.log(`toggle: ${id}\n${isCompleted}`)
+    onMutate: async ({ id, assignee }) => {
       await queryClient.cancelQueries({
-        queryKey: taskKeys.lists(),
+        queryKey: taskKeys.lists(workspaceId),
       })
 
       const previousLists = queryClient.getQueriesData<TasksGroup[]>({
-        queryKey: taskKeys.lists(),
+        queryKey: taskKeys.lists(workspaceId),
       })
 
       previousLists.forEach(([queryKey, groups]) => {
@@ -60,7 +67,7 @@ export function useToggleTaskMutation(): useToggleTaskMutationReturn {
 
         queryClient.setQueryData<TasksGroup[]>(
           queryKey,
-          updateTaskCompletion(groups, id, isCompleted)
+          updateTaskAssigneeInGroups(groups, id, assignee)
         )
       })
 
@@ -73,18 +80,20 @@ export function useToggleTaskMutation(): useToggleTaskMutationReturn {
       context?.previousLists.forEach(([queryKey, data]) => {
         queryClient.setQueryData(queryKey, data)
       })
+
+      toast.error("Failed to update assignee.")
     },
 
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: taskKeys.lists(),
+        queryKey: taskKeys.lists(workspaceId),
       })
     },
   })
 
   return {
-    toggleTask: mutation.mutate,
-    toggleTaskAsync: mutation.mutateAsync,
+    updateTask: mutation.mutate,
+    updateTaskAsync: mutation.mutateAsync,
     loading: mutation.isPending,
   }
 }

@@ -21,9 +21,9 @@ import { cn } from "@workspace/ui/lib/utils"
 import { ChannelTitleMenuDropdown } from "../../(meetings)/meetings/channel/_components/meeting-channel-title-menu-dropdown"
 import { channelApi } from "@workspace/api-client"
 import { useQuery } from "@tanstack/react-query"
-import { channelKeys } from "../../(meetings)/meetings/channel/_lib/channel-query-keys"
+import { channelKeys } from "../../(meetings)/meetings/channel/_lib/channel.keys"
 import { routes } from "@/lib/routes"
-import { useChannelQuery } from "../../(meetings)/meetings/channel/_hooks/mutations/queries/use-channel-query"
+import { useChannelQuery } from "../../(meetings)/meetings/channel/_hooks/queries/use-channel-query"
 import { useEffect, useState } from "react"
 
 export function NavMeetings({ item }: { item: NavItem }) {

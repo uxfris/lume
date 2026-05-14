@@ -6,45 +6,43 @@ import React, { useState } from "react"
 import LogoIcon from "@/assets/icons/logo-icon"
 import { Field, FieldLabel } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
-import { workspaceApi } from "@workspace/api-client"
-import { WorkspaceMembership } from "@workspace/types"
+
+import { useCreateWorkspaceMutation } from "@/app/(app)/settings/workspace/_hooks/mutations/use-create-workspace-mutation"
+import { toast } from "sonner"
 
 export function NewWorkspacePage({
-  setWorkspaces,
   handleWorkspaceChange,
   setNewWorkspaceOpen,
 }: {
-  setWorkspaces: (next: WorkspaceMembership) => void
   handleWorkspaceChange: (id: string) => void
   setNewWorkspaceOpen: (open: boolean) => void
 }) {
-  const [creating, setCreating] = useState(false)
   const [newWorkspaceName, setNewWorkspaceName] = useState("")
-  const [error, setError] = useState<string | null>(null)
+
+  const createWorkspace = useCreateWorkspaceMutation()
 
   async function handleCreateWorkspace() {
     const name = newWorkspaceName.trim()
     if (!name) return
 
-    setCreating(true)
-    setError(null)
-    try {
-      const created = await workspaceApi.create(name)
-      const next: WorkspaceMembership = {
-        ...created,
-        role: "OWNER",
-        joinedAt: new Date().toISOString(),
+    createWorkspace.create(
+      { name },
+      {
+        onSuccess: (workspace) => {
+          toast.success(`Workspace "${workspace.name}" created`)
+          handleWorkspaceChange(workspace.id)
+          setNewWorkspaceName("")
+          setNewWorkspaceOpen(false)
+        },
+        onError: () => {
+          toast.error("Failed to create workspace")
+        },
       }
-      setWorkspaces(next)
-      handleWorkspaceChange(created.id)
-      setNewWorkspaceName("")
-      setNewWorkspaceOpen(false)
-    } catch {
-      setError("Failed to create workspace.")
-    } finally {
-      setCreating(false)
-    }
+    )
   }
+
+  const creating = createWorkspace.isPending
+  const error = createWorkspace.error ? "Failed to create workspace." : null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
@@ -56,20 +54,26 @@ export function NewWorkspacePage({
         >
           <X />
         </Button>
+
         <LogoIcon className="h-12 w-12 text-primary" />
+
         <h1 className="text-3xl font-semibold">Create a workspace</h1>
+
         <p className="text-sm">
           Create a new place to make meetings or collaborate with others.
         </p>
+
         <Field>
           <FieldLabel>Workspace name</FieldLabel>
           <Input
             placeholder="Enter workspace name"
             value={newWorkspaceName}
-            onChange={(event) => setNewWorkspaceName(event.target.value)}
+            onChange={(e) => setNewWorkspaceName(e.target.value)}
           />
         </Field>
+
         {error && <p className="text-xs text-destructive">{error}</p>}
+
         <div className="flex items-center gap-3">
           <Button
             variant="secondary"
@@ -78,6 +82,7 @@ export function NewWorkspacePage({
           >
             Go back
           </Button>
+
           <Button
             className="flex-1"
             onClick={handleCreateWorkspace}

@@ -8,6 +8,8 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { Meeting } from "@workspace/types"
 import { routes } from "@/lib/routes"
+import { channelKeys } from "../(meetings)/meetings/channel/_lib/channel.keys"
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
 
 export const NO_CHANNEL = "no-channel"
 
@@ -20,6 +22,8 @@ export function useMoveMeeting({
 }) {
   const router = useRouter()
 
+  const { workspaceId } = useCurrentWorkspace()
+
   const [moveLoading, setMoveLoading] = useState(false)
   const [search, setSearch] = useState("")
   const [selectedChannelId, setSelectedChannelId] = useState<string>(
@@ -31,7 +35,7 @@ export function useMoveMeeting({
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["channels"],
+    queryKey: channelKeys.all(workspaceId),
     queryFn: () => channelApi.getChannels(),
     staleTime: 300_000,
   })

@@ -28,6 +28,14 @@ export function useInfiniteScroll<T>({
 
   const observerRef = useRef<HTMLDivElement | null>(null)
 
+  // Server props can change without unmounting (e.g. `router.refresh()` after workspace switch).
+  useEffect(() => {
+    setItems(initialItems)
+    setCursor(initialCursor)
+    setHasMore(initialCursor !== null)
+    setLoading(false)
+  }, [initialItems, initialCursor])
+
   const loadMore = useCallback(async () => {
     if (!cursor || loading) return
 

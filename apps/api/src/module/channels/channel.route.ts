@@ -249,7 +249,7 @@ export const channelRoutes: FastifyPluginAsyncZod = async (app) => {
         channelId: request.params.id,
         workspaceId: request.workspace!.id,
         userId: request.user!.id,
-        meetingIds: request.body?.meetingIds,
+        meetingIds: request.body.meetingIds,
       })
 
       if (!result.ok) {

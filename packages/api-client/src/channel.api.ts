@@ -6,7 +6,11 @@ export const channelApi = {
     body: { name: string; description?: string | null; type?: ChannelType },
     options?: RequestOptions
   ): Promise<Channel> {
-    const res = await client.post<{ channel: Channel }>("/channels", body, options)
+    const res = await client.post<{ channel: Channel }>(
+      "/channels",
+      body,
+      options
+    )
     return res.channel
   },
 
@@ -60,12 +64,12 @@ export const channelApi = {
 
   async removeMeetingsFromChannel(
     id: string,
-    meetingIds?: string[],
+    meetingIds: string[],
     options?: RequestOptions
   ): Promise<{ updatedCount: number }> {
     return client.delete<{ updatedCount: number }>(`/channels/${id}/meetings`, {
       ...options,
-      body: meetingIds ? { meetingIds } : undefined,
+      body: { meetingIds },
     })
   },
 }
