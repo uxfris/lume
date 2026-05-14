@@ -1,14 +1,10 @@
 import type {
+  ListMeetingsResponse,
   LiveMeeting,
   Meeting,
   UpcomingMeetingGroup,
 } from "@workspace/types"
 import { client, type RequestOptions } from "./client"
-
-type ListMeetingsResponse = {
-  meetings: Meeting[]
-  nextCursor: string | null
-}
 
 export const meetingApi = {
   async getLiveMeetings(options?: RequestOptions): Promise<LiveMeeting[]> {

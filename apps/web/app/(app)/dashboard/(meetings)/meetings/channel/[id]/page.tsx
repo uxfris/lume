@@ -32,7 +32,7 @@ export default async function MeetingChannel({ params }: PageProps) {
     workspaceId,
     limit: 50,
   })
-  const meetings: Meeting[] = channelMeetings
+  const meetings: Meeting[] = channelMeetings.meetings
 
   return (
     <div className="relative flex h-full flex-col gap-6 overflow-hidden">
@@ -57,7 +57,10 @@ export default async function MeetingChannel({ params }: PageProps) {
                 <MeetingToolbar />
               </MeetingsProvider>
             </div>
-            <MeetingView meetings={meetings} />
+            <MeetingView
+              initialMeetings={meetings}
+              initialCursor={channelMeetings.nextCursor}
+            />
           </div>
           <MeetingBulkActionBar meetings={meetings} isChannel={true} />
         </>

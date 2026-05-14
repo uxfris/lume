@@ -87,25 +87,6 @@ export const channelRepo = {
     })
   },
 
-  listMeetingsByChannel(input: {
-    workspaceId: string
-    channelId: string
-    limit: number
-  }) {
-    return prisma.meeting.findMany({
-      where: {
-        workspaceId: input.workspaceId,
-        channelId: input.channelId,
-        deletedAt: null,
-      },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: input.limit,
-      include: {
-        user: true,
-      },
-    })
-  },
-
   assignMeetingsToChannel(input: {
     workspaceId: string
     channelId: string

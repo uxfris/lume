@@ -8,12 +8,14 @@ import { meetingApi } from "@workspace/api-client"
 
 export default async function MeetingsSharedWithMe() {
   const { cookie, workspaceId } = await getServerApiFetchOptions()
-  const meetings = await meetingApi.getMeetingsList({
+  const response = await meetingApi.getMeetings({
     limit: 50,
     isSharedWithMe: true,
     cookie,
     workspaceId,
   })
+
+  const meetings = response.meetings
 
   if (meetings.length === 0) return <MeetingEmptyGlobal variant="shared" />
   return (
@@ -27,7 +29,10 @@ export default async function MeetingsSharedWithMe() {
             <MeetingToolbar />
           </MeetingsProvider>
         </div>
-        <MeetingView meetings={meetings} />
+        <MeetingView
+          initialMeetings={meetings}
+          initialCursor={response.nextCursor}
+        />
       </div>
       <MeetingBulkActionBar meetings={meetings} />
     </div>

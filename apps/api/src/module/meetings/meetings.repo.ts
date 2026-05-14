@@ -58,10 +58,13 @@ export const meetingsRepo = {
     isStarred?: boolean
     isCreatedByMe?: boolean
     isSharedWithMe?: boolean
+    /** When set, only meetings assigned to this channel are returned. */
+    channelId?: string
   }): Promise<MeetingWithOwner[]> {
     const where: Prisma.MeetingWhereInput = {
       workspaceId: input.workspaceId,
       deletedAt: null,
+      ...(input.channelId !== undefined ? { channelId: input.channelId } : {}),
       status: {
         notIn: ["SCHEDULED", "LIVE"],
       },
