@@ -1,7 +1,16 @@
 import { Prisma } from "@workspace/database"
 import type { Meeting as MeetingDTO } from "@workspace/types"
+import {
+  decodeMeetingListCursor,
+  encodeMeetingListCursor,
+} from "../meetings/meetings.cursor"
 import { toMeetingDTO } from "../meetings/meetings.presenter"
+import { meetingsRepo } from "../meetings/meetings.repo"
 import { channelRepo } from "./channel.repo"
+
+function clampPageSize(limit: number): number {
+  return Math.min(Math.max(limit, 1), 100)
+}
 
 function toChannelDTO(channel: {
   id: string
@@ -146,22 +155,49 @@ export async function listChannelMeetings(input: {
   channelId: string
   workspaceId: string
   userId: string
+  cursor?: string
   limit: number
 }): Promise<
-  { ok: true; meetings: MeetingDTO[] } | { ok: false; reason: "NOT_FOUND" }
+  | { ok: true; meetings: MeetingDTO[]; nextCursor: string | null }
+  | { ok: false; reason: "NOT_FOUND" }
 > {
   const exists = await channelRepo.findAccessibleById(input)
   if (!exists) return { ok: false, reason: "NOT_FOUND" }
 
-  const meetings = await channelRepo.listMeetingsByChannel({
+  let decoded: { createdAt: Date; id: string } | undefined
+  if (input.cursor) {
+    try {
+      decoded = decodeMeetingListCursor(input.cursor)
+    } catch {
+      throw new Error("INVALID_CURSOR")
+    }
+  }
+
+  const pageSize = clampPageSize(input.limit)
+  const rows = await meetingsRepo.listByWorkspace({
     workspaceId: input.workspaceId,
+    userId: input.userId,
+    take: pageSize + 1,
+    cursor: decoded,
     channelId: input.channelId,
-    limit: input.limit,
   })
+
+  const hasMore = rows.length > pageSize
+  const page = hasMore ? rows.slice(0, pageSize) : rows
+  const last = page[page.length - 1]
+
+  const nextCursor =
+    hasMore && last
+      ? encodeMeetingListCursor({
+          c: last.createdAt.toISOString(),
+          i: last.id,
+        })
+      : null
 
   return {
     ok: true,
-    meetings: meetings.map((meeting) => toMeetingDTO(meeting)),
+    meetings: page.map((meeting) => toMeetingDTO(meeting)),
+    nextCursor,
   }
 }
 

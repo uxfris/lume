@@ -74,3 +74,8 @@ export const MeetingStatusEnum = z.enum([
   "SUMMARIZED",
   "FAILED",
 ])
+
+export type ListMeetingsResponse = {
+  meetings: Meeting[]
+  nextCursor: string | null
+}

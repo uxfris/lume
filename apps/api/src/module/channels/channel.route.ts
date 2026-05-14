@@ -1,6 +1,7 @@
 import { FastifyPluginAsyncZod } from "fastify-type-provider-zod"
 import { z } from "zod"
 import * as channelService from "./channel.service"
+import { meetingErrorSchema } from "../meetings/meetings.schema"
 import {
   channelErrorSchema,
   channelParamsSchema,
@@ -174,28 +175,43 @@ export const channelRoutes: FastifyPluginAsyncZod = async (app) => {
       preHandler: [app.verifySession, app.requireWorkspace],
       schema: {
         tags: ["Channel"],
-        summary: "List meetings currently assigned to a channel",
+        summary: "List meetings assigned to a channel (cursor pagination)",
         params: channelParamsSchema,
         querystring: listChannelMeetingsQuerySchema,
         response: {
           200: listChannelMeetingsResponseSchema,
+          400: meetingErrorSchema,
           404: channelErrorSchema,
         },
       },
     },
     async (request, reply) => {
-      const result = await channelService.listChannelMeetings({
-        channelId: request.params.id,
-        workspaceId: request.workspace!.id,
-        userId: request.user!.id,
-        limit: request.query.limit,
-      })
+      try {
+        const result = await channelService.listChannelMeetings({
+          channelId: request.params.id,
+          workspaceId: request.workspace!.id,
+          userId: request.user!.id,
+          cursor: request.query.cursor,
+          limit: request.query.limit,
+        })
 
-      if (!result.ok) {
-        return reply.status(404).send({ error: "CHANNEL_NOT_FOUND" })
+        if (!result.ok) {
+          return reply.status(404).send({ error: "CHANNEL_NOT_FOUND" })
+        }
+
+        return {
+          meetings: result.meetings,
+          nextCursor: result.nextCursor,
+        }
+      } catch (err) {
+        if ((err as Error).message === "INVALID_CURSOR") {
+          return reply.status(400).send({
+            error: "INVALID_CURSOR",
+            message: "Invalid or expired cursor.",
+          })
+        }
+        throw err
       }
-
-      return { meetings: result.meetings }
     }
   )
   app.post(

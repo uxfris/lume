@@ -11,13 +11,15 @@ import { meetingApi } from "@workspace/api-client"
 
 export default async function Meeting() {
   const { cookie, workspaceId } = await getServerApiFetchOptions()
-  const [meetings] = await Promise.all([
-    meetingApi.getMeetingsList({
+  const [response] = await Promise.all([
+    meetingApi.getMeetings({
       limit: 50,
       cookie,
       workspaceId,
     }),
   ])
+
+  const meetings = response.meetings
 
   if (meetings.length === 0) return <MeetingEmpty />
   return (
@@ -33,7 +35,10 @@ export default async function Meeting() {
           </MeetingsProvider>
           <MeetingChannelButtons />
         </div>
-        <MeetingView meetings={meetings} />
+        <MeetingView
+          initialMeetings={meetings}
+          initialCursor={response.nextCursor}
+        />
       </div>
       <MeetingBulkActionBar meetings={meetings} />
     </div>

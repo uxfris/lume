@@ -8,14 +8,14 @@ import { getServerApiFetchOptions } from "@/lib/server-api"
 
 export default async function Starred() {
   const { cookie, workspaceId } = await getServerApiFetchOptions()
-  const meetings = (
-    await meetingApi.getMeetingsList({
-      limit: 50,
-      isStarred: true,
-      cookie,
-      workspaceId,
-    })
-  )
+  const response = await meetingApi.getMeetings({
+    limit: 50,
+    isStarred: true,
+    cookie,
+    workspaceId,
+  })
+
+  const meetings = response.meetings
 
   if (meetings.length === 0) return <MeetingEmptyGlobal variant="starred" />
   return (
@@ -29,7 +29,10 @@ export default async function Starred() {
             <MeetingToolbar />
           </MeetingsProvider>
         </div>
-        <MeetingView meetings={meetings} />
+        <MeetingView
+          initialMeetings={meetings}
+          initialCursor={response.nextCursor}
+        />
       </div>
       <MeetingBulkActionBar meetings={meetings} isStarred={true} />
     </div>
