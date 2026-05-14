@@ -47,3 +47,12 @@ export const meetingErrorSchema = z.object({
 })
 
 export const getConversationResponseSchema = ConversationSchema
+
+export const deleteMeetingsBodySchema = z.object({
+  meetingIds: z.array(z.string().min(1)).min(1).max(100),
+})
+
+export const moveMeetingsToWorkspaceBodySchema = z.object({
+  targetWorkspaceId: z.string().min(1),
+  meetingIds: z.array(z.string().min(1)).min(1).max(100),
+})

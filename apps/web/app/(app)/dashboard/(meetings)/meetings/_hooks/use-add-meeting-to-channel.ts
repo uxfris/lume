@@ -7,6 +7,7 @@ import { channelApi, meetingApi } from "@workspace/api-client"
 
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
 
 export function useAddMeetingsToChannel({
   channelId,
@@ -17,6 +18,8 @@ export function useAddMeetingsToChannel({
 }) {
   const router = useRouter()
 
+  const { workspaceId } = useCurrentWorkspace()
+
   const [search, setSearch] = useState("")
   const [selectedMeetings, setSelectedMeetings] = useState<string[]>([])
   const [isAddLoading, setIsAddLoading] = useState(false)
@@ -26,7 +29,7 @@ export function useAddMeetingsToChannel({
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["meetings"],
+    queryKey: ["meetings", workspaceId],
     queryFn: () => meetingApi.getMeetingsList(),
     staleTime: 300_000,
   })

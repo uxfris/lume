@@ -19,7 +19,7 @@ import {
   InputGroupInput,
 } from "@workspace/ui/components/input-group"
 import { Spinner } from "@workspace/ui/components/spinner"
-import { useAddMeetingsToChannel } from "../../../_hooks/use-add-meetings-to-channel"
+import { useAddMeetingsToChannel } from "../../../_hooks/use-add-meeting-to-channel"
 
 export function AddMeetingToChannelDialog({
   channelId,
@@ -43,7 +43,13 @@ export function AddMeetingToChannelDialog({
   } = useAddMeetingsToChannel({ channelId, onOpenChange })
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (isAddLoading) return
+        onOpenChange(nextOpen)
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add meetings to channel</DialogTitle>

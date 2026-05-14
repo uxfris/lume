@@ -39,11 +39,11 @@ import { Spinner } from "@workspace/ui/components/spinner"
 import {
   UpdateChannelPayload,
   useUpdateChannelMutation,
-} from "../channel/_hooks/use-update-channel-mutation"
+} from "../channel/_hooks/mutations/use-update-channel-mutation"
 import {
   CreateChannelPayload,
   useCreateChannelMutation,
-} from "../channel/_hooks/use-create-channel-mutation"
+} from "../channel/_hooks/mutations/use-create-channel-mutation"
 import { useChannelForm } from "../channel/_hooks/use-channel-form"
 
 type Props = {
@@ -102,7 +102,13 @@ export function CreateChannelDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (loading) return
+        onOpenChange(nextOpen)
+      }}
+    >
       <DialogContent className="sm:min-w-md">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit" : "Create"} channel</DialogTitle>
