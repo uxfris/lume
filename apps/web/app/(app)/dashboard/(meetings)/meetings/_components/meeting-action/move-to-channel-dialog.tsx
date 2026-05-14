@@ -11,7 +11,7 @@ import {
   DialogTrigger,
 } from "@workspace/ui/components/dialog"
 import { MoveRight } from "lucide-react"
-import { useChannelQuery } from "../../channel/_hooks/mutations/queries/use-channel-query"
+import { useChannelQuery } from "../../channel/_hooks/queries/use-channel-query"
 import { Spinner } from "@workspace/ui/components/spinner"
 import { Meeting } from "@workspace/types"
 import { useMoveMeetingsToChannel } from "../../_hooks/use-move-meetings-to-channel"

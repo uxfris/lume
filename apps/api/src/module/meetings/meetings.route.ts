@@ -4,6 +4,7 @@ import { z } from "zod"
 import * as meetingsService from "./meetings.service"
 import {
   deleteMeetingsBodySchema,
+  moveMeetingsToWorkspaceBodySchema,
   getConversationParamsSchema,
   getConversationResponseSchema,
   getMeetingParamsSchema,
@@ -70,6 +71,50 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
       return await meetingsService.listLiveMeetings({
         workspaceId: request.workspace!.id,
       })
+    }
+  )
+
+  app.post(
+    "/move-to-workspace",
+    {
+      preHandler: [app.verifySession, app.requireWorkspace],
+      schema: {
+        tags: ["Meetings"],
+        summary: "Move meetings from the active workspace to another workspace",
+        body: moveMeetingsToWorkspaceBodySchema,
+        response: {
+          204: z.undefined(),
+          400: meetingErrorSchema,
+          403: meetingErrorSchema,
+          404: meetingErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await meetingsService.moveMeetingsToWorkspace({
+        userId: request.user!.id,
+        sourceWorkspaceId: request.workspace!.id,
+        targetWorkspaceId: request.body.targetWorkspaceId,
+        meetingIds: request.body.meetingIds,
+      })
+
+      if (!result.ok) {
+        if (result.reason === "SAME_WORKSPACE") {
+          return reply.status(400).send({
+            error: "SAME_WORKSPACE",
+            message: "Target workspace must differ from the current workspace.",
+          })
+        }
+        if (result.reason === "TARGET_ACCESS_DENIED") {
+          return reply.status(403).send({
+            error: "TARGET_WORKSPACE_ACCESS_DENIED",
+            message: "You are not a member of the target workspace.",
+          })
+        }
+        return reply.status(404).send({ error: "MEETING_NOT_FOUND" })
+      }
+
+      return reply.status(204).send()
     }
   )
 

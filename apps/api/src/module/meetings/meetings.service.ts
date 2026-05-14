@@ -1,4 +1,4 @@
-import type { Prisma } from "@workspace/database"
+import { prisma, type Prisma } from "@workspace/database"
 import type { Conversation, Meeting as MeetingDTO } from "@workspace/types"
 import {
   decodeMeetingListCursor,
@@ -131,6 +131,41 @@ export async function deleteMeetings(input: {
   const uniqueIds = [...new Set(input.meetingIds)]
   const result = await meetingsRepo.softDeleteMany({
     workspaceId: input.workspaceId,
+    meetingIds: uniqueIds,
+  })
+
+  return result.ok ? { ok: true } : { ok: false, reason: "NOT_FOUND" }
+}
+
+export async function moveMeetingsToWorkspace(input: {
+  userId: string
+  sourceWorkspaceId: string
+  targetWorkspaceId: string
+  meetingIds: string[]
+}): Promise<
+  | { ok: true }
+  | {
+      ok: false
+      reason: "SAME_WORKSPACE" | "TARGET_ACCESS_DENIED" | "NOT_FOUND"
+    }
+> {
+  if (input.targetWorkspaceId === input.sourceWorkspaceId) {
+    return { ok: false, reason: "SAME_WORKSPACE" }
+  }
+
+  const targetMembership = await meetingsRepo.findTargetMembership({
+    userId: input.userId,
+    targetWorkspaceId: input.targetWorkspaceId,
+  })
+
+  if (!targetMembership) {
+    return { ok: false, reason: "TARGET_ACCESS_DENIED" }
+  }
+
+  const uniqueIds = [...new Set(input.meetingIds)]
+  const result = await meetingsRepo.moveManyToWorkspace({
+    fromWorkspaceId: input.sourceWorkspaceId,
+    toWorkspaceId: input.targetWorkspaceId,
     meetingIds: uniqueIds,
   })
 

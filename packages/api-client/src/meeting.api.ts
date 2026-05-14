@@ -99,4 +99,16 @@ export const meetingApi = {
   ): Promise<void> {
     await client.delete("/meetings", { ...options, body: { meetingIds } })
   },
+
+  async moveToWorkspace(
+    targetWorkspaceId: string,
+    meetingIds: string[],
+    options?: RequestOptions
+  ): Promise<void> {
+    await client.post(
+      "/meetings/move-to-workspace",
+      { targetWorkspaceId, meetingIds },
+      options
+    )
+  },
 }

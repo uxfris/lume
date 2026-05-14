@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { channelKeys } from "../../../_lib/channel.keys"
+import { channelKeys } from "../../_lib/channel.keys"
 import { channelApi } from "@workspace/api-client"
 import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
 

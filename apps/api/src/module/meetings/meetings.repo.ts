@@ -283,4 +283,70 @@ export const meetingsRepo = {
     })
     return result.ok ? 1 : 0
   },
+
+  async findTargetMembership(input: {
+    userId: string
+    targetWorkspaceId: string
+  }) {
+    return prisma.workspaceMember.findFirst({
+      where: {
+        userId: input.userId,
+        workspaceId: input.targetWorkspaceId,
+      },
+      select: { id: true },
+    })
+  },
+
+  /**
+   * Moves non-deleted meetings from one workspace to another (clears channel).
+   * Updates tasks that reference those meetings to the destination workspace.
+   */
+  async moveManyToWorkspace(input: {
+    fromWorkspaceId: string
+    toWorkspaceId: string
+    meetingIds: string[]
+  }): Promise<{ ok: true } | { ok: false; reason: "NOT_ALL_FOUND" }> {
+    const uniqueIds = [...new Set(input.meetingIds)]
+    if (uniqueIds.length === 0) {
+      return { ok: false, reason: "NOT_ALL_FOUND" }
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      const meetings = await tx.meeting.findMany({
+        where: {
+          id: { in: uniqueIds },
+          workspaceId: input.fromWorkspaceId,
+          deletedAt: null,
+        },
+        select: { id: true },
+      })
+
+      if (meetings.length !== uniqueIds.length) {
+        return { ok: false, reason: "NOT_ALL_FOUND" }
+      }
+
+      const updated = await tx.meeting.updateMany({
+        where: {
+          id: { in: uniqueIds },
+          workspaceId: input.fromWorkspaceId,
+          deletedAt: null,
+        },
+        data: {
+          workspaceId: input.toWorkspaceId,
+          channelId: null,
+        },
+      })
+
+      if (updated.count !== uniqueIds.length) {
+        return { ok: false, reason: "NOT_ALL_FOUND" }
+      }
+
+      await tx.task.updateMany({
+        where: { meetingId: { in: uniqueIds } },
+        data: { workspaceId: input.toWorkspaceId },
+      })
+
+      return { ok: true }
+    })
+  },
 }
