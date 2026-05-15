@@ -61,10 +61,7 @@ export function MeetingHostPopover() {
         <Button
           variant={selectedHostIds.length > 0 ? "secondary" : "outline"}
           size="xs"
-          className={cn(
-            "flex-1 justify-between gap-1 text-muted-foreground",
-            selectedHostIds.length > 0 && "bg-accent-3"
-          )}
+          className="flex-1 justify-between gap-1 text-muted-foreground"
         >
           <span className="truncate">{triggerLabel}</span>
           <ChevronDown className="size-4 shrink-0 opacity-50" />

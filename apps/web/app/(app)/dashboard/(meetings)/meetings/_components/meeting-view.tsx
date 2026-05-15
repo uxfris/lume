@@ -15,6 +15,12 @@ import { filterMeetingsByHosts } from "../_lib/filter-meetings-by-hosts"
 import { useDebounce } from "@workspace/ui/hooks/use-debounce"
 import { useMeetingListParticipantFilter } from "../_stores/meeting-list-participant-filter-store"
 import { filterMeetingsByParticipants } from "../_lib/filter-meetings-by-participants"
+import { useMeetingListTimeFilter } from "../_stores/meeting-list-time-filter-store"
+import { useMeetingListDurationFilter } from "../_stores/meeting-list-duration-filter-store"
+import { useMeetingListSourceFilter } from "../_stores/meeting-list-source-filter-store"
+import { filterMeetingsByTime } from "../_lib/filter-meetings-by-time"
+import { filterMeetingsByDuration } from "../_lib/filter-meetings-by-duration"
+import { filterMeetingsBySources } from "../_lib/filter-meetings-by-sources"
 
 export function MeetingView({
   initialMeetings,
@@ -58,6 +64,14 @@ export function MeetingView({
     (s) => s.selectedParticipantIds
   )
 
+  const timePreset = useMeetingListTimeFilter((s) => s.preset)
+
+  const customTimeRange = useMeetingListTimeFilter((s) => s.customRange)
+
+  const durationPreset = useMeetingListDurationFilter((s) => s.preset)
+
+  const selectedSources = useMeetingListSourceFilter((s) => s.selectedSources)
+
   const queryFiltered = useMemo(
     () => filterMeetingsByQuery(meetings, debouncedQuery),
     [meetings, debouncedQuery]
@@ -68,32 +82,82 @@ export function MeetingView({
     [queryFiltered, selectedHostIds]
   )
 
-  const visibleMeetings = useMemo(
+  const participantFiltered = useMemo(
     () => filterMeetingsByParticipants(hostFiltered, selectedParticipantIds),
     [hostFiltered, selectedParticipantIds]
   )
 
+  const timeFiltered = useMemo(
+    () =>
+      filterMeetingsByTime(participantFiltered, timePreset, customTimeRange),
+    [participantFiltered, timePreset, customTimeRange]
+  )
+
+  const durationFiltered = useMemo(
+    () => filterMeetingsByDuration(timeFiltered, durationPreset),
+    [timeFiltered, durationPreset]
+  )
+
+  const visibleMeetings = useMemo(
+    () => filterMeetingsBySources(durationFiltered, selectedSources),
+    [durationFiltered, selectedSources]
+  )
+
   const trimmedQuery = debouncedQuery.trim()
-  const showSearchEmpty = trimmedQuery.length > 0 && queryFiltered.length === 0
-  const showHostEmpty =
-    selectedParticipantIds.length > 0 &&
-    selectedHostIds.length > 0 &&
-    queryFiltered.length > 0 &&
-    visibleMeetings.length === 0
+
+  const hasSearch = trimmedQuery.length > 0
+  const hasHostFilter = selectedHostIds.length > 0
+  const hasParticipantFilter = selectedParticipantIds.length > 0
+  const hasTimeFilter = timePreset !== "any-time"
+  const hasDurationFilter = durationPreset !== "any-duration"
+  const hasSourceFilter = selectedSources.length > 0
+
+  const hasActiveFilters =
+    hasSearch ||
+    hasHostFilter ||
+    hasParticipantFilter ||
+    hasTimeFilter ||
+    hasDurationFilter ||
+    hasSourceFilter
+
+  const activeFilters: string[] = []
+
+  if (hasHostFilter) activeFilters.push("hosts")
+  if (hasParticipantFilter) activeFilters.push("participants")
+  if (hasTimeFilter) activeFilters.push("time")
+  if (hasDurationFilter) activeFilters.push("duration")
+  if (hasSourceFilter) activeFilters.push("sources")
+
+  const showEmptyState = visibleMeetings.length === 0
+
+  const emptyMessage = useMemo(() => {
+    if (!showEmptyState) return null
+
+    if (hasSearch && activeFilters.length === 0) {
+      return `No meetings match "${trimmedQuery}".`
+    }
+
+    if (hasSearch) {
+      return `No meetings match "${trimmedQuery}" with the current filters applied.`
+    }
+
+    if (hasActiveFilters) {
+      return `No meetings match the selected ${activeFilters.join(
+        ", "
+      )} filters.`
+    }
+
+    return "No meetings available yet."
+  }, [showEmptyState, hasSearch, hasActiveFilters, activeFilters, trimmedQuery])
 
   return (
     <>
-      {showSearchEmpty && (
+      {emptyMessage && (
         <p className="py-8 text-center text-sm text-muted-foreground">
-          {`No meetings match "${trimmedQuery}". Try different keywords or load more meetings below.`}
+          {emptyMessage}
         </p>
       )}
-      {showHostEmpty && (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          No meetings from the selected hosts in this list. Clear the host
-          filter or load more meetings.
-        </p>
-      )}
+
       <div
         className={cn(
           meetingView === "list"
@@ -109,6 +173,7 @@ export function MeetingView({
           />
         ))}
       </div>
+
       {hasMore && (
         <div ref={observerRef} className="flex justify-center py-10">
           {loading && (

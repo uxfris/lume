@@ -231,7 +231,10 @@ export function toMeetingDTO(
     status: uiStatus(row.status),
     channelId: row.channelId,
     timestamp: formatMeetingTimestamp(row.createdAt),
+    createdAt: row.createdAt.toISOString(),
     duration: formatDurationSeconds(row.durationSeconds),
+    durationSeconds: row.durationSeconds ?? null,
+    source: row.source === "BOT" ? "bot" : "upload",
     attendees,
     ...(extraAttendees != null && extraAttendees > 0
       ? { extraAttendees }

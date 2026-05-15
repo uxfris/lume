@@ -64,10 +64,7 @@ export function MeetingParticipantPopover() {
         <Button
           variant="outline"
           size="xs"
-          className={cn(
-            "flex-1 justify-between gap-1 text-muted-foreground",
-            selectedParticipantIds.length > 0 && "bg-accent-3"
-          )}
+          className="flex-1 justify-between gap-1 text-muted-foreground"
         >
           <span className="truncate">{triggerLabel}</span>
           <ChevronDown />

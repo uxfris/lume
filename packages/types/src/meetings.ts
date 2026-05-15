@@ -11,6 +11,10 @@ export type MeetingStatus = z.infer<typeof MeetingStatusSchema>
 export const MeetingPlatformSchema = z.enum(["Google Meet", "Zoom", "Teams"])
 export type MeetingPlatform = z.infer<typeof MeetingPlatformSchema>
 
+/** How the meeting was captured — mirrors DB `MeetingSource`. */
+export const MeetingCaptureSourceSchema = z.enum(["upload", "bot"])
+export type MeetingCaptureSource = z.infer<typeof MeetingCaptureSourceSchema>
+
 export const AttendeeSchema = z.object({
   id: z.string(),
   avatarUrl: z.url().optional(),
@@ -34,7 +38,12 @@ export const MeetingSchema = z.object({
   summary: z.string(),
   status: MeetingStatusSchema,
   timestamp: z.string(), // display string, e.g. "10:30" or "Oct 22, 2024"
+  /** ISO 8601 — used for list filtering (sort/display still use `timestamp`). */
+  createdAt: z.string(),
   duration: z.string(), // e.g. "28m"
+  /** Raw duration for filtering; list cards still show `duration`. */
+  durationSeconds: z.number().nullable(),
+  source: MeetingCaptureSourceSchema,
   attendees: z.array(AttendeeSchema),
   extraAttendees: z.number().optional(),
   /** Present when returned from meeting detail API (AI analysis). */
