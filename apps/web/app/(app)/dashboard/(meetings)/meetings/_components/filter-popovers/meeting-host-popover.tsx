@@ -88,7 +88,6 @@ export function MeetingHostPopover() {
             </InputGroupAddon>
           </InputGroup>
           <Button
-            type="button"
             size="xs"
             variant="ghost"
             className="shrink-0 px-2"

@@ -13,6 +13,8 @@ import { useMeetingListHostFilter } from "../_stores/meeting-list-host-filter-st
 import { filterMeetingsByQuery } from "../_lib/filter-meetings-by-query"
 import { filterMeetingsByHosts } from "../_lib/filter-meetings-by-hosts"
 import { useDebounce } from "@workspace/ui/hooks/use-debounce"
+import { useMeetingListParticipantFilter } from "../_stores/meeting-list-participant-filter-store"
+import { filterMeetingsByParticipants } from "../_lib/filter-meetings-by-participants"
 
 export function MeetingView({
   initialMeetings,
@@ -52,20 +54,29 @@ export function MeetingView({
 
   const selectedHostIds = useMeetingListHostFilter((s) => s.selectedHostIds)
 
+  const selectedParticipantIds = useMeetingListParticipantFilter(
+    (s) => s.selectedParticipantIds
+  )
+
   const queryFiltered = useMemo(
     () => filterMeetingsByQuery(meetings, debouncedQuery),
     [meetings, debouncedQuery]
   )
 
-  const visibleMeetings = useMemo(
+  const hostFiltered = useMemo(
     () => filterMeetingsByHosts(queryFiltered, selectedHostIds),
     [queryFiltered, selectedHostIds]
   )
 
+  const visibleMeetings = useMemo(
+    () => filterMeetingsByParticipants(hostFiltered, selectedParticipantIds),
+    [hostFiltered, selectedParticipantIds]
+  )
+
   const trimmedQuery = debouncedQuery.trim()
-  const showSearchEmpty =
-    trimmedQuery.length > 0 && queryFiltered.length === 0
+  const showSearchEmpty = trimmedQuery.length > 0 && queryFiltered.length === 0
   const showHostEmpty =
+    selectedParticipantIds.length > 0 &&
     selectedHostIds.length > 0 &&
     queryFiltered.length > 0 &&
     visibleMeetings.length === 0
@@ -79,8 +90,8 @@ export function MeetingView({
       )}
       {showHostEmpty && (
         <p className="py-8 text-center text-sm text-muted-foreground">
-          No meetings from the selected hosts in this list. Clear the host filter
-          or load more meetings.
+          No meetings from the selected hosts in this list. Clear the host
+          filter or load more meetings.
         </p>
       )}
       <div
