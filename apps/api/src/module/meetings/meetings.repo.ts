@@ -58,12 +58,50 @@ export const meetingsRepo = {
     isStarred?: boolean
     isCreatedByMe?: boolean
     isSharedWithMe?: boolean
+    userEmail?: string
     /** When set, only meetings assigned to this channel are returned. */
     channelId?: string
   }): Promise<MeetingWithOwner[]> {
+    const normalizedEmail = input.userEmail?.trim().toLowerCase()
+
+    const visibilityFilter: Prisma.MeetingWhereInput =
+      input.isSharedWithMe === true
+        ? {
+            NOT: { userId: input.userId },
+            meetingShares: {
+              some: {
+                OR: [
+                  { userId: input.userId },
+                  ...(normalizedEmail
+                    ? [{ email: normalizedEmail }]
+                    : []),
+                ],
+              },
+            },
+          }
+        : {
+            OR: [
+              { userId: input.userId },
+              { generalAccess: { in: ["WORKSPACE", "LINK"] } },
+              {
+                meetingShares: {
+                  some: {
+                    OR: [
+                      { userId: input.userId },
+                      ...(normalizedEmail
+                        ? [{ email: normalizedEmail }]
+                        : []),
+                    ],
+                  },
+                },
+              },
+            ],
+          }
+
     const where: Prisma.MeetingWhereInput = {
       workspaceId: input.workspaceId,
       deletedAt: null,
+      ...visibilityFilter,
       ...(input.channelId !== undefined ? { channelId: input.channelId } : {}),
       status: {
         notIn: ["SCHEDULED", "LIVE"],
@@ -83,9 +121,6 @@ export const meetingsRepo = {
         : {}),
       ...(input.isStarred !== undefined ? { isStarred: input.isStarred } : {}),
       ...(input.isCreatedByMe === true ? { userId: input.userId } : {}),
-      ...(input.isSharedWithMe === true
-        ? { isShared: true, NOT: { userId: input.userId } }
-        : {}),
     }
 
     return prisma.meeting.findMany({

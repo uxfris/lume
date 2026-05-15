@@ -35,6 +35,8 @@ model User {
   calendarEvents            CalendarEvent[]
   recallCalendarConnections RecallCalendarConnection[]
   channels                  Channel[]
+  meetingShares             MeetingShare[]       @relation("MeetingShareUser")
+  meetingSharesInvited      MeetingShare[]       @relation("MeetingShareInvitedBy")
 
   @@unique([email])
   @@index([id])
@@ -246,6 +248,20 @@ enum MeetingPlatform {
   OTHER
 }
 
+enum MeetingShareRole {
+  VIEWER
+  EDITOR
+}
+
+enum MeetingGeneralAccess {
+  /** Only the owner and people explicitly invited. */
+  RESTRICTED
+  /** All workspace members can open the meeting. */
+  WORKSPACE
+  /** Workspace members and anyone with the link (authenticated or via invite). */
+  LINK
+}
+
 model Meeting {
   id                   String           @id @default(cuid())
   workspaceId          String
@@ -267,9 +283,10 @@ model Meeting {
   scheduledAt          DateTime?
   deletedAt            DateTime?
   /**
-   * When true, meeting link sharing / visibility flags are enabled (UI).
+   * When true, link-based sharing is enabled (`generalAccess` = LINK).
    */
-  isShared             Boolean          @default(false)
+  isShared             Boolean              @default(false)
+  generalAccess        MeetingGeneralAccess @default(RESTRICTED)
   /**
    * When true, this meeting’s transcription minutes / meeting count were applied
    * to `UsageCounter` (idempotent for retried worker jobs).
@@ -288,11 +305,32 @@ model Meeting {
   meetingTranscriptRaw MeetingTranscriptRaw?
   channel              Channel?              @relation(fields: [channelId], references: [id])
   channelId            String?
+  meetingShares        MeetingShare[]
 
   @@index([workspaceId, createdAt(sort: Desc)])
   @@index([workspaceId, deletedAt, createdAt(sort: Desc)])
   @@index([userId])
   @@map("meeting")
+}
+
+model MeetingShare {
+  id              String           @id @default(cuid())
+  meetingId       String
+  email           String
+  userId          String?
+  role            MeetingShareRole @default(VIEWER)
+  invitedByUserId String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user      User?   @relation("MeetingShareUser", fields: [userId], references: [id], onDelete: SetNull)
+  invitedBy User    @relation("MeetingShareInvitedBy", fields: [invitedByUserId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, email])
+  @@index([userId])
+  @@index([email])
+  @@map("meeting_share")
 }
 
 enum ChannelType {

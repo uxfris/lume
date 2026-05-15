@@ -5,6 +5,7 @@ import {
   encodeMeetingListCursor,
 } from "./meetings.cursor"
 import { meetingsRepo } from "./meetings.repo"
+import { userCanAccessMeeting as checkMeetingShareAccess } from "./meeting-share.service"
 import {
   formatMeetingTimestamp,
   toConversationResponse,
@@ -32,6 +33,7 @@ export async function listLiveMeetings(input: { workspaceId: string }) {
 export async function listMeetings(input: {
   workspaceId: string
   userId: string
+  userEmail: string
   cursor?: string
   limit: number
   isStarred?: boolean
@@ -51,6 +53,7 @@ export async function listMeetings(input: {
   const rows = await meetingsRepo.listByWorkspace({
     workspaceId: input.workspaceId,
     userId: input.userId,
+    userEmail: input.userEmail,
     take: pageSize + 1,
     cursor: decoded,
     isStarred: input.isStarred,
@@ -79,7 +82,17 @@ export async function listMeetings(input: {
 export async function getMeetingById(input: {
   meetingId: string
   workspaceId: string
+  userId: string
+  userEmail: string
 }): Promise<MeetingDTO | null> {
+  const allowed = await checkMeetingShareAccess({
+    meetingId: input.meetingId,
+    workspaceId: input.workspaceId,
+    userId: input.userId,
+    userEmail: input.userEmail,
+  })
+  if (!allowed) return null
+
   const row = await meetingsRepo.findByIdForWorkspace(
     input.meetingId,
     input.workspaceId
@@ -96,7 +109,10 @@ export async function patchMeeting(input: {
 }): Promise<{ ok: true } | { ok: false; reason: "NOT_FOUND" }> {
   const data: Prisma.MeetingUpdateInput = {}
   if (input.title !== undefined) data.title = input.title
-  if (input.isShared !== undefined) data.isShared = input.isShared
+  if (input.isShared !== undefined) {
+    data.isShared = input.isShared
+    data.generalAccess = input.isShared ? "LINK" : "RESTRICTED"
+  }
   if (input.isStarred !== undefined) data.isStarred = input.isStarred
 
   if (Object.keys(data).length === 0) {
@@ -188,7 +204,17 @@ export async function moveMeetingsToWorkspace(input: {
 export async function getConversation(input: {
   meetingId: string
   workspaceId: string
+  userId: string
+  userEmail: string
 }): Promise<Conversation | null> {
+  const allowed = await checkMeetingShareAccess({
+    meetingId: input.meetingId,
+    workspaceId: input.workspaceId,
+    userId: input.userId,
+    userEmail: input.userEmail,
+  })
+  if (!allowed) return null
+
   const meeting = await meetingsRepo.findMeetingIdInWorkspace(
     input.meetingId,
     input.workspaceId
@@ -203,8 +229,24 @@ export async function getConversation(input: {
 export async function canUserAccessMeeting(input: {
   meetingId: string
   userId: string
+  userEmail: string
   workspaceId?: string
 }): Promise<boolean> {
-  const row = await meetingsRepo.findMeetingForUser(input)
-  return Boolean(row)
+  const workspaceId =
+    input.workspaceId ??
+    (
+      await meetingsRepo.findMeetingForUser({
+        meetingId: input.meetingId,
+        userId: input.userId,
+      })
+    )?.workspaceId
+
+  if (!workspaceId) return false
+
+  return checkMeetingShareAccess({
+    meetingId: input.meetingId,
+    workspaceId,
+    userId: input.userId,
+    userEmail: input.userEmail,
+  })
 }

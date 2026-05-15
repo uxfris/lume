@@ -191,6 +191,7 @@ export const channelRoutes: FastifyPluginAsyncZod = async (app) => {
           channelId: request.params.id,
           workspaceId: request.workspace!.id,
           userId: request.user!.id,
+          userEmail: request.user!.email,
           cursor: request.query.cursor,
           limit: request.query.limit,
         })
