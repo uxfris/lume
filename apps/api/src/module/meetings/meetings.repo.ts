@@ -6,7 +6,7 @@ import {
 } from "@workspace/database"
 
 export type MeetingWithOwner = Prisma.MeetingGetPayload<{
-  include: { user: true }
+  include: { user: true; meetingParticipants: true }
 }>
 export type TranscriptSegmentWithParticipant =
   Prisma.TranscriptSegmentGetPayload<{
@@ -90,7 +90,7 @@ export const meetingsRepo = {
 
     return prisma.meeting.findMany({
       where,
-      include: { user: true },
+      include: { user: true, meetingParticipants: true },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: input.take,
     })
@@ -167,7 +167,7 @@ export const meetingsRepo = {
   ): Promise<MeetingWithOwner | null> {
     return prisma.meeting.findFirst({
       where: { id: meetingId, workspaceId, deletedAt: null },
-      include: { user: true },
+      include: { user: true, meetingParticipants: true },
     })
   },
 

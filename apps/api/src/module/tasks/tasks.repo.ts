@@ -73,12 +73,4 @@ export const tasksRepo = {
       where: { id: taskId, workspaceId },
     })
   },
-
-  listMembersWithUsers(workspaceId: string) {
-    return prisma.workspaceMember.findMany({
-      where: { workspaceId },
-      include: { user: true },
-      orderBy: { joinedAt: "asc" },
-    })
-  },
 }

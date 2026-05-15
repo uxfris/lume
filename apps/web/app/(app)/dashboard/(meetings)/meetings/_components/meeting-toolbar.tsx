@@ -14,13 +14,23 @@ import { MeetingSourcePopover } from "./filter-popovers/meeting-source-popover";
 import { MeetingSelectionButton } from "./meeting-selection-button";
 import { MeetingViewButton } from "./meeting-action/meeting-view-button";
 import { cn } from "@workspace/ui/lib/utils";
+import { useMeetingListSearch } from "../_stores/meeting-list-search-store";
 
 
 export function MeetingToolbar({ isCreatedByMe }: { isCreatedByMe?: boolean }) {
+    const searchQuery = useMeetingListSearch((s) => s.searchQuery)
+    const setSearchQuery = useMeetingListSearch((s) => s.setSearchQuery)
+
     return (
         <div className="flex items-start lg:items-center gap-3 flex-wrap lg:flex-nowrap">
             <InputGroup className={cn("bg-input shrink-0", isCreatedByMe ? "w-full lg:w-96" : "w-full lg:w-64")}>
-                <InputGroupInput placeholder="Search meetings..." />
+                <InputGroupInput
+                    type="search"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search meetings..."
+                    aria-label="Search meetings"
+                />
                 <InputGroupAddon className="w-5">
                     <MinimalisticMagnifier />
                 </InputGroupAddon>

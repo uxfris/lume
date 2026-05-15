@@ -1,14 +1,14 @@
 import { UseQueryResult, useQuery } from "@tanstack/react-query"
-import { taskApi } from "@workspace/api-client"
-import { taskKeys } from "../../_lib/task.keys"
 import { UserSummary } from "@workspace/types"
 import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
+import { peopleKeys } from "../../_lib/people.keys"
+import { peopleApi } from "@workspace/api-client"
 
-export function useTaskAssigneesQuery(): UseQueryResult<UserSummary[], Error> {
+export function useMembersQuery(): UseQueryResult<UserSummary[], Error> {
   const { workspaceId } = useCurrentWorkspace()
   return useQuery({
-    queryKey: taskKeys.assignees(workspaceId),
-    queryFn: () => taskApi.fetchAssignees(),
+    queryKey: peopleKeys.members(workspaceId),
+    queryFn: () => peopleApi.fetchMembers(),
     staleTime: 300_000,
   })
 }
