@@ -2,6 +2,7 @@ import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod"
 import { getRedisConnection } from "@workspace/queue"
 import { z } from "zod"
 import * as meetingsService from "./meetings.service"
+import * as meetingShareService from "./meeting-share.service"
 import {
   deleteMeetingsBodySchema,
   moveMeetingsToWorkspaceBodySchema,
@@ -16,6 +17,15 @@ import {
   patchMeetingBodySchema,
   patchMeetingParamsSchema,
 } from "./meetings.schema"
+import {
+  inviteMeetingShareBodySchema,
+  inviteMeetingShareResponseSchema,
+  meetingShareInviteParamsSchema,
+  meetingShareParamsSchema,
+  meetingShareStateSchema,
+  updateMeetingGeneralAccessBodySchema,
+  updateMeetingShareBodySchema,
+} from "./meeting-share.schema"
 
 export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
@@ -37,6 +47,7 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
         return await meetingsService.listMeetings({
           workspaceId: request.workspace!.id,
           userId: request.user!.id,
+          userEmail: request.user!.email,
           cursor: request.query.cursor,
           limit: request.query.limit,
           isStarred: request.query.isStarred,
@@ -163,7 +174,8 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request, reply) => {
       const conversation = await meetingsService.getConversation({
         meetingId: request.params.id,
-        workspaceId: request.workspace!.id,
+        userId: request.user!.id,
+        userEmail: request.user!.email,
       })
 
       if (!conversation) {
@@ -195,6 +207,7 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
       const allowed = await meetingsService.canUserAccessMeeting({
         meetingId: request.params.id,
         userId: request.user!.id,
+        userEmail: request.user!.email,
       })
 
       if (!allowed) {
@@ -253,6 +266,174 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
   )
 
   app.get(
+    "/:id/share",
+    {
+      preHandler: [app.verifySession, app.requireWorkspace],
+      schema: {
+        tags: ["Meetings"],
+        summary: "Get meeting share settings and collaborators",
+        params: meetingShareParamsSchema,
+        response: {
+          200: meetingShareStateSchema,
+          404: meetingErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const state = await meetingShareService.getMeetingShareState({
+        meetingId: request.params.id,
+        workspaceId: request.workspace!.id,
+        userId: request.user!.id,
+        userEmail: request.user!.email,
+      })
+
+      if (!state) {
+        return reply.status(404).send({ error: "MEETING_NOT_FOUND" })
+      }
+
+      return reply.status(200).send(state)
+    }
+  )
+
+  app.post(
+    "/:id/share/invites",
+    {
+      preHandler: [app.verifySession, app.requireWorkspace],
+      schema: {
+        tags: ["Meetings"],
+        summary: "Invite people to a meeting by email",
+        params: meetingShareParamsSchema,
+        body: inviteMeetingShareBodySchema,
+        response: {
+          200: inviteMeetingShareResponseSchema,
+          403: meetingErrorSchema,
+          404: meetingErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await meetingShareService.inviteToMeeting({
+        meetingId: request.params.id,
+        workspaceId: request.workspace!.id,
+        inviterUserId: request.user!.id,
+        inviterName: request.user!.name,
+        inviterEmail: request.user!.email,
+        emails: request.body.emails,
+        role: request.body.role,
+      })
+
+      if (!result.ok) {
+        const status = result.error === "FORBIDDEN" ? 403 : 404
+        return reply.status(status).send({ error: result.error })
+      }
+
+      return reply.status(200).send(result.result)
+    }
+  )
+
+  app.patch(
+    "/:id/share/invites/:shareId",
+    {
+      preHandler: [app.verifySession, app.requireWorkspace],
+      schema: {
+        tags: ["Meetings"],
+        summary: "Update a collaborator role on a meeting",
+        params: meetingShareInviteParamsSchema,
+        body: updateMeetingShareBodySchema,
+        response: {
+          204: z.undefined(),
+          403: meetingErrorSchema,
+          404: meetingErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await meetingShareService.updateMeetingShareRole({
+        meetingId: request.params.id,
+        workspaceId: request.workspace!.id,
+        shareId: request.params.shareId,
+        userId: request.user!.id,
+        userEmail: request.user!.email,
+        role: request.body.role,
+      })
+
+      if (!result.ok) {
+        const status = result.error === "FORBIDDEN" ? 403 : 404
+        return reply.status(status).send({ error: result.error })
+      }
+
+      return reply.status(204).send()
+    }
+  )
+
+  app.delete(
+    "/:id/share/invites/:shareId",
+    {
+      preHandler: [app.verifySession, app.requireWorkspace],
+      schema: {
+        tags: ["Meetings"],
+        summary: "Revoke a meeting share invite",
+        params: meetingShareInviteParamsSchema,
+        response: {
+          204: z.undefined(),
+          403: meetingErrorSchema,
+          404: meetingErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await meetingShareService.revokeMeetingShare({
+        meetingId: request.params.id,
+        workspaceId: request.workspace!.id,
+        shareId: request.params.shareId,
+        userId: request.user!.id,
+        userEmail: request.user!.email,
+      })
+
+      if (!result.ok) {
+        const status = result.error === "FORBIDDEN" ? 403 : 404
+        return reply.status(status).send({ error: result.error })
+      }
+
+      return reply.status(204).send()
+    }
+  )
+
+  app.patch(
+    "/:id/share/access",
+    {
+      preHandler: [app.verifySession, app.requireWorkspace],
+      schema: {
+        tags: ["Meetings"],
+        summary: "Update who can access a meeting via link or workspace",
+        params: meetingShareParamsSchema,
+        body: updateMeetingGeneralAccessBodySchema,
+        response: {
+          204: z.undefined(),
+          403: meetingErrorSchema,
+          404: meetingErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await meetingShareService.updateMeetingGeneralAccess({
+        meetingId: request.params.id,
+        workspaceId: request.workspace!.id,
+        userId: request.user!.id,
+        userEmail: request.user!.email,
+        generalAccess: request.body.generalAccess,
+      })
+
+      if (!result.ok) {
+        const status = result.error === "FORBIDDEN" ? 403 : 404
+        return reply.status(status).send({ error: result.error })
+      }
+
+      return reply.status(204).send()
+    }
+  )
+
+  app.get(
     "/:id",
     {
       preHandler: [app.verifySession, app.requireWorkspace],
@@ -269,7 +450,8 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request, reply) => {
       const meeting = await meetingsService.getMeetingById({
         meetingId: request.params.id,
-        workspaceId: request.workspace!.id,
+        userId: request.user!.id,
+        userEmail: request.user!.email,
       })
 
       if (!meeting) {

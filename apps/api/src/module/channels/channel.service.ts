@@ -155,6 +155,7 @@ export async function listChannelMeetings(input: {
   channelId: string
   workspaceId: string
   userId: string
+  userEmail: string
   cursor?: string
   limit: number
 }): Promise<
@@ -177,6 +178,7 @@ export async function listChannelMeetings(input: {
   const rows = await meetingsRepo.listByWorkspace({
     workspaceId: input.workspaceId,
     userId: input.userId,
+    userEmail: input.userEmail,
     take: pageSize + 1,
     cursor: decoded,
     channelId: input.channelId,

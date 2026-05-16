@@ -89,6 +89,19 @@ const envSchema = z.object({
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
+
+  /** Resend API key for transactional email (meeting share invites). */
+  RESEND_API_KEY: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
+  /** Sender address, e.g. `Lume <hello@yourdomain.com>`. */
+  RESEND_FROM_EMAIL: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
 })
 
 export const env = envSchema.parse(process.env)
