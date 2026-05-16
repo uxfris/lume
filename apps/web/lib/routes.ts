@@ -7,6 +7,8 @@ export const routes = {
 
   authentication: "/authentication",
 
+  invite: (token: string) => `/invite/${token}`,
+
   dashboard: {
     root: DASHBOARD,
 

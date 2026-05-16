@@ -2,6 +2,10 @@ import { createHash, randomBytes } from "node:crypto"
 import type { Workspace, WorkspaceRole } from "@workspace/database"
 import { ensurePersonalWorkspace } from "@workspace/auth"
 import { workspacesRepo } from "./workspaces.repo"
+import {
+  buildWorkspaceInviteUrl,
+  sendWorkspaceInviteEmail,
+} from "./workspace.email"
 
 const INVITE_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000
 const MAX_SLUG_ATTEMPTS = 5
@@ -175,6 +179,7 @@ export async function createOrRefreshInvitation(
   workspaceId: string,
   inviterUserId: string,
   inviterEmail: string,
+  inviterName: string | null | undefined,
   emailRaw: string,
   role: InviteRole
 ): Promise<
@@ -235,6 +240,19 @@ export async function createOrRefreshInvitation(
     tokenHash,
     invitedByUserId: inviterUserId,
     expiresAt,
+  })
+
+  const inviteUrl = buildWorkspaceInviteUrl(rawToken)
+  const displayInviterName =
+    inviterName?.trim() || invitationNameFromEmail(inviterEmail)
+
+  await sendWorkspaceInviteEmail({
+    to: email,
+    inviterName: displayInviterName,
+    workspaceName: membership.workspace.name,
+    inviteUrl,
+  }).catch(() => {
+    /* email is best-effort when Resend is configured */
   })
 
   return {

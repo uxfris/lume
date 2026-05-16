@@ -5,6 +5,7 @@ export const workspacesRepo = {
   findMembershipWithWorkspace(workspaceId: string, userId: string) {
     return prisma.workspaceMember.findFirst({
       where: { workspaceId, userId },
+      include: { workspace: true },
     })
   },
 
