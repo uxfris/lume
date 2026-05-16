@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import { useSearchParams } from "next/navigation"
 import { AuthHeader } from "./components/auth-header"
 import { TermCheckbox } from "./components/term-checkbox"
 import { useAuthForm } from "./hooks/use-auth-form"
@@ -10,6 +11,8 @@ import { useAuthController } from "./hooks/use-auth-controller"
 import { AUTH_PROVIDERS } from "./config/auth-providers"
 
 export default function AuthenticationPage() {
+  const searchParams = useSearchParams()
+  const next = searchParams.get("next")
   const { form, showEmail, setShowEmail, requireAgreement } = useAuthForm()
   const { loadingProvider, handleAuth } = useAuthController()
 
@@ -28,10 +31,10 @@ export default function AuthenticationPage() {
                 if (!ok) return
 
                 if (provider.id === "google") {
-                  await handleAuth(provider.id, loginWithGoogle)
+                  await handleAuth(provider.id, () => loginWithGoogle(next))
                 }
                 if (provider.id === "microsoft") {
-                  await handleAuth(provider.id, loginWithMicrosoft)
+                  await handleAuth(provider.id, () => loginWithMicrosoft(next))
                 }
                 if (provider.id === "email") {
                   setShowEmail(true)

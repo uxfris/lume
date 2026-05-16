@@ -189,6 +189,7 @@ export const workspacesRoutes: FastifyPluginAsyncZod = async (app) => {
         request.params.id,
         request.user!.id,
         request.user!.email,
+        request.user!.name,
         request.body.email,
         request.body.role
       )
