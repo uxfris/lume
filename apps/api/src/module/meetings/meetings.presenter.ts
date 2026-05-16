@@ -229,6 +229,7 @@ export function toMeetingDTO(
     channelId: row.channelId,
     timestamp: formatMeetingTimestamp(row.createdAt),
     createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
     duration: formatDurationSeconds(row.durationSeconds),
     durationSeconds: row.durationSeconds ?? null,
     source: row.source === "BOT" ? "bot" : "upload",
@@ -238,6 +239,13 @@ export function toMeetingDTO(
       : {}),
     ...(keyPoints && keyPoints.length > 0 ? { keyPoints } : {}),
     ...(mode === "detail" && parsed?.doc ? { document: parsed.doc } : {}),
+    ...(mode === "detail"
+      ? {
+          hostName:
+            row.meetingParticipants.find((p) => p.isHost)?.name ??
+            row.user.name,
+        }
+      : {}),
   }
 }
 

@@ -35,6 +35,13 @@ interface BotResponse {
   }>
 }
 
+interface RecallMixedAudioListResponse {
+  results?: Array<{
+    status?: { code?: string }
+    data?: { download_url?: string | null }
+  }>
+}
+
 class WorkerRecallError extends Error {
   status: number
   constructor(message: string, status: number) {
@@ -66,19 +73,7 @@ function authHeaders(): Record<string, string> {
 export async function getBotTranscriptDownloadUrl(
   botId: string
 ): Promise<{ downloadUrl: string; transcriptId: string | null }> {
-  const response = await fetch(`${env.RECALL_API_URL}/bot/${botId}/`, {
-    method: "GET",
-    headers: authHeaders(),
-  })
-  if (!response.ok) {
-    const text = await response.text().catch(() => "")
-    throw new WorkerRecallError(
-      `Recall bot fetch failed (${response.status}): ${text || response.statusText}`,
-      response.status
-    )
-  }
-
-  const bot = (await response.json()) as BotResponse
+  const bot = await fetchBot(botId)
   const recordings = bot.recordings ?? []
   for (const recording of recordings) {
     const url = recording.media_shortcuts?.transcript?.data?.download_url
@@ -138,6 +133,77 @@ export async function downloadTranscriptJson(
     )
   }
   return (await response.json()) as RecallTranscriptParticipantBlock[]
+}
+
+async function fetchBot(botId: string): Promise<BotResponse> {
+  const response = await fetch(`${env.RECALL_API_URL}/bot/${botId}/`, {
+    method: "GET",
+    headers: authHeaders(),
+  })
+  if (!response.ok) {
+    const text = await response.text().catch(() => "")
+    throw new WorkerRecallError(
+      `Recall bot fetch failed (${response.status}): ${text || response.statusText}`,
+      response.status
+    )
+  }
+  return (await response.json()) as BotResponse
+}
+
+function pickRecordingId(bot: BotResponse): string {
+  const recordings = bot.recordings ?? []
+  const recordingId =
+    recordings[recordings.length - 1]?.id ?? recordings[0]?.id ?? null
+  if (!recordingId) {
+    throw new WorkerRecallError("Recall bot has no recordings yet", 404)
+  }
+  return recordingId
+}
+
+/**
+ * Resolve a mixed MP3 download URL for a bot recording.
+ * @see https://docs.recall.ai/docs/how-to-get-mixed-audio-async
+ */
+export async function getMixedAudioDownloadUrlForBot(
+  botId: string
+): Promise<string> {
+  const bot = await fetchBot(botId)
+  const recordingId = pickRecordingId(bot)
+
+  const response = await fetch(
+    `${env.RECALL_API_URL}/audio_mixed?recording_id=${encodeURIComponent(recordingId)}`,
+    { method: "GET", headers: authHeaders() }
+  )
+  if (!response.ok) {
+    const text = await response.text().catch(() => "")
+    throw new WorkerRecallError(
+      `Recall audio_mixed list failed (${response.status}): ${text || response.statusText}`,
+      response.status
+    )
+  }
+
+  const json = (await response.json()) as RecallMixedAudioListResponse
+  for (const item of json.results ?? []) {
+    if (item.status?.code === "done" && item.data?.download_url) {
+      return item.data.download_url
+    }
+  }
+
+  throw new WorkerRecallError("Recall mixed audio is not ready yet", 404)
+}
+
+/** Download mixed meeting audio bytes from a Recall presigned URL. */
+export async function downloadMixedAudioBuffer(
+  downloadUrl: string
+): Promise<Buffer> {
+  const response = await fetch(downloadUrl, { method: "GET" })
+  if (!response.ok) {
+    throw new WorkerRecallError(
+      `Failed to download Recall mixed audio (${response.status})`,
+      response.status
+    )
+  }
+  return Buffer.from(await response.arrayBuffer())
 }
 
 export { WorkerRecallError }

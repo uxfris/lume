@@ -262,6 +262,20 @@ export const meetingsRepo = {
     return { updated: result.count }
   },
 
+  async updateById(input: {
+    meetingId: string
+    data: Prisma.MeetingUpdateInput
+  }): Promise<{ updated: number }> {
+    const result = await prisma.meeting.updateMany({
+      where: {
+        id: input.meetingId,
+        deletedAt: null,
+      },
+      data: input.data,
+    })
+    return { updated: result.count }
+  },
+
   /**
    * Soft-deletes meetings and adjusts usage counters (same semantics as the former per-meeting flow).
    * One transaction: validate rows, updateMany meetings, then one atomic decrement per billing period.

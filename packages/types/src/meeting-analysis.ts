@@ -275,3 +275,75 @@ export function buildMeetingSummaryV2(
     actionItems: analysis.actionItems,
   }
 }
+
+/** Normalize editor JSON into a valid Tiptap root `doc` node. */
+export function normalizeTiptapDoc(doc: TiptapJSONContent): TiptapJSONContent {
+  if (doc.type === "doc") return doc
+  return {
+    type: "doc",
+    content: Array.isArray(doc.content) ? doc.content : [],
+  }
+}
+
+/** Action item titles from the "Action items" task list in a saved document. */
+export function extractActionItemsFromDoc(
+  doc: TiptapJSONContent
+): MeetingActionItem[] {
+  const root = normalizeTiptapDoc(doc)
+  const content = root.content ?? []
+  const target = "action items"
+  let foundHeading = false
+  const items: MeetingActionItem[] = []
+
+  for (const node of content) {
+    if (node.type === "heading" && node.attrs?.level === 2) {
+      const label = node.content?.[0]?.text?.toLowerCase() ?? ""
+      foundHeading = label.includes(target)
+      continue
+    }
+    if (foundHeading && node.type === "taskList") {
+      for (const taskItem of node.content ?? []) {
+        const title = extractPlainTextFromDoc(taskItem)
+        if (title) {
+          items.push({ title, assigneeHint: null })
+        }
+      }
+      break
+    }
+    if (foundHeading && node.type === "heading") {
+      break
+    }
+  }
+
+  return items
+}
+
+/**
+ * Merge an edited Tiptap document into the persisted v2 summary shape,
+ * preserving sentiment and refreshing action-item metadata from the doc.
+ */
+export function buildSummaryV2FromDocument(
+  existing: {
+    sentiment: MeetingSentiment
+    actionItems: MeetingActionItem[]
+  } | null,
+  document: TiptapJSONContent
+): MeetingSummaryV2 {
+  const doc = normalizeTiptapDoc(document)
+  const fromDoc = extractActionItemsFromDoc(doc)
+
+  return {
+    version: 2,
+    doc,
+    sentiment: existing?.sentiment ?? "neutral",
+    actionItems: fromDoc.length > 0 ? fromDoc : (existing?.actionItems ?? []),
+  }
+}
+
+export function buildSummaryV2FromStoredAndDocument(
+  storedSummary: unknown,
+  document: TiptapJSONContent
+): MeetingSummaryV2 {
+  const parsed = parseMeetingSummary(storedSummary)
+  return buildSummaryV2FromDocument(parsed, document)
+}

@@ -13,11 +13,18 @@ import { logger } from "../logger"
 import { createProcessingEventAndPublish } from "../lib/processing-events"
 import { saveRawTranscriptJson } from "../lib/s3-presign"
 import {
+  downloadMixedAudioBuffer,
   downloadTranscriptJson,
   getBotTranscriptDownloadUrl,
+  getMixedAudioDownloadUrlForBot,
   getTranscriptDownloadUrlById,
+  WorkerRecallError,
   type RecallTranscriptParticipantBlock,
 } from "../lib/recall"
+import {
+  buildMeetingAudioKey,
+  uploadMeetingAudio,
+} from "../lib/s3-presign"
 
 interface FlatSegment {
   index: number
@@ -132,6 +139,36 @@ function maxEndMs(segments: FlatSegment[]): number {
   return max
 }
 
+async function importMixedAudioIfNeeded(
+  input: {
+    meetingId: string
+    externalBotId: string
+    hasAudioKey: boolean
+  },
+  log: { info: (obj: object, msg: string) => void; warn: (obj?: object | string, msg?: string) => void }
+): Promise<string | null> {
+  if (input.hasAudioKey) return buildMeetingAudioKey(input.meetingId)
+
+  try {
+    const downloadUrl = await getMixedAudioDownloadUrlForBot(input.externalBotId)
+    const buffer = await downloadMixedAudioBuffer(downloadUrl)
+    const audioKey = await uploadMeetingAudio({
+      meetingId: input.meetingId,
+      body: buffer,
+      contentType: "audio/mpeg",
+    })
+    log.info({ audioKey }, "imported Recall mixed audio")
+    return audioKey
+  } catch (err) {
+    if (err instanceof WorkerRecallError && err.status === 404) {
+      log.warn("Recall mixed audio not ready; skipping audio import")
+      return null
+    }
+    log.warn({ err }, "failed to import Recall mixed audio; continuing")
+    return null
+  }
+}
+
 export async function importBotTranscriptHandler(
   job: Job<ImportBotTranscriptJobPayload>
 ): Promise<{ meetingId: string }> {
@@ -187,6 +224,14 @@ export async function importBotTranscriptHandler(
       : (await getBotTranscriptDownloadUrl(externalBotId)).downloadUrl
     const transcriptJson = await downloadTranscriptJson(downloadUrl)
     const segments = flattenRecallTranscript(transcriptJson)
+    const audioKey = await importMixedAudioIfNeeded(
+      {
+        meetingId,
+        externalBotId,
+        hasAudioKey: meeting.audioKey != null,
+      },
+      log
+    )
     const durationMs = Date.now() - startedAt
 
     const transcriptBackupKey = await saveRawTranscriptJson({
@@ -303,6 +348,7 @@ export async function importBotTranscriptHandler(
         where: { id: meetingId },
         data: {
           status: "TRANSCRIBED",
+          ...(audioKey ? { audioKey } : {}),
           durationSeconds:
             segments.length > 0
               ? Math.round(maxEndMs(segments) / 1000) || null

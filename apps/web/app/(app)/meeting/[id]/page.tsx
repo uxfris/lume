@@ -5,6 +5,7 @@ import { MeetingDocumentTakeaway } from "./_components/meeting-document-takeaway
 import { MeetingDocumentActionItem } from "./_components/meeting-document-action-item"
 import { MeetingDocumentTranscript } from "./_components/meeting-document-transcript"
 import { MeetingMediaPlayerBar } from "./_components/meeting-media-player-bar"
+import { MeetingPlaybackShell } from "./_components/meeting-playback-shell"
 import { meetingApi } from "@workspace/api-client"
 import { getServerApiFetchOptions } from "@/lib/server-api"
 import { notFound } from "next/navigation"
@@ -32,12 +33,16 @@ export default async function MeetingDetailPage({ params }: PageProps) {
           <MeetingDocumentToolbar meeting={meeting} />
           {/* <MeetingDocumentHeader meeting={meeting} /> */}
         </header>
-        <MeetingEditor meeting={meeting} />
-        {/* <MeetingDocumentOverview meeting={meeting} /> */}
-        {/* <MeetingDocumentTakeaway meeting={meeting} /> */}
-        <MeetingDocumentActionItem meetingId={meeting.id} />
-        <MeetingDocumentTranscript />
-        <MeetingMediaPlayerBar />
+        <div className="space-y-6">
+          <MeetingEditor meeting={meeting} />
+          {/* <MeetingDocumentOverview meeting={meeting} /> */}
+          {/* <MeetingDocumentTakeaway meeting={meeting} /> */}
+          <MeetingDocumentActionItem meetingId={meeting.id} />
+        </div>
+        <MeetingPlaybackShell meetingId={meeting.id}>
+          <MeetingDocumentTranscript />
+          <MeetingMediaPlayerBar />
+        </MeetingPlaybackShell>
       </div>
     </main>
   )

@@ -1,11 +1,21 @@
-import { prisma, type Prisma } from "@workspace/database"
-import type { Conversation, Meeting as MeetingDTO } from "@workspace/types"
+import { type Prisma } from "@workspace/database"
+import {
+  buildSummaryV2FromStoredAndDocument,
+  type Conversation,
+  type Meeting as MeetingDTO,
+  type MeetingAudioResponse,
+  type TiptapJSONContent,
+} from "@workspace/types"
+import { createPresignedAudioDownload } from "../../lib/s3-predesign"
 import {
   decodeMeetingListCursor,
   encodeMeetingListCursor,
 } from "./meetings.cursor"
 import { meetingsRepo } from "./meetings.repo"
-import { userCanAccessMeeting as checkMeetingShareAccess } from "./meeting-share.service"
+import {
+  userCanAccessMeeting as checkMeetingShareAccess,
+  userCanEditMeeting,
+} from "./meeting-share.service"
 import { meetingShareRepo } from "./meeting-share.repo"
 import {
   formatMeetingTimestamp,
@@ -103,6 +113,53 @@ export async function getMeetingById(input: {
 
   const row = await meetingsRepo.findById(input.meetingId)
   return row ? toMeetingDTO(row, "detail") : null
+}
+
+export async function updateMeetingSummary(input: {
+  meetingId: string
+  userId: string
+  userEmail: string
+  document: TiptapJSONContent
+}): Promise<
+  | { ok: true }
+  | { ok: false; reason: "NOT_FOUND" | "FORBIDDEN" }
+> {
+  const allowed = await checkMeetingShareAccess({
+    meetingId: input.meetingId,
+    userId: input.userId,
+    userEmail: input.userEmail,
+  })
+  if (!allowed) {
+    return { ok: false, reason: "NOT_FOUND" }
+  }
+
+  const canEdit = await userCanEditMeeting({
+    meetingId: input.meetingId,
+    userId: input.userId,
+    userEmail: input.userEmail,
+  })
+  if (!canEdit) {
+    return { ok: false, reason: "FORBIDDEN" }
+  }
+
+  const meeting = await meetingsRepo.findById(input.meetingId)
+  if (!meeting) {
+    return { ok: false, reason: "NOT_FOUND" }
+  }
+
+  const summary = buildSummaryV2FromStoredAndDocument(
+    meeting.summary,
+    input.document
+  )
+
+  const { updated } = await meetingsRepo.updateById({
+    meetingId: input.meetingId,
+    data: {
+      summary: summary as unknown as Prisma.InputJsonValue,
+    },
+  })
+
+  return updated > 0 ? { ok: true } : { ok: false, reason: "NOT_FOUND" }
 }
 
 export async function patchMeeting(input: {
@@ -204,6 +261,24 @@ export async function moveMeetingsToWorkspace(input: {
   })
 
   return result.ok ? { ok: true } : { ok: false, reason: "NOT_FOUND" }
+}
+
+export async function getMeetingAudio(input: {
+  meetingId: string
+  userId: string
+  userEmail: string
+}): Promise<MeetingAudioResponse | null> {
+  const allowed = await checkMeetingShareAccess({
+    meetingId: input.meetingId,
+    userId: input.userId,
+    userEmail: input.userEmail,
+  })
+  if (!allowed) return null
+
+  const meeting = await meetingsRepo.findById(input.meetingId)
+  if (!meeting?.audioKey) return null
+
+  return createPresignedAudioDownload(meeting.audioKey)
 }
 
 export async function getConversation(input: {

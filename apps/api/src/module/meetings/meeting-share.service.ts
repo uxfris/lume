@@ -73,6 +73,24 @@ function canManageShares(input: {
   return input.userShareRole === "EDITOR"
 }
 
+export async function userCanEditMeeting(input: {
+  meetingId: string
+  userId: string
+  userEmail: string
+}): Promise<boolean> {
+  const meeting = await meetingShareRepo.findMeetingById(input.meetingId)
+  if (!meeting) return false
+
+  if (meeting.userId === input.userId) return true
+
+  const normalizedEmail = normalizeEmail(input.userEmail)
+  const share = meeting.meetingShares.find(
+    (s) => s.userId === input.userId || s.email === normalizedEmail
+  )
+
+  return share?.role === "EDITOR"
+}
+
 export async function userCanAccessMeeting(input: {
   meetingId: string
   userId: string

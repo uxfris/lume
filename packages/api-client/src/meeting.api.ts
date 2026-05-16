@@ -1,12 +1,15 @@
 import type {
+  Conversation,
   InviteMeetingShareBody,
   InviteMeetingShareResponse,
   ListMeetingsResponse,
   LiveMeeting,
   Meeting,
+  MeetingAudioResponse,
   MeetingGeneralAccess,
   MeetingShareRole,
   MeetingShareState,
+  TiptapJSONContent,
   UpcomingMeetingGroup,
 } from "@workspace/types"
 import { client, type RequestOptions } from "./client"
@@ -82,12 +85,37 @@ export const meetingApi = {
     return client.get<Meeting>(`/meetings/${id}`, options)
   },
 
+  async getConversation(
+    meetingId: string,
+    options?: RequestOptions
+  ): Promise<Conversation> {
+    return client.get<Conversation>(`/meetings/${meetingId}/conversation`, options)
+  },
+
+  async getMeetingAudio(
+    meetingId: string,
+    options?: RequestOptions
+  ): Promise<MeetingAudioResponse> {
+    return client.get<MeetingAudioResponse>(
+      `/meetings/${meetingId}/audio`,
+      options
+    )
+  },
+
   async updateMeeting(
     id: string,
     body: { title?: string; isShared?: boolean; isStarred?: boolean },
     options?: RequestOptions
   ): Promise<void> {
     await client.patch(`/meetings/${id}`, body, options)
+  },
+
+  async updateMeetingSummary(
+    id: string,
+    body: { document: TiptapJSONContent },
+    options?: RequestOptions
+  ): Promise<void> {
+    await client.patch(`/meetings/${id}/summary`, body, options)
   },
 
   async deleteMeeting(id: string, options?: RequestOptions): Promise<void> {

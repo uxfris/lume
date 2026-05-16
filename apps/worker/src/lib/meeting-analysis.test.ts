@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest"
 import {
+  buildSummaryV2FromDocument,
   buildTiptapDocFromAnalysis,
   buildTiptapDocFromLegacy,
+  extractActionItemsFromDoc,
   extractBulletItemsAfterHeading,
   extractPlainTextFromDoc,
   parseMeetingSummary,
@@ -72,6 +74,23 @@ describe("parseMeetingSummary", () => {
     })
     expect(parsed?.doc.type).toBe("doc")
     expect(extractPlainTextFromDoc(parsed!.doc)).toContain("Short summary")
+  })
+})
+
+describe("buildSummaryV2FromDocument", () => {
+  it("persists edited doc and extracts action items from task list", () => {
+    const doc = buildTiptapDocFromAnalysis(sampleAnalysis)
+    const stored = buildSummaryV2FromDocument(
+      { sentiment: "positive", actionItems: [] },
+      doc
+    )
+    expect(stored.version).toBe(2)
+    expect(stored.doc.type).toBe("doc")
+    expect(stored.actionItems.length).toBe(2)
+    expect(extractActionItemsFromDoc(stored.doc).map((a) => a.title)).toEqual([
+      "Send revised timeline",
+      "Book design review",
+    ])
   })
 })
 
