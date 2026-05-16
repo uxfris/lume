@@ -174,7 +174,6 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request, reply) => {
       const conversation = await meetingsService.getConversation({
         meetingId: request.params.id,
-        workspaceId: request.workspace!.id,
         userId: request.user!.id,
         userEmail: request.user!.email,
       })
@@ -209,7 +208,6 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
         meetingId: request.params.id,
         userId: request.user!.id,
         userEmail: request.user!.email,
-        workspaceId: request.workspace?.id,
       })
 
       if (!allowed) {
@@ -452,7 +450,6 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request, reply) => {
       const meeting = await meetingsService.getMeetingById({
         meetingId: request.params.id,
-        workspaceId: request.workspace!.id,
         userId: request.user!.id,
         userEmail: request.user!.email,
       })

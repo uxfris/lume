@@ -206,6 +206,13 @@ export const meetingsRepo = {
     })
   },
 
+  findById(meetingId: string): Promise<MeetingWithOwner | null> {
+    return prisma.meeting.findFirst({
+      where: { id: meetingId, deletedAt: null },
+      include: { user: true, meetingParticipants: true },
+    })
+  },
+
   async updateByWorkspace(input: {
     meetingId: string
     workspaceId: string

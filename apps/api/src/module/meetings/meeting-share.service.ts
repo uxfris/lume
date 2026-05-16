@@ -5,7 +5,10 @@ import type {
   MeetingShareState,
   InviteMeetingShareResponse,
 } from "@workspace/types"
-import type { MeetingGeneralAccess, MeetingShareRole } from "@workspace/database"
+import type {
+  MeetingGeneralAccess,
+  MeetingShareRole,
+} from "@workspace/database"
 import { initialsFromName } from "./meetings.presenter"
 import { meetingShareRepo } from "./meeting-share.repo"
 import {
@@ -25,9 +28,7 @@ function toDbRole(role: ApiShareRole): MeetingShareRole {
   return role === "edit" ? "EDITOR" : "VIEWER"
 }
 
-function toApiGeneralAccess(
-  value: MeetingGeneralAccess
-): ApiGeneralAccess {
+function toApiGeneralAccess(value: MeetingGeneralAccess): ApiGeneralAccess {
   switch (value) {
     case "WORKSPACE":
       return "workspace"
@@ -74,31 +75,26 @@ function canManageShares(input: {
 
 export async function userCanAccessMeeting(input: {
   meetingId: string
-  workspaceId: string
   userId: string
   userEmail: string
 }): Promise<boolean> {
-  const meeting = await meetingShareRepo.findMeetingContext(
-    input.meetingId,
-    input.workspaceId
-  )
+  const meeting = await meetingShareRepo.findMeetingById(input.meetingId)
   if (!meeting) return false
 
   if (meeting.userId === input.userId) return true
 
   const normalizedEmail = normalizeEmail(input.userEmail)
 
-  if (
-    meeting.generalAccess === "WORKSPACE" ||
-    meeting.generalAccess === "LINK"
-  ) {
+  if (meeting.generalAccess === "LINK" && meeting.isShared) {
     return true
   }
 
+  if (meeting.generalAccess === "WORKSPACE") {
+    return meetingShareRepo.isWorkspaceMember(meeting.workspaceId, input.userId)
+  }
+
   return meeting.meetingShares.some(
-    (share) =>
-      share.userId === input.userId ||
-      share.email === normalizedEmail
+    (share) => share.userId === input.userId || share.email === normalizedEmail
   )
 }
 
@@ -110,16 +106,12 @@ export async function getMeetingShareState(input: {
 }): Promise<MeetingShareState | null> {
   const allowed = await userCanAccessMeeting({
     meetingId: input.meetingId,
-    workspaceId: input.workspaceId,
     userId: input.userId,
     userEmail: input.userEmail,
   })
   if (!allowed) return null
 
-  const meeting = await meetingShareRepo.findMeetingContext(
-    input.meetingId,
-    input.workspaceId
-  )
+  const meeting = await meetingShareRepo.findMeetingById(input.meetingId)
   if (!meeting) return null
 
   const normalizedEmail = normalizeEmail(input.userEmail)
@@ -270,8 +262,7 @@ export async function updateMeetingShareRole(input: {
 
   const userShare = meeting.meetingShares.find(
     (s) =>
-      s.userId === input.userId ||
-      s.email === normalizeEmail(input.userEmail)
+      s.userId === input.userId || s.email === normalizeEmail(input.userEmail)
   )
 
   if (
@@ -308,8 +299,7 @@ export async function revokeMeetingShare(input: {
 
   const userShare = meeting.meetingShares.find(
     (s) =>
-      s.userId === input.userId ||
-      s.email === normalizeEmail(input.userEmail)
+      s.userId === input.userId || s.email === normalizeEmail(input.userEmail)
   )
 
   if (

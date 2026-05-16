@@ -17,6 +17,32 @@ export type MeetingShareContext = Prisma.MeetingGetPayload<{
 }>
 
 export const meetingShareRepo = {
+  findMeetingById(meetingId: string): Promise<MeetingShareContext | null> {
+    return prisma.meeting.findFirst({
+      where: { id: meetingId, deletedAt: null },
+      include: {
+        user: { select: { id: true, name: true, email: true, image: true } },
+        meetingShares: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true, image: true },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    })
+  },
+
+  isWorkspaceMember(workspaceId: string, userId: string): Promise<boolean> {
+    return prisma.workspaceMember
+      .findFirst({
+        where: { workspaceId, userId },
+        select: { id: true },
+      })
+      .then((row) => Boolean(row))
+  },
+
   findMeetingContext(
     meetingId: string,
     workspaceId: string

@@ -81,22 +81,17 @@ export async function listMeetings(input: {
 
 export async function getMeetingById(input: {
   meetingId: string
-  workspaceId: string
   userId: string
   userEmail: string
 }): Promise<MeetingDTO | null> {
   const allowed = await checkMeetingShareAccess({
     meetingId: input.meetingId,
-    workspaceId: input.workspaceId,
     userId: input.userId,
     userEmail: input.userEmail,
   })
   if (!allowed) return null
 
-  const row = await meetingsRepo.findByIdForWorkspace(
-    input.meetingId,
-    input.workspaceId
-  )
+  const row = await meetingsRepo.findById(input.meetingId)
   return row ? toMeetingDTO(row, "detail") : null
 }
 
@@ -203,22 +198,17 @@ export async function moveMeetingsToWorkspace(input: {
 
 export async function getConversation(input: {
   meetingId: string
-  workspaceId: string
   userId: string
   userEmail: string
 }): Promise<Conversation | null> {
   const allowed = await checkMeetingShareAccess({
     meetingId: input.meetingId,
-    workspaceId: input.workspaceId,
     userId: input.userId,
     userEmail: input.userEmail,
   })
   if (!allowed) return null
 
-  const meeting = await meetingsRepo.findMeetingIdInWorkspace(
-    input.meetingId,
-    input.workspaceId
-  )
+  const meeting = await meetingsRepo.findById(input.meetingId)
 
   if (!meeting) return null
 
@@ -230,22 +220,9 @@ export async function canUserAccessMeeting(input: {
   meetingId: string
   userId: string
   userEmail: string
-  workspaceId?: string
 }): Promise<boolean> {
-  const workspaceId =
-    input.workspaceId ??
-    (
-      await meetingsRepo.findMeetingForUser({
-        meetingId: input.meetingId,
-        userId: input.userId,
-      })
-    )?.workspaceId
-
-  if (!workspaceId) return false
-
   return checkMeetingShareAccess({
     meetingId: input.meetingId,
-    workspaceId,
     userId: input.userId,
     userEmail: input.userEmail,
   })
