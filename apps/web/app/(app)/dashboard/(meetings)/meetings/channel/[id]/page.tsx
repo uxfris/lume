@@ -1,6 +1,5 @@
 import { channelApi } from "@workspace/api-client"
 import { Meeting } from "@workspace/types"
-import { MeetingsProvider } from "../../_hooks/use-meeting-context"
 import { MeetingToolbar } from "../../_components/meeting-toolbar"
 import { MeetingView } from "../../_components/meeting-view"
 import { MeetingBulkActionBar } from "../../_components/meeting-bulk-action-bar"
@@ -32,7 +31,7 @@ export default async function MeetingChannel({ params }: PageProps) {
     workspaceId,
     limit: 50,
   })
-  const meetings: Meeting[] = channelMeetings
+  const meetings: Meeting[] = channelMeetings.meetings
 
   return (
     <div className="relative flex h-full flex-col gap-6 overflow-hidden">
@@ -53,11 +52,12 @@ export default async function MeetingChannel({ params }: PageProps) {
         <>
           <div className="space-y-4 overflow-y-auto px-4 pb-10 md:space-y-10 md:px-10">
             <div className="space-y-3">
-              <MeetingsProvider meetings={meetings}>
-                <MeetingToolbar />
-              </MeetingsProvider>
+              <MeetingToolbar />
             </div>
-            <MeetingView meetings={meetings} />
+            <MeetingView
+              initialMeetings={meetings}
+              initialCursor={channelMeetings.nextCursor}
+            />
           </div>
           <MeetingBulkActionBar meetings={meetings} isChannel={true} />
         </>

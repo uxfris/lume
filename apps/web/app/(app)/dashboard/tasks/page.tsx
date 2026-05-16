@@ -15,12 +15,12 @@ import { taskApi } from "@workspace/api-client"
 import { AssigneesProvider } from "./_hooks/use-task-assigness"
 import type { TaskListFilter } from "@workspace/api-client"
 import { useTasksQuery } from "./_hooks/queries/use-tasks-query"
-import { useTaskAssigneesQuery } from "./_hooks/queries/use-task-assignees-query"
+import { useMembersQuery } from "../../settings/people/_hooks/queries/use-members-query"
 
 function TasksTabPanel({ filter }: { filter: TaskListFilter }) {
   const { data: groups = [], isLoading, isError } = useTasksQuery(filter)
 
-  const { data: assignees = [] } = useTaskAssigneesQuery()
+  const { data: assignees = [] } = useMembersQuery()
 
   if (isLoading) {
     return (

@@ -158,6 +158,50 @@ function stableAttendeeId(
 }
 
 /**
+ * Dedupe keys (email:… / name:…) for people who are the meeting organizer
+ * per provider payload (Google Calendar event vs Microsoft Graph event).
+ *
+ * @see https://developers.google.com/workspace/calendar/api/v3/reference/events#resource
+ * @see https://learn.microsoft.com/en-us/graph/api/resources/event?view=graph-rest-1.0#properties
+ */
+function hostDedupeKeysFromRaw(raw: unknown): Set<string> {
+  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) {
+    return new Set()
+  }
+  const rec = raw as Record<string, unknown>
+  if (isMicrosoftGraphEventShape(rec)) {
+    const keys = new Set<string>()
+    const org = readMicrosoftRecipient(rec.organizer)
+    if (org) {
+      const k = dedupeKey(org)
+      if (k) keys.add(k)
+    }
+    return keys
+  }
+  const keys = new Set<string>()
+  const mainOrg = readGooglePerson(rec.organizer)
+  if (mainOrg) {
+    const k = dedupeKey(mainOrg)
+    if (k) keys.add(k)
+  }
+  const attendees = rec.attendees
+  if (Array.isArray(attendees)) {
+    for (const a of attendees) {
+      if (!a || typeof a !== "object") continue
+      const ar = a as Record<string, unknown>
+      if (ar.organizer === true) {
+        const p = readGooglePerson(a)
+        if (p) {
+          const k = dedupeKey(p)
+          if (k) keys.add(k)
+        }
+      }
+    }
+  }
+  return keys
+}
+
+/**
  * Full attendee list for `calendar_event.attendees` (API-ready shape).
  * Built at webhook ingest time from provider `raw` + calendar owner profile.
  */
@@ -167,6 +211,7 @@ export function buildCalendarEventAttendeesJson(input: {
   owner: { email: string | null; name: string | null; image: string | null }
   fallbackTitle: string
 }): Prisma.InputJsonValue {
+  const hostKeys = hostDedupeKeysFromRaw(input.raw)
   let people = providerPeopleFromProviderRaw(input.raw)
 
   if (people.length === 0) {
@@ -189,6 +234,7 @@ export function buildCalendarEventAttendeesJson(input: {
       {
         id: `calendar-${input.externalId}`,
         initials: initialsFromTitle(input.fallbackTitle),
+        isHost: true,
       },
     ] as unknown as Prisma.InputJsonValue
   }
@@ -196,7 +242,8 @@ export function buildCalendarEventAttendeesJson(input: {
   const attendees: Attendee[] = people.map((p, i) => {
     const id = stableAttendeeId(input.externalId, p, i)
     const initials = initialsFromPerson(p.name ?? null, p.email ?? null)
-    const row: Attendee = { id, initials }
+    const isHost = hostKeys.has(dedupeKey(p))
+    const row: Attendee = { id, initials, isHost }
     return row
   })
 

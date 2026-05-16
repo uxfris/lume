@@ -76,7 +76,7 @@ export const searchRepo = {
         workspaceId: input.workspaceId,
         deletedAt: null,
       },
-      include: { user: true },
+      include: { user: true, meetingParticipants: true },
     })
   },
 

@@ -84,6 +84,40 @@ function uiStatus(status: MeetingWithOwner["status"]): MeetingDTO["status"] {
         : "analyzing"
 }
 
+const MAX_LIST_ATTENDEE_AVATARS = 4
+
+function avatarUrlIfValid(image: string | null | undefined): string | undefined {
+  if (!image || typeof image !== "string") return undefined
+  const t = image.trim()
+  if (t.startsWith("https://") || t.startsWith("http://")) return t
+  return undefined
+}
+
+/** Card avatars: transcript participants, or meeting owner when none exist yet. */
+function meetingAttendeesFromRow(row: MeetingWithOwner): MeetingDTO["attendees"] {
+  if (row.meetingParticipants.length > 0) {
+    return row.meetingParticipants.map((p) => {
+      const label = (p.name ?? p.email ?? "").trim()
+      const attendee: MeetingDTO["attendees"][number] = {
+        id: p.id,
+        initials: initialsFromName(label || "?"),
+        isHost: p.isHost ?? null,
+      }
+      return attendee
+    })
+  }
+
+  const ownerImage = avatarUrlIfValid(row.user.image)
+  return [
+    {
+      id: row.user.id,
+      initials: initialsFromName(row.user.name),
+      isHost: true,
+      ...(ownerImage ? { avatarUrl: ownerImage } : {}),
+    },
+  ]
+}
+
 /**
  * Group raw transcript segments into conversation messages (speaker runs).
  */
@@ -179,6 +213,16 @@ export function toMeetingDTO(
   const keyPoints =
     mode === "detail" ? extractKeyPoints(row.summary) : undefined
 
+  const allAttendees = meetingAttendeesFromRow(row)
+  const total = allAttendees.length
+  const capList =
+    mode === "list" && total > MAX_LIST_ATTENDEE_AVATARS
+  const attendees = capList
+    ? allAttendees.slice(0, MAX_LIST_ATTENDEE_AVATARS)
+    : allAttendees
+  const extraAttendees =
+    capList ? total - MAX_LIST_ATTENDEE_AVATARS : undefined
+
   return {
     id: row.id,
     title: row.title,
@@ -187,15 +231,14 @@ export function toMeetingDTO(
     status: uiStatus(row.status),
     channelId: row.channelId,
     timestamp: formatMeetingTimestamp(row.createdAt),
+    createdAt: row.createdAt.toISOString(),
     duration: formatDurationSeconds(row.durationSeconds),
-    attendees: [
-      {
-        id: row.user.id,
-        initials: initialsFromName(row.user.name),
-        ...(row.user.image ? { avatarUrl: row.user.image } : {}),
-      },
-    ],
-    extraAttendees: 0,
+    durationSeconds: row.durationSeconds ?? null,
+    source: row.source === "BOT" ? "bot" : "upload",
+    attendees,
+    ...(extraAttendees != null && extraAttendees > 0
+      ? { extraAttendees }
+      : {}),
     ...(keyPoints && keyPoints.length > 0 ? { keyPoints } : {}),
   }
 }

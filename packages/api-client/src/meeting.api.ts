@@ -1,14 +1,15 @@
 import type {
+  InviteMeetingShareBody,
+  InviteMeetingShareResponse,
+  ListMeetingsResponse,
   LiveMeeting,
   Meeting,
+  MeetingGeneralAccess,
+  MeetingShareRole,
+  MeetingShareState,
   UpcomingMeetingGroup,
 } from "@workspace/types"
 import { client, type RequestOptions } from "./client"
-
-type ListMeetingsResponse = {
-  meetings: Meeting[]
-  nextCursor: string | null
-}
 
 export const meetingApi = {
   async getLiveMeetings(options?: RequestOptions): Promise<LiveMeeting[]> {
@@ -117,5 +118,60 @@ export const meetingApi = {
     options?: RequestOptions
   ): Promise<void> {
     await client.post("/meetings/unstar", { meetingIds }, options)
+  },
+
+  async getMeetingShare(
+    meetingId: string,
+    options?: RequestOptions
+  ): Promise<MeetingShareState> {
+    return client.get<MeetingShareState>(`/meetings/${meetingId}/share`, options)
+  },
+
+  async inviteToMeeting(
+    meetingId: string,
+    body: InviteMeetingShareBody,
+    options?: RequestOptions
+  ): Promise<InviteMeetingShareResponse> {
+    return client.post<InviteMeetingShareResponse>(
+      `/meetings/${meetingId}/share/invites`,
+      body,
+      options
+    )
+  },
+
+  async updateMeetingShareRole(
+    meetingId: string,
+    shareId: string,
+    role: MeetingShareRole,
+    options?: RequestOptions
+  ): Promise<void> {
+    await client.patch(
+      `/meetings/${meetingId}/share/invites/${shareId}`,
+      { role },
+      options
+    )
+  },
+
+  async revokeMeetingShare(
+    meetingId: string,
+    shareId: string,
+    options?: RequestOptions
+  ): Promise<void> {
+    await client.delete(
+      `/meetings/${meetingId}/share/invites/${shareId}`,
+      options
+    )
+  },
+
+  async updateMeetingGeneralAccess(
+    meetingId: string,
+    generalAccess: MeetingGeneralAccess,
+    options?: RequestOptions
+  ): Promise<void> {
+    await client.patch(
+      `/meetings/${meetingId}/share/access`,
+      { generalAccess },
+      options
+    )
   },
 }

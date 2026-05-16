@@ -32,7 +32,8 @@ export const patchChannelBodySchema = z
   })
 
 export const listChannelMeetingsQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
 })
 
 export const updateChannelMeetingsBodySchema = z.object({
@@ -53,6 +54,7 @@ export const createChannelResponseSchema = z.object({
 
 export const listChannelMeetingsResponseSchema = z.object({
   meetings: z.array(channelMeetingSchema),
+  nextCursor: z.string().nullable(),
 })
 
 export const updateChannelMeetingsResponseSchema = z.object({

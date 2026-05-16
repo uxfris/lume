@@ -11,7 +11,7 @@ import { Field } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
 import { MinimalisticMagnifier } from "@solar-icons/react"
 import MeetingItem from "../meetings/meeting-item"
-import { useDebounce } from "@workspace/ui/hooks/use-debouce"
+import { useDebounce } from "@workspace/ui/hooks/use-debounce"
 import type { Meeting } from "@workspace/types"
 import { meetingApi, searchApi } from "@workspace/api-client"
 

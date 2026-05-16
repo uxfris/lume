@@ -1,4 +1,3 @@
-import { MeetingsProvider } from "../meetings/_hooks/use-meeting-context"
 import { MeetingToolbar } from "../meetings/_components/meeting-toolbar"
 import { MeetingView } from "../meetings/_components/meeting-view"
 import { MeetingBulkActionBar } from "../meetings/_components/meeting-bulk-action-bar"
@@ -8,14 +7,14 @@ import { getServerApiFetchOptions } from "@/lib/server-api"
 
 export default async function Starred() {
   const { cookie, workspaceId } = await getServerApiFetchOptions()
-  const meetings = (
-    await meetingApi.getMeetingsList({
-      limit: 50,
-      isStarred: true,
-      cookie,
-      workspaceId,
-    })
-  )
+  const response = await meetingApi.getMeetings({
+    limit: 50,
+    isStarred: true,
+    cookie,
+    workspaceId,
+  })
+
+  const meetings = response.meetings
 
   if (meetings.length === 0) return <MeetingEmptyGlobal variant="starred" />
   return (
@@ -25,11 +24,12 @@ export default async function Starred() {
       </div>
       <div className="space-y-4 overflow-y-auto px-4 pb-10 md:space-y-10 md:px-10">
         <div className="space-y-3">
-          <MeetingsProvider meetings={meetings}>
             <MeetingToolbar />
-          </MeetingsProvider>
         </div>
-        <MeetingView meetings={meetings} />
+        <MeetingView
+          initialMeetings={meetings}
+          initialCursor={response.nextCursor}
+        />
       </div>
       <MeetingBulkActionBar meetings={meetings} isStarred={true} />
     </div>

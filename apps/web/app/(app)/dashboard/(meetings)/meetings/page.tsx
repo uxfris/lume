@@ -4,20 +4,21 @@ import { MeetingChannelButtons } from "./_components/meeting-channel-buttons"
 import { MeetingView } from "./_components/meeting-view"
 import { MeetingBulkActionBar } from "./_components/meeting-bulk-action-bar"
 import type { Meeting } from "@workspace/types"
-import { MeetingsProvider } from "./_hooks/use-meeting-context"
 import { MeetingEmpty } from "./_components/meeting-empty"
 import { getServerApiFetchOptions } from "@/lib/server-api"
 import { meetingApi } from "@workspace/api-client"
 
 export default async function Meeting() {
   const { cookie, workspaceId } = await getServerApiFetchOptions()
-  const [meetings] = await Promise.all([
-    meetingApi.getMeetingsList({
+  const [response] = await Promise.all([
+    meetingApi.getMeetings({
       limit: 50,
       cookie,
       workspaceId,
     }),
   ])
+
+  const meetings = response.meetings
 
   if (meetings.length === 0) return <MeetingEmpty />
   return (
@@ -28,12 +29,13 @@ export default async function Meeting() {
       </div>
       <div className="space-y-10 overflow-y-auto px-4 pb-4 md:px-10 md:pb-10">
         <div className="space-y-3">
-          <MeetingsProvider meetings={meetings}>
-            <MeetingToolbar />
-          </MeetingsProvider>
+          <MeetingToolbar />
           <MeetingChannelButtons />
         </div>
-        <MeetingView meetings={meetings} />
+        <MeetingView
+          initialMeetings={meetings}
+          initialCursor={response.nextCursor}
+        />
       </div>
       <MeetingBulkActionBar meetings={meetings} />
     </div>

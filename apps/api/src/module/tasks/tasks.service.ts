@@ -1,12 +1,10 @@
 import type { Prisma } from "@workspace/database"
 import type { ActionItem, TasksGroup, UserSummary } from "@workspace/types"
 import { meetingsRepo } from "../meetings/meetings.repo"
-import {
-  groupTasksIntoMeetingGroups,
-  toActionItem,
-  toUserSummary,
-} from "./tasks.presenter"
+import { groupTasksIntoMeetingGroups, toActionItem } from "./tasks.presenter"
 import { tasksRepo } from "./tasks.repo"
+import { peopleRepo } from "../people/people.repo"
+import { toUserSummary } from "../people/people.presenter"
 
 export type TaskListFilter =
   | "all"
@@ -14,13 +12,11 @@ export type TaskListFilter =
   | "from_last_meeting"
   | "completed"
 
-export async function listTaskGroups(
-  input: {
-    workspaceId: string
-    currentUserId: string
-    filter: TaskListFilter
-  }
-): Promise<TasksGroup[]> {
+export async function listTaskGroups(input: {
+  workspaceId: string
+  currentUserId: string
+  filter: TaskListFilter
+}): Promise<TasksGroup[]> {
   const rows = await tasksRepo.listForWorkspace({
     workspaceId: input.workspaceId,
     filter: input.filter,
@@ -32,7 +28,7 @@ export async function listTaskGroups(
 export async function listAssignees(
   workspaceId: string
 ): Promise<UserSummary[]> {
-  const members = await tasksRepo.listMembersWithUsers(workspaceId)
+  const members = await peopleRepo.listMembersWithUsers(workspaceId)
   return members.map((m) => toUserSummary(m.user))
 }
 
@@ -52,10 +48,7 @@ export async function createTask(input: {
   }
 
   if (input.assigneeId) {
-    const n = await tasksRepo.countMembers(
-      input.workspaceId,
-      input.assigneeId
-    )
+    const n = await tasksRepo.countMembers(input.workspaceId, input.assigneeId)
     if (n === 0) return { error: "ASSIGNEE_INVALID" }
   }
 
@@ -80,8 +73,7 @@ export async function patchTask(input: {
   title?: string
   assigneeId?: string | null
 }): Promise<
-  | { ok: true }
-  | { ok: false; reason: "NOT_FOUND" | "ASSIGNEE_INVALID" }
+  { ok: true } | { ok: false; reason: "NOT_FOUND" | "ASSIGNEE_INVALID" }
 > {
   const existing = await tasksRepo.findByIdForWorkspace(
     input.taskId,
@@ -90,10 +82,7 @@ export async function patchTask(input: {
   if (!existing) return { ok: false, reason: "NOT_FOUND" }
 
   if (input.assigneeId !== undefined && input.assigneeId !== null) {
-    const n = await tasksRepo.countMembers(
-      input.workspaceId,
-      input.assigneeId
-    )
+    const n = await tasksRepo.countMembers(input.workspaceId, input.assigneeId)
     if (n === 0) return { ok: false, reason: "ASSIGNEE_INVALID" }
   }
 
