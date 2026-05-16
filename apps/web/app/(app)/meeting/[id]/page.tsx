@@ -33,11 +33,11 @@ export default async function MeetingDetailPage({ params }: PageProps) {
           {/* <MeetingDocumentHeader meeting={meeting} /> */}
         </header>
         <MeetingEditor meeting={meeting} />
-        {/* <MeetingDocumentOverview meeting={meeting} />
-        <MeetingDocumentTakeaway meeting={meeting} />
-        <MeetingDocumentActionItem />
+        {/* <MeetingDocumentOverview meeting={meeting} /> */}
+        {/* <MeetingDocumentTakeaway meeting={meeting} /> */}
+        <MeetingDocumentActionItem meetingId={meeting.id} />
         <MeetingDocumentTranscript />
-        <MeetingMediaPlayerBar /> */}
+        <MeetingMediaPlayerBar />
       </div>
     </main>
   )

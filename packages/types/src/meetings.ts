@@ -1,4 +1,5 @@
 import { z } from "zod"
+import type { TiptapJSONContent } from "./meeting-analysis"
 
 export const MeetingStatusSchema = z.enum([
   "transcribing",
@@ -48,6 +49,8 @@ export const MeetingSchema = z.object({
   extraAttendees: z.number().optional(),
   /** Present when returned from meeting detail API (AI analysis). */
   keyPoints: z.array(z.string()).optional(),
+  /** Tiptap document (v2 analysis) for the meeting editor. Detail API only. */
+  document: z.custom<TiptapJSONContent>().optional(),
   channelId: z.string().nullable(),
 })
 

@@ -286,6 +286,9 @@ importers:
       '@workspace/queue':
         specifier: workspace:*
         version: link:../../packages/queue
+      '@workspace/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       bullmq:
         specifier: ^5.76.1
         version: 5.76.1

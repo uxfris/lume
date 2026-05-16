@@ -9,11 +9,17 @@ import { useState } from "react"
 import { toast } from "sonner"
 
 import { TaskSync } from "@/app/(app)/dashboard/tasks/_components/task-sync";
-import { ActionItem } from "@workspace/types";
+import { ActionItem, UserSummary } from "@workspace/types";
 import { CopyButton } from "@/components/copy-button";
 
 
-export function MeetingDocumentActionItemHeader({ tasks }: { tasks: ActionItem[] }) {
+export function MeetingDocumentActionItemHeader({
+  tasks,
+  onUpdateAssignee,
+}: {
+  tasks: ActionItem[]
+  onUpdateAssignee: (id: string, assignee: UserSummary | null) => void
+}) {
     const [taskSelectionOpen, setTaskSelectionOpen] = useState(false)
     const [areInitiallySelected, setAreInitiallySelected] = useState(false)
     const [selectedTaskIds, setSelectedTaskIds] = useState<String[]>([])
@@ -36,7 +42,6 @@ export function MeetingDocumentActionItemHeader({ tasks }: { tasks: ActionItem[]
         toast.success("Tasks sent to Trello")
     }
 
-    const onUpdateAssignee = () => { }
     return (
         <div className="flex justify-between">
 

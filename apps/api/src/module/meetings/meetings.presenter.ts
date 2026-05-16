@@ -1,4 +1,9 @@
 import type { Meeting as MeetingDTO } from "@workspace/types"
+import {
+  extractBulletItemsAfterHeading,
+  extractPlainTextFromDoc,
+  parseMeetingSummary,
+} from "@workspace/types"
 import type {
   MeetingWithOwner,
   TranscriptSegmentWithParticipant,
@@ -18,19 +23,6 @@ export function initialsFromName(name: string): string {
   const first = parts[0] ?? ""
   const last = parts[parts.length - 1] ?? ""
   return `${first[0] ?? ""}${last[0] ?? ""}`.toUpperCase()
-}
-
-function extractSummaryPreview(summary: unknown): string {
-  if (!summary || typeof summary !== "object") return ""
-  const s = summary as { summary?: unknown }
-  return typeof s.summary === "string" ? s.summary : ""
-}
-
-function extractKeyPoints(summary: unknown): string[] | undefined {
-  if (!summary || typeof summary !== "object") return undefined
-  const s = summary as { keyPoints?: unknown }
-  if (!Array.isArray(s.keyPoints)) return undefined
-  return s.keyPoints.filter((x): x is string => typeof x === "string")
 }
 
 function truncateText(text: string, maxLen: number): string {
@@ -204,14 +196,19 @@ export function toMeetingDTO(
   row: MeetingWithOwner,
   mode: "list" | "detail" = "list"
 ): MeetingDTO {
-  const fullSummary = extractSummaryPreview(row.summary)
+  const parsed = parseMeetingSummary(row.summary)
+  const fullSummary = parsed
+    ? extractPlainTextFromDoc(parsed.doc)
+    : ""
   const summaryText =
     mode === "list"
       ? truncateText(fullSummary, 240) || "—"
       : truncateText(fullSummary, 12_000) || "—"
 
   const keyPoints =
-    mode === "detail" ? extractKeyPoints(row.summary) : undefined
+    mode === "detail" && parsed
+      ? extractBulletItemsAfterHeading(parsed.doc, "key takeaways")
+      : undefined
 
   const allAttendees = meetingAttendeesFromRow(row)
   const total = allAttendees.length
@@ -240,6 +237,7 @@ export function toMeetingDTO(
       ? { extraAttendees }
       : {}),
     ...(keyPoints && keyPoints.length > 0 ? { keyPoints } : {}),
+    ...(mode === "detail" && parsed?.doc ? { document: parsed.doc } : {}),
   }
 }
 

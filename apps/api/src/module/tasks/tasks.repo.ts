@@ -1,6 +1,20 @@
 import { prisma, type Prisma } from "@workspace/database"
 
 export const tasksRepo = {
+  listForMeeting(input: { workspaceId: string; meetingId: string }) {
+    return prisma.task.findMany({
+      where: {
+        workspaceId: input.workspaceId,
+        meetingId: input.meetingId,
+        meeting: { deletedAt: null },
+      },
+      include: {
+        assignee: true,
+      },
+      orderBy: { createdAt: "desc" },
+    })
+  },
+
   async listForWorkspace(input: {
     workspaceId: string
     currentUserId: string

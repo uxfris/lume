@@ -1,6 +1,9 @@
 import OpenAI from "openai"
 import pLimit from "p-limit"
-import { z } from "zod"
+import {
+  MeetingAnalysisContentSchema,
+  type MeetingAnalysisContent,
+} from "@workspace/types"
 import { env } from "../config/env"
 
 const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY })
@@ -19,25 +22,36 @@ const GPT4O_MINI_INPUT_PER_M = 0.15
 const GPT4O_MINI_OUTPUT_PER_M = 0.6
 const EMBEDDING_SMALL_PER_M = 0.02
 
-export const MeetingAnalysisSchema = z.object({
-  summary: z.string(),
-  keyPoints: z.array(z.string()),
-  actionItems: z.array(
-    z.object({
-      title: z.string(),
-      assigneeHint: z.string().nullable().optional(),
-    })
-  ),
-  sentiment: z.string(),
-})
+/** @deprecated Use `MeetingAnalysisContent` from `@workspace/types`. */
+export type MeetingAnalysis = MeetingAnalysisContent
 
-export type MeetingAnalysis = z.infer<typeof MeetingAnalysisSchema>
+export { MeetingAnalysisContentSchema as MeetingAnalysisSchema }
 
 const ANALYSIS_JSON_SCHEMA = {
   type: "object",
   properties: {
-    summary: { type: "string" },
-    keyPoints: {
+    overview: { type: "string" },
+    keyTakeaways: {
+      type: "array",
+      items: { type: "string" },
+    },
+    topicsDiscussed: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          summary: { type: "string" },
+        },
+        required: ["title", "summary"],
+        additionalProperties: false,
+      },
+    },
+    decisions: {
+      type: "array",
+      items: { type: "string" },
+    },
+    openQuestions: {
       type: "array",
       items: { type: "string" },
     },
@@ -53,23 +67,72 @@ const ANALYSIS_JSON_SCHEMA = {
         additionalProperties: false,
       },
     },
-    sentiment: { type: "string" },
+    sentiment: {
+      type: "string",
+      enum: ["positive", "neutral", "negative", "mixed"],
+    },
   },
-  required: ["summary", "keyPoints", "actionItems", "sentiment"],
+  required: [
+    "overview",
+    "keyTakeaways",
+    "topicsDiscussed",
+    "decisions",
+    "openQuestions",
+    "actionItems",
+    "sentiment",
+  ],
   additionalProperties: false,
 } as const
 
-const CHUNK_BULLETS_SCHEMA = {
+const CHUNK_EXTRACTION_SCHEMA = {
   type: "object",
   properties: {
-    bullets: {
+    facts: {
+      type: "array",
+      items: { type: "string" },
+    },
+    decisions: {
+      type: "array",
+      items: { type: "string" },
+    },
+    actionItems: {
+      type: "array",
+      items: { type: "string" },
+    },
+    openQuestions: {
       type: "array",
       items: { type: "string" },
     },
   },
-  required: ["bullets"],
+  required: ["facts", "decisions", "actionItems", "openQuestions"],
   additionalProperties: false,
 } as const
+
+const ANALYSIS_SYSTEM_PROMPT = `You are an expert meeting analyst preparing notes for a Notion-style document editor.
+
+Your output will be converted into structured blocks: overview paragraph, key takeaway bullets, topic subsections, decisions, open questions, and action-item checkboxes.
+
+Quality bar:
+- Be comprehensive: capture substantive discussion, not only the conclusion.
+- Overview: 3–6 sentences covering purpose, main arc, and outcome.
+- Key takeaways: 5–10 distinct, specific bullets a reader could act on without watching the meeting.
+- Topics discussed: 2–6 major themes; each needs a short title and 2–4 sentence summary with names, numbers, and constraints when mentioned.
+- Decisions: explicit agreements, approvals, or direction changes (empty array if none).
+- Open questions: unresolved items, blockers, or follow-ups (empty array if none).
+- Action items: concrete tasks with clear owners when inferable; use assigneeHint for a person/role name or null if unknown.
+- Sentiment: overall tone of the meeting (positive, neutral, negative, or mixed).
+
+Write in clear, professional prose. Do not invent facts not supported by the transcript.`
+
+const CHUNK_SYSTEM_PROMPT = `You extract structured facts from a meeting transcript excerpt (one part of a longer recording).
+
+Return:
+- facts: substantive points, arguments, metrics, and context (short bullets)
+- decisions: explicit decisions in this excerpt
+- actionItems: tasks or commitments stated in this excerpt
+- openQuestions: unresolved questions or blockers in this excerpt
+
+Use empty arrays when a category has nothing in this excerpt. Do not repeat filler or greetings.`
 
 function gpt4oMiniCostUsd(usage: {
   prompt_tokens?: number
@@ -127,44 +190,76 @@ async function structuredCompletion(params: {
   return { raw: choice, costUsd }
 }
 
-/**
- * Per-chunk extraction for long transcripts (map phase).
- */
-async function extractBulletsFromChunk(
+type ChunkExtraction = {
+  facts: string[]
+  decisions: string[]
+  actionItems: string[]
+  openQuestions: string[]
+}
+
+async function extractFromChunk(
   chunk: string,
   index: number,
   total: number
-): Promise<{ bullets: string[]; costUsd: number }> {
+): Promise<{ extraction: ChunkExtraction; costUsd: number }> {
   return llmLimit(async () => {
     const { raw, costUsd } = await structuredCompletion({
-      name: "chunk_facts",
-      schema: CHUNK_BULLETS_SCHEMA,
-      system:
-        "You extract concise factual bullets from a meeting transcript excerpt. " +
-        "No preamble. Use short imperative phrases. If the excerpt is empty or unusable, return an empty bullets array.",
-      user: `Part ${index + 1} of ${total}:\n\n${chunk}`,
+      name: "chunk_extraction",
+      schema: CHUNK_EXTRACTION_SCHEMA,
+      system: CHUNK_SYSTEM_PROMPT,
+      user: `Excerpt ${index + 1} of ${total}:\n\n${chunk}`,
     })
-    const parsed = JSON.parse(raw) as { bullets?: string[] }
-    return { bullets: Array.isArray(parsed.bullets) ? parsed.bullets : [], costUsd }
+    const parsed = JSON.parse(raw) as Partial<ChunkExtraction>
+    return {
+      extraction: {
+        facts: Array.isArray(parsed.facts) ? parsed.facts : [],
+        decisions: Array.isArray(parsed.decisions) ? parsed.decisions : [],
+        actionItems: Array.isArray(parsed.actionItems) ? parsed.actionItems : [],
+        openQuestions: Array.isArray(parsed.openQuestions)
+          ? parsed.openQuestions
+          : [],
+      },
+      costUsd,
+    }
   })
+}
+
+function formatChunkExtractionsForReduce(
+  extractions: ChunkExtraction[]
+): string {
+  const facts = extractions.flatMap((e) => e.facts)
+  const decisions = extractions.flatMap((e) => e.decisions)
+  const actionItems = extractions.flatMap((e) => e.actionItems)
+  const openQuestions = extractions.flatMap((e) => e.openQuestions)
+
+  const section = (title: string, bullets: string[]) =>
+    bullets.length > 0
+      ? `${title}:\n${bullets.map((b) => `- ${b}`).join("\n")}`
+      : ""
+
+  return [
+    section("Facts and discussion points", facts),
+    section("Decisions", decisions),
+    section("Action items (raw)", actionItems),
+    section("Open questions", openQuestions),
+  ]
+    .filter(Boolean)
+    .join("\n\n")
 }
 
 async function analyzeCondensedTranscript(
   condensedText: string
-): Promise<{ analysis: MeetingAnalysis; costUsd: number }> {
+): Promise<{ analysis: MeetingAnalysisContent; costUsd: number }> {
   return llmLimit(async () => {
     const { raw, costUsd } = await structuredCompletion({
       name: "meeting_analysis",
       schema: ANALYSIS_JSON_SCHEMA,
-      system:
-        "You summarize meetings for product teams. Output must follow the JSON schema. " +
-        "Sentiment should be one of: positive, neutral, negative, or mixed. " +
-        "Action items should be concrete tasks, not vague wishes.",
-      user: `Meeting transcript (possibly condensed from overlapping chunks):\n\n${condensedText}`,
+      system: ANALYSIS_SYSTEM_PROMPT,
+      user: `Produce a complete meeting analysis from the following material. Deduplicate overlapping points across sections.\n\n${condensedText}`,
     })
 
     const parsed = JSON.parse(raw) as unknown
-    const analysis = MeetingAnalysisSchema.parse(parsed)
+    const analysis = MeetingAnalysisContentSchema.parse(parsed)
 
     return { analysis, costUsd }
   })
@@ -172,11 +267,11 @@ async function analyzeCondensedTranscript(
 
 /**
  * Single-call analysis when the transcript fits comfortably in context;
- * otherwise map (chunk bullets) + reduce (structured analysis).
+ * otherwise map (chunk extraction) + reduce (structured analysis).
  */
 export async function analyzeMeetingTranscript(
   fullTranscript: string
-): Promise<{ analysis: MeetingAnalysis; costUsd: number }> {
+): Promise<{ analysis: MeetingAnalysisContent; costUsd: number }> {
   const trimmed = fullTranscript.trim()
   if (!trimmed) {
     throw new Error("Empty transcript; nothing to analyze")
@@ -184,34 +279,30 @@ export async function analyzeMeetingTranscript(
 
   if (trimmed.length <= MAX_SINGLE_PASS_CHARS) {
     const chunks = chunkTranscriptForLlm(trimmed)
-    const numbered =
+    const body =
       chunks.length === 1
         ? trimmed
         : chunks
-            .map((c, i) => `--- Chunk ${i + 1} / ${chunks.length} ---\n${c}`)
+            .map((c, i) => `--- Segment ${i + 1} / ${chunks.length} ---\n${c}`)
             .join("\n\n")
 
-    return analyzeCondensedTranscript(numbered)
+    return analyzeCondensedTranscript(
+      `Full meeting transcript:\n\n${body}`
+    )
   }
 
   const chunks = chunkTranscriptForLlm(trimmed)
   const chunkResults = await Promise.all(
-    chunks.map((chunk, index) =>
-      extractBulletsFromChunk(chunk, index, chunks.length)
-    )
+    chunks.map((chunk, index) => extractFromChunk(chunk, index, chunks.length))
   )
   const mapCost = chunkResults.reduce((sum, r) => sum + r.costUsd, 0)
-  const bulletLists = chunkResults.map((r) => r.bullets)
+  const extractions = chunkResults.map((r) => r.extraction)
 
-  const condensed = bulletLists
-    .flat()
-    .map((b) => `- ${b}`)
-    .join("\n")
+  const condensed = formatChunkExtractionsForReduce(extractions)
 
-  const { analysis, costUsd: reduceCost } =
-    await analyzeCondensedTranscript(
-      `Facts extracted from long transcript (deduplicate mentally):\n\n${condensed}`
-    )
+  const { analysis, costUsd: reduceCost } = await analyzeCondensedTranscript(
+    `Material extracted from a long meeting (synthesize into one coherent analysis):\n\n${condensed}`
+  )
 
   return { analysis, costUsd: mapCost + reduceCost }
 }
@@ -238,18 +329,14 @@ export async function embedText(text: string): Promise<{
   })
 }
 
-/**
- * Phase 5 plan surface area — each function performs a full model pass.
- * Prefer `analyzeMeetingTranscript` once, then read fields from the result.
- */
 export async function summarize(transcript: string): Promise<string> {
   const { analysis } = await analyzeMeetingTranscript(transcript)
-  return analysis.summary
+  return analysis.overview
 }
 
 export async function extractActionItems(
   transcript: string
-): Promise<MeetingAnalysis["actionItems"]> {
+): Promise<MeetingAnalysisContent["actionItems"]> {
   const { analysis } = await analyzeMeetingTranscript(transcript)
   return analysis.actionItems
 }

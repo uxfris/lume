@@ -6,29 +6,14 @@ import { toast } from "sonner"
 import { taskApi, type CreateTaskInput } from "@workspace/api-client"
 
 import type { ActionItem, TasksGroup, UserSummary } from "@workspace/types"
+import {
+  insertTaskIntoGroups,
+  insertTaskIntoMeetingTasks,
+  replaceOptimisticTaskInGroups,
+  replaceOptimisticTaskInMeetingTasks,
+} from "../../_lib/task-cache"
 import { taskKeys } from "../../_lib/task.keys"
 import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
-
-function insertTaskIntoGroups(
-  groups: TasksGroup[],
-  task: ActionItem,
-  meetingId?: string | null
-): TasksGroup[] {
-  return groups.map((group) => {
-    const isWorkspaceGroup = meetingId == null && group.id === "workspace"
-
-    const isMatchingMeetingGroup = meetingId != null && group.id === meetingId
-
-    if (!isWorkspaceGroup && !isMatchingMeetingGroup) {
-      return group
-    }
-
-    return {
-      ...group,
-      tasks: [...group.tasks, task],
-    }
-  })
-}
 
 export type AddTaskPayload = {
   title: string
@@ -52,12 +37,18 @@ export function useAddTaskMutation(): useAddTaskMutationReturn {
 
     onMutate: async (input) => {
       await queryClient.cancelQueries({
-        queryKey: taskKeys.lists(workspaceId),
+        queryKey: taskKeys.all(workspaceId),
       })
 
       const previousLists = queryClient.getQueriesData<TasksGroup[]>({
         queryKey: taskKeys.lists(workspaceId),
       })
+
+      const previousMeetingTasks = input.meetingId
+        ? queryClient.getQueryData<ActionItem[]>(
+            taskKeys.meeting(workspaceId, input.meetingId)
+          )
+        : undefined
 
       const optimisticTask: ActionItem = {
         id: crypto.randomUUID(),
@@ -75,8 +66,18 @@ export function useAddTaskMutation(): useAddTaskMutationReturn {
         )
       })
 
+      if (input.meetingId) {
+        queryClient.setQueryData<ActionItem[]>(
+          taskKeys.meeting(workspaceId, input.meetingId),
+          (tasks) =>
+            insertTaskIntoMeetingTasks(tasks ?? [], optimisticTask)
+        )
+      }
+
       return {
         previousLists,
+        previousMeetingTasks,
+        meetingId: input.meetingId,
         optimisticTaskId: optimisticTask.id,
       }
     },
@@ -85,6 +86,13 @@ export function useAddTaskMutation(): useAddTaskMutationReturn {
       context?.previousLists.forEach(([queryKey, data]) => {
         queryClient.setQueryData(queryKey, data)
       })
+
+      if (context?.meetingId) {
+        queryClient.setQueryData(
+          taskKeys.meeting(workspaceId, context.meetingId),
+          context.previousMeetingTasks
+        )
+      }
 
       toast.error("Failed to add task. Please try again.")
     },
@@ -99,20 +107,37 @@ export function useAddTaskMutation(): useAddTaskMutationReturn {
 
         queryClient.setQueryData<TasksGroup[]>(
           queryKey,
-          groups.map((group) => ({
-            ...group,
-            tasks: group.tasks.map((task) =>
-              task.id === context?.optimisticTaskId ? createdTask : task
-            ),
-          }))
+          replaceOptimisticTaskInGroups(
+            groups,
+            context?.optimisticTaskId ?? "",
+            createdTask
+          )
         )
       })
+
+      if (context?.meetingId) {
+        queryClient.setQueryData<ActionItem[]>(
+          taskKeys.meeting(workspaceId, context.meetingId),
+          (tasks) =>
+            replaceOptimisticTaskInMeetingTasks(
+              tasks ?? [],
+              context.optimisticTaskId,
+              createdTask
+            )
+        )
+      }
     },
 
-    onSettled: () => {
+    onSettled: (_data, _error, input) => {
       queryClient.invalidateQueries({
         queryKey: taskKeys.lists(workspaceId),
       })
+
+      if (input.meetingId) {
+        queryClient.invalidateQueries({
+          queryKey: taskKeys.meeting(workspaceId, input.meetingId),
+        })
+      }
     },
   })
 

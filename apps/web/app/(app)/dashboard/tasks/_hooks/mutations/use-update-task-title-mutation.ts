@@ -5,28 +5,13 @@ import { toast } from "sonner"
 
 import { taskApi } from "@workspace/api-client"
 
-import type { TasksGroup } from "@workspace/types"
+import type { ActionItem, TasksGroup } from "@workspace/types"
+import {
+  updateTaskTitleInGroups,
+  updateTaskTitleInMeetingTasks,
+} from "../../_lib/task-cache"
 import { taskKeys } from "../../_lib/task.keys"
 import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
-
-function updateTaskTitleInGroups(
-  groups: TasksGroup[],
-  taskId: string,
-  title: string
-): TasksGroup[] {
-  return groups.map((group) => ({
-    ...group,
-
-    tasks: group.tasks.map((task) =>
-      task.id === taskId
-        ? {
-            ...task,
-            title,
-          }
-        : task
-    ),
-  }))
-}
 
 export type UpdateTaskPayload = {
   id: string
@@ -49,11 +34,15 @@ export function useUpdateTaskTitleMutation(): useUpdateTaskMutationReturn {
 
     onMutate: async ({ id, title }) => {
       await queryClient.cancelQueries({
-        queryKey: taskKeys.lists(workspaceId),
+        queryKey: taskKeys.all(workspaceId),
       })
 
       const previousLists = queryClient.getQueriesData<TasksGroup[]>({
         queryKey: taskKeys.lists(workspaceId),
+      })
+
+      const previousMeetingTasks = queryClient.getQueriesData<ActionItem[]>({
+        queryKey: taskKeys.meetings(workspaceId),
       })
 
       previousLists.forEach(([queryKey, groups]) => {
@@ -65,8 +54,18 @@ export function useUpdateTaskTitleMutation(): useUpdateTaskMutationReturn {
         )
       })
 
+      previousMeetingTasks.forEach(([queryKey, tasks]) => {
+        if (!tasks) return
+
+        queryClient.setQueryData<ActionItem[]>(
+          queryKey,
+          updateTaskTitleInMeetingTasks(tasks, id, title)
+        )
+      })
+
       return {
         previousLists,
+        previousMeetingTasks,
       }
     },
 
@@ -75,12 +74,16 @@ export function useUpdateTaskTitleMutation(): useUpdateTaskMutationReturn {
         queryClient.setQueryData(queryKey, data)
       })
 
+      context?.previousMeetingTasks.forEach(([queryKey, data]) => {
+        queryClient.setQueryData(queryKey, data)
+      })
+
       toast.error("Failed to update task title.")
     },
 
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: taskKeys.lists(workspaceId),
+        queryKey: taskKeys.all(workspaceId),
       })
     },
   })

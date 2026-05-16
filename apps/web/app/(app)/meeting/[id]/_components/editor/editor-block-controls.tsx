@@ -54,7 +54,7 @@ export function EditorBlockControls({ editor }: EditorBlockControlsProps) {
   const pointerOrigin = useRef({ x: 0, y: 0 })
 
   const handleDragPointerDown = (e: React.PointerEvent) => {
-    pointerOrigin.current = { x: e.clientX, y: e.clientY }
+    // pointerOrigin.current = { x: e.clientX, y: e.clientY }
   }
 
   const handleDragPointerUp = (e: React.PointerEvent) => {

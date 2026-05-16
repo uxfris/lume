@@ -6,23 +6,16 @@ import { toast } from "sonner"
 import { taskApi } from "@workspace/api-client"
 
 import type { ActionItem, TasksGroup } from "@workspace/types"
+import {
+  removeTaskFromGroups,
+  removeTaskFromMeetingTasks,
+} from "../../_lib/task-cache"
 import { taskKeys } from "../../_lib/task.keys"
 import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
 
-function removeTaskFromGroups(
-  groups: TasksGroup[],
-  taskId: string
-): TasksGroup[] {
-  return groups.map((group) => ({
-    ...group,
-
-    tasks: group.tasks.filter((task) => task.id !== taskId),
-  }))
-}
-
 export function useDeleteTaskMutation() {
   const { workspaceId } = useCurrentWorkspace()
-  
+
   const queryClient = useQueryClient()
 
   const mutation = useMutation({
@@ -34,7 +27,7 @@ export function useDeleteTaskMutation() {
 
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: taskKeys.lists(workspaceId),
+        queryKey: taskKeys.all(workspaceId),
       })
     },
   })
@@ -44,13 +37,25 @@ export function useDeleteTaskMutation() {
       queryKey: taskKeys.lists(workspaceId),
     })
 
-    // optimistic remove
+    const previousMeetingTasks = queryClient.getQueriesData<ActionItem[]>({
+      queryKey: taskKeys.meetings(workspaceId),
+    })
+
     previousLists.forEach(([queryKey, groups]) => {
       if (!groups) return
 
       queryClient.setQueryData<TasksGroup[]>(
         queryKey,
         removeTaskFromGroups(groups, task.id)
+      )
+    })
+
+    previousMeetingTasks.forEach(([queryKey, tasks]) => {
+      if (!tasks) return
+
+      queryClient.setQueryData<ActionItem[]>(
+        queryKey,
+        removeTaskFromMeetingTasks(tasks, task.id)
       )
     })
 
@@ -61,8 +66,11 @@ export function useDeleteTaskMutation() {
 
       mutation.mutate(task.id, {
         onError: () => {
-          // rollback
           previousLists.forEach(([queryKey, data]) => {
+            queryClient.setQueryData(queryKey, data)
+          })
+
+          previousMeetingTasks.forEach(([queryKey, data]) => {
             queryClient.setQueryData(queryKey, data)
           })
 
@@ -85,6 +93,10 @@ export function useDeleteTaskMutation() {
           clearTimeout(timeout)
 
           previousLists.forEach(([queryKey, data]) => {
+            queryClient.setQueryData(queryKey, data)
+          })
+
+          previousMeetingTasks.forEach(([queryKey, data]) => {
             queryClient.setQueryData(queryKey, data)
           })
         },

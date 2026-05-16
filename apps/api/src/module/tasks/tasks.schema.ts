@@ -21,6 +21,12 @@ export const toggleTaskBodySchema = z.object({
   isCompleted: z.boolean(),
 })
 
+export const meetingIdParamsSchema = z.object({
+  meetingId: z.string().min(1),
+})
+
+export const listMeetingTasksResponseSchema = z.array(ActionItemSchema)
+
 export const listTasksQuerySchema = z.object({
   filter: z
     .enum(["all", "assigned_to_me", "from_last_meeting", "completed"])
