@@ -132,6 +132,14 @@ export const meetingShareRepo = {
     })
   },
 
+  linkSharesToUser(userId: string, email: string) {
+    const normalized = email.trim().toLowerCase()
+    return prisma.meetingShare.updateMany({
+      where: { email: normalized, userId: null },
+      data: { userId },
+    })
+  },
+
   findShareForUser(input: {
     meetingId: string
     userId: string

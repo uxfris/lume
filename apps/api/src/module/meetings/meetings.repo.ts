@@ -57,46 +57,28 @@ export const meetingsRepo = {
     cursor?: { createdAt: Date; id: string }
     isStarred?: boolean
     isCreatedByMe?: boolean
-    isSharedWithMe?: boolean
     userEmail?: string
     /** When set, only meetings assigned to this channel are returned. */
     channelId?: string
   }): Promise<MeetingWithOwner[]> {
     const normalizedEmail = input.userEmail?.trim().toLowerCase()
 
-    const visibilityFilter: Prisma.MeetingWhereInput =
-      input.isSharedWithMe === true
-        ? {
-            NOT: { userId: input.userId },
-            meetingShares: {
-              some: {
-                OR: [
-                  { userId: input.userId },
-                  ...(normalizedEmail
-                    ? [{ email: normalizedEmail }]
-                    : []),
-                ],
-              },
+    const visibilityFilter: Prisma.MeetingWhereInput = {
+      OR: [
+        { userId: input.userId },
+        { generalAccess: { in: ["WORKSPACE", "LINK"] } },
+        {
+          meetingShares: {
+            some: {
+              OR: [
+                { userId: input.userId },
+                ...(normalizedEmail ? [{ email: normalizedEmail }] : []),
+              ],
             },
-          }
-        : {
-            OR: [
-              { userId: input.userId },
-              { generalAccess: { in: ["WORKSPACE", "LINK"] } },
-              {
-                meetingShares: {
-                  some: {
-                    OR: [
-                      { userId: input.userId },
-                      ...(normalizedEmail
-                        ? [{ email: normalizedEmail }]
-                        : []),
-                    ],
-                  },
-                },
-              },
-            ],
-          }
+          },
+        },
+      ],
+    }
 
     const where: Prisma.MeetingWhereInput = {
       workspaceId: input.workspaceId,
@@ -121,6 +103,57 @@ export const meetingsRepo = {
         : {}),
       ...(input.isStarred !== undefined ? { isStarred: input.isStarred } : {}),
       ...(input.isCreatedByMe === true ? { userId: input.userId } : {}),
+    }
+
+    return prisma.meeting.findMany({
+      where,
+      include: { user: true, meetingParticipants: true },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: input.take,
+    })
+  },
+
+  /**
+   * Meetings explicitly shared with the user (any workspace).
+   * Used for the "Shared with me" view.
+   */
+  listSharedWithUser(input: {
+    userId: string
+    userEmail: string
+    take: number
+    cursor?: { createdAt: Date; id: string }
+    isStarred?: boolean
+  }): Promise<MeetingWithOwner[]> {
+    const normalizedEmail = input.userEmail.trim().toLowerCase()
+
+    const where: Prisma.MeetingWhereInput = {
+      deletedAt: null,
+      NOT: { userId: input.userId },
+      meetingShares: {
+        some: {
+          OR: [
+            { userId: input.userId },
+            { email: normalizedEmail },
+          ],
+        },
+      },
+      status: {
+        notIn: ["SCHEDULED", "LIVE"],
+      },
+      ...(input.cursor
+        ? {
+            OR: [
+              { createdAt: { lt: input.cursor.createdAt } },
+              {
+                AND: [
+                  { createdAt: input.cursor.createdAt },
+                  { id: { lt: input.cursor.id } },
+                ],
+              },
+            ],
+          }
+        : {}),
+      ...(input.isStarred !== undefined ? { isStarred: input.isStarred } : {}),
     }
 
     return prisma.meeting.findMany({

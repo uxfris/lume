@@ -6,6 +6,7 @@ import {
 } from "./meetings.cursor"
 import { meetingsRepo } from "./meetings.repo"
 import { userCanAccessMeeting as checkMeetingShareAccess } from "./meeting-share.service"
+import { meetingShareRepo } from "./meeting-share.repo"
 import {
   formatMeetingTimestamp,
   toConversationResponse,
@@ -49,17 +50,26 @@ export async function listMeetings(input: {
     }
   }
 
+  await meetingShareRepo.linkSharesToUser(input.userId, input.userEmail)
+
   const pageSize = clampPageSize(input.limit)
-  const rows = await meetingsRepo.listByWorkspace({
-    workspaceId: input.workspaceId,
-    userId: input.userId,
-    userEmail: input.userEmail,
-    take: pageSize + 1,
-    cursor: decoded,
-    isStarred: input.isStarred,
-    isCreatedByMe: input.isCreatedByMe,
-    isSharedWithMe: input.isSharedWithMe,
-  })
+  const rows = input.isSharedWithMe
+    ? await meetingsRepo.listSharedWithUser({
+        userId: input.userId,
+        userEmail: input.userEmail,
+        take: pageSize + 1,
+        cursor: decoded,
+        isStarred: input.isStarred,
+      })
+    : await meetingsRepo.listByWorkspace({
+        workspaceId: input.workspaceId,
+        userId: input.userId,
+        userEmail: input.userEmail,
+        take: pageSize + 1,
+        cursor: decoded,
+        isStarred: input.isStarred,
+        isCreatedByMe: input.isCreatedByMe,
+      })
 
   const hasMore = rows.length > pageSize
   const page = hasMore ? rows.slice(0, pageSize) : rows
