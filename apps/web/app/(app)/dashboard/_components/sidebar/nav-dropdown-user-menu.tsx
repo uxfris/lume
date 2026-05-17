@@ -38,13 +38,7 @@ import { useRouter } from "next/navigation"
 import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
 import { routes } from "@/lib/routes"
 import Link from "next/link"
-
-function getInitial(name?: string): string {
-  if (name) {
-    return name.trim().charAt(0).toUpperCase() || "W"
-  }
-  return "W"
-}
+import { getInitial } from "@/lib/get-initial"
 
 export function DropdownUserMenu({ className }: { className?: string }) {
   const { theme, setTheme } = useTheme()
@@ -66,8 +60,13 @@ export function DropdownUserMenu({ className }: { className?: string }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <SidebarMenuButton className="hover: w-8 items-center justify-center rounded-full bg-primary hover:bg-primary">
-          <Avatar className={cn("size-5", className)}>
+        <SidebarMenuButton className="w-8 items-center justify-center rounded-full bg-primary p-0 hover:bg-primary">
+          <Avatar
+            className={cn(
+              "flex size-5 h-full w-full items-center justify-center bg-primary",
+              className
+            )}
+          >
             {session?.user.image && <AvatarImage src={session?.user.image} />}
             <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">
               {getInitial(session?.user.name)}
