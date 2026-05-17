@@ -10,11 +10,16 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@workspace/ui/lib/utils"
 import {
-  sections,
+  createSidebarSections,
   SidebarItem,
   SidebarSection,
 } from "../people/_lib/sidebar-data"
 import { routes } from "@/lib/routes"
+import { authClient } from "@/lib/auth-client"
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
+import { useWorkspacesQuery } from "../workspace/_hooks/queries/use-workpsace-query"
+import { getInitial } from "@/lib/get-initial"
+import { useMemo } from "react"
 
 // --- matching logic ---
 function isActivePath(pathname: string, href: string, exact?: boolean) {
@@ -57,7 +62,7 @@ function SidebarItemRow({
       >
         {item.avatar ? (
           <Avatar size="sm">
-            <AvatarImage src={item.avatar.src} />
+            {item.avatar.src ? <AvatarImage src={item.avatar.src} /> : null}
             <AvatarFallback className="rounded-md bg-primary text-primary-foreground">
               {item.avatar.fallback}
             </AvatarFallback>
@@ -100,7 +105,7 @@ function SidebarSectionBlock({
         <ul className="space-y-1">
           {section.items.map((item) => (
             <SidebarItemRow
-              key={item.label}
+              key={item.href}
               item={item}
               pathname={pathname}
               isLayout={isLayout}
@@ -114,6 +119,19 @@ function SidebarSectionBlock({
 
 export function SettingSidebar({ isLayout = true }: { isLayout?: boolean }) {
   const pathname = usePathname()
+  const { workspaceId } = useCurrentWorkspace()
+  const { activeWorkspace } = useWorkspacesQuery({ workspaceId })
+  const { data: session } = authClient.useSession()
+
+  const sections = useMemo(
+    () =>
+      createSidebarSections({
+        workspaceName: activeWorkspace?.name ?? "Workspace",
+        workspaceFallback: getInitial(activeWorkspace?.name),
+        accountName: session?.user.name ?? "Account",
+      }),
+    [activeWorkspace?.name, session?.user.name]
+  )
 
   return (
     <aside
