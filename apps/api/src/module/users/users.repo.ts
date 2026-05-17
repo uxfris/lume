@@ -39,10 +39,14 @@ export const usersRepo = {
     })
   },
 
-  findUserEmail(userId: string) {
+  findUserDeletionState(userId: string) {
     return prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true },
+      select: {
+        email: true,
+        scheduledDeletionAt: true,
+        deletionReason: true,
+      },
     })
   },
 
@@ -78,36 +82,35 @@ export const usersRepo = {
     return soleOwnerWorkspaces
   },
 
-  listMembershipWorkspaceIds(userId: string) {
-    return prisma.workspaceMember.findMany({
-      where: { userId },
-      select: { workspaceId: true },
+  scheduleAccountDeletion(input: {
+    userId: string
+    scheduledDeletionAt: Date
+    deletionReason: string
+  }) {
+    return prisma.user.update({
+      where: { id: input.userId },
+      data: {
+        scheduledDeletionAt: input.scheduledDeletionAt,
+        deletionReason: input.deletionReason,
+        updatedAt: new Date(),
+      },
     })
   },
 
-  deleteMeetingsForUserInWorkspaces(userId: string, workspaceIds: string[]) {
-    if (workspaceIds.length === 0) return Promise.resolve({ count: 0 })
-    return prisma.meeting.deleteMany({
-      where: { userId, workspaceId: { in: workspaceIds } },
-    })
-  },
-
-  deleteChannelsCreatedByUser(userId: string) {
-    return prisma.channel.deleteMany({
-      where: { creatorId: userId },
-    })
-  },
-
-  deleteWorkspaces(workspaceIds: string[]) {
-    if (workspaceIds.length === 0) return Promise.resolve({ count: 0 })
-    return prisma.workspace.deleteMany({
-      where: { id: { in: workspaceIds } },
-    })
-  },
-
-  deleteUser(userId: string) {
-    return prisma.user.delete({
+  clearAccountDeletionSchedule(userId: string) {
+    return prisma.user.update({
       where: { id: userId },
+      data: {
+        scheduledDeletionAt: null,
+        deletionReason: null,
+        updatedAt: new Date(),
+      },
+    })
+  },
+
+  deleteAllSessions(userId: string) {
+    return prisma.session.deleteMany({
+      where: { userId },
     })
   },
 }

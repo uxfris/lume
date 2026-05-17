@@ -1,14 +1,12 @@
 "use client"
 
-import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
-import { authClient } from "@/lib/auth-client"
-import { routes } from "@/lib/routes"
+import { formatDateOnly } from "@/lib/date-format"
+const ACCOUNT_DELETION_GRACE_DAYS = 7
 import { Card, CardContent } from "@workspace/ui/components/card"
 import { Button } from "@workspace/ui/components/button"
 import { Spinner } from "@workspace/ui/components/spinner"
 import type { AccountDeletionReason } from "@workspace/types"
-import { useRouter } from "next/navigation"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { SettingSection } from "../../_components/setting-section"
 import { useAccountDeletionContext } from "../_hooks/use-account-deletion-context"
@@ -16,10 +14,15 @@ import { useDeleteAccountMutation } from "../_hooks/use-delete-account-mutation"
 import { ConfirmEmailDialog } from "./confirm-email-dialog"
 import { ConfirmWorkspaceDeletionDialog } from "./confirm-workspace-deletion-dialog"
 import { DeleteAccountDialog } from "./delete-account-dialog"
+import { PendingDeletionBanner } from "./pending-deletion-banner"
+
+function computePreviewDeletionDate(): string {
+  const date = new Date()
+  date.setDate(date.getDate() + ACCOUNT_DELETION_GRACE_DAYS)
+  return date.toISOString()
+}
 
 export function DeleteAccount() {
-  const router = useRouter()
-  const { setWorkspaceId } = useCurrentWorkspace()
   const [flowOpen, setFlowOpen] = useState(false)
   const [openWorkspace, setOpenWorkspace] = useState(false)
   const [openEmail, setOpenEmail] = useState(false)
@@ -32,11 +35,14 @@ export function DeleteAccount() {
   const [reason, setReason] = useState<AccountDeletionReason | null>(null)
 
   const { data: context, isLoading: isLoadingContext } =
-    useAccountDeletionContext(flowOpen)
+    useAccountDeletionContext(true)
   const deleteAccount = useDeleteAccountMutation()
+
+  const previewScheduledDeletionAt = useMemo(computePreviewDeletionDate, [])
 
   const soleOwnerWorkspaces = context?.soleOwnerWorkspaces ?? []
   const currentWorkspace = soleOwnerWorkspaces[workspaceStepIndex]
+  const isPendingDeletion = Boolean(context?.scheduledDeletionAt)
 
   const resetFlow = useCallback(() => {
     setFlowOpen(false)
@@ -50,6 +56,7 @@ export function DeleteAccount() {
   }, [])
 
   const startDeletionFlow = () => {
+    if (isPendingDeletion) return
     setFlowOpen(true)
     setWorkspaceStepIndex(0)
     setWorkspaceConfirmations({})
@@ -108,23 +115,16 @@ export function DeleteAccount() {
     )
 
     try {
-      await deleteAccount.mutateAsync({
+      const result = await deleteAccount.mutateAsync({
         email: emailConfirmation,
         confirmedWorkspaceNames,
         reason,
       })
 
       resetFlow()
-      toast.success("Your account has been deleted")
-
-      await authClient.signOut({
-        fetchOptions: {
-          onSuccess: () => {
-            setWorkspaceId(null)
-            router.push(routes.authentication)
-          },
-        },
-      })
+      toast.success(
+        `Account deletion scheduled for ${formatDateOnly(result.scheduledDeletionAt)}`
+      )
     } catch {
       // Mutation meta surfaces API errors via the global handler.
     }
@@ -132,17 +132,27 @@ export function DeleteAccount() {
 
   return (
     <Card className="py-2">
+      {isPendingDeletion && context?.scheduledDeletionAt && (
+        <PendingDeletionBanner
+          email={context.email}
+          scheduledDeletionAt={context.scheduledDeletionAt}
+        />
+      )}
       <CardContent className="px-5">
         <SettingSection
           title="Delete account"
-          description="Permanently delete your Sidereal account. This cannot be undone."
+          description={
+            isPendingDeletion
+              ? "Your account is scheduled for deletion. You can cancel before the grace period ends."
+              : `Permanently delete your Sidereal account after a ${ACCOUNT_DELETION_GRACE_DAYS}-day grace period.`
+          }
           borderBottom={false}
         >
           <span className="flex justify-end">
             <Button
               variant="destructive"
               onClick={startDeletionFlow}
-              disabled={isLoadingContext && flowOpen}
+              disabled={isPendingDeletion || (isLoadingContext && flowOpen)}
             >
               {isLoadingContext && flowOpen ? <Spinner /> : "Delete account"}
             </Button>
@@ -189,6 +199,7 @@ export function DeleteAccount() {
           setOpenDelete(open)
           if (!open) resetFlow()
         }}
+        scheduledDeletionAt={previewScheduledDeletionAt}
         reason={reason}
         onReasonChange={setReason}
         onDelete={onDelete}

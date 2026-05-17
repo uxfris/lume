@@ -1,5 +1,7 @@
 "use client"
 
+import { ClockCircle } from "@solar-icons/react"
+import { formatDateOnly } from "@/lib/date-format"
 import { Button } from "@workspace/ui/components/button"
 import {
   Dialog,
@@ -34,6 +36,7 @@ const REASONS: { value: AccountDeletionReason; name: string }[] = [
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
+  scheduledDeletionAt: string
   reason: AccountDeletionReason | null
   onReasonChange: (reason: AccountDeletionReason) => void
   onDelete: () => void
@@ -43,6 +46,7 @@ type Props = {
 export function DeleteAccountDialog({
   open,
   onOpenChange,
+  scheduledDeletionAt,
   reason,
   onReasonChange,
   onDelete,
@@ -54,9 +58,20 @@ export function DeleteAccountDialog({
         <DialogHeader>
           <DialogTitle>Delete your account</DialogTitle>
           <DialogDescription>
-            This action is permanent and cannot be undone.
+            Your account will be scheduled for permanent deletion after a 7-day
+            grace period.
           </DialogDescription>
         </DialogHeader>
+        <div className="flex items-center gap-2 rounded-md bg-secondary p-4">
+          <ClockCircle />
+          <span className="text-sm">
+            Deletion will be scheduled for{" "}
+            <span className="font-semibold">
+              {formatDateOnly(scheduledDeletionAt)}
+            </span>
+            .
+          </span>
+        </div>
         <div className="space-y-2 rounded-md border border-destructive bg-destructive/30 p-4">
           <h2 className="text-base font-medium text-destructive">
             This will permanently delete:
@@ -105,7 +120,7 @@ export function DeleteAccountDialog({
             className="flex-1"
             disabled={!reason || isPending}
           >
-            {isPending ? <Spinner /> : "Delete account"}
+            {isPending ? <Spinner /> : "Schedule deletion"}
           </Button>
         </DialogFooter>
       </DialogContent>

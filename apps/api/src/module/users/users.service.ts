@@ -1,9 +1,6 @@
 import type { AccountDeletionReason } from "@workspace/types"
+import { computeScheduledDeletionAt } from "@workspace/account-deletion"
 import { ensurePersonalWorkspace } from "@workspace/auth"
-import { DeleteObjectCommand } from "@aws-sdk/client-s3"
-import { env } from "../../config/env"
-import { getStripe } from "../../lib/stripe"
-import { s3 } from "../../lib/s3"
 import {
   buildUserAvatarKey,
   createPresignedAvatarUpload,
@@ -13,6 +10,10 @@ import {
   buildUserAvatarApiPath,
   resolveUserImageUrl,
 } from "../../lib/user-avatar"
+import {
+  enqueueAccountDeletionJob,
+  removeAccountDeletionJob,
+} from "../../lib/account-deletion-queue"
 import { usersRepo } from "./users.repo"
 
 type SessionUser = {
@@ -160,7 +161,7 @@ function normalizeWorkspaceName(name: string): string {
 
 export async function getAccountDeletionContext(userId: string) {
   const [user, soleOwnerWorkspaces] = await Promise.all([
-    usersRepo.findUserEmail(userId),
+    usersRepo.findUserDeletionState(userId),
     usersRepo.listSoleOwnerWorkspaces(userId),
   ])
 
@@ -172,44 +173,32 @@ export async function getAccountDeletionContext(userId: string) {
     ok: true as const,
     context: {
       email: user.email,
-      soleOwnerWorkspaces,
+      soleOwnerWorkspaces: soleOwnerWorkspaces.map(({ id, name }) => ({
+        id,
+        name,
+      })),
+      scheduledDeletionAt: user.scheduledDeletionAt?.toISOString() ?? null,
     },
   }
 }
 
-async function cancelWorkspaceStripeSubscription(stripeSubscriptionId: string) {
-  const stripe = getStripe()
-  if (!stripe) return
-
-  try {
-    await stripe.subscriptions.cancel(stripeSubscriptionId)
-  } catch {
-    // Best-effort: workspace row is removed even if Stripe is unreachable.
-  }
-}
-
-async function deleteUserAvatarFromS3(userId: string) {
-  try {
-    await s3.send(
-      new DeleteObjectCommand({
-        Bucket: env.S3_BUCKET,
-        Key: buildUserAvatarKey(userId),
-      })
-    )
-  } catch {
-    // Avatar may not exist.
-  }
-}
-
-export async function deleteAccount(input: {
+export async function scheduleAccountDeletion(input: {
   userId: string
   email: string
   confirmedWorkspaceNames: string[]
-  reason?: AccountDeletionReason
+  reason: AccountDeletionReason
 }) {
-  const user = await usersRepo.findUserEmail(input.userId)
+  const user = await usersRepo.findUserDeletionState(input.userId)
   if (!user) {
     return { ok: false as const, error: "USER_NOT_FOUND" as const }
+  }
+
+  if (user.scheduledDeletionAt) {
+    return {
+      ok: false as const,
+      error: "ALREADY_SCHEDULED" as const,
+      scheduledDeletionAt: user.scheduledDeletionAt.toISOString(),
+    }
   }
 
   if (normalizeEmail(input.email) !== normalizeEmail(user.email)) {
@@ -233,31 +222,40 @@ export async function deleteAccount(input: {
     }
   }
 
-  const soleOwnerWorkspaceIds = new Set(
-    soleOwnerWorkspaces.map((workspace) => workspace.id)
-  )
-  const memberships = await usersRepo.listMembershipWorkspaceIds(input.userId)
-  const sharedWorkspaceIds = memberships
-    .map((membership) => membership.workspaceId)
-    .filter((workspaceId) => !soleOwnerWorkspaceIds.has(workspaceId))
+  const scheduledDeletionAt = computeScheduledDeletionAt()
 
-  for (const workspace of soleOwnerWorkspaces) {
-    if (workspace.stripeSubscriptionId) {
-      await cancelWorkspaceStripeSubscription(workspace.stripeSubscriptionId)
-    }
-  }
-
-  await usersRepo.deleteMeetingsForUserInWorkspaces(
-    input.userId,
-    sharedWorkspaceIds
-  )
-  await usersRepo.deleteChannelsCreatedByUser(input.userId)
-  await usersRepo.deleteWorkspaces([...soleOwnerWorkspaceIds])
-  await deleteUserAvatarFromS3(input.userId)
-  await usersRepo.deleteUser(input.userId)
+  await usersRepo.scheduleAccountDeletion({
+    userId: input.userId,
+    scheduledDeletionAt,
+    deletionReason: input.reason,
+  })
+  await enqueueAccountDeletionJob(input.userId)
 
   return {
     ok: true as const,
-    reason: input.reason ?? null,
+    scheduledDeletionAt: scheduledDeletionAt.toISOString(),
   }
+}
+
+export async function cancelAccountDeletion(input: {
+  userId: string
+  email: string
+}) {
+  const user = await usersRepo.findUserDeletionState(input.userId)
+  if (!user) {
+    return { ok: false as const, error: "USER_NOT_FOUND" as const }
+  }
+
+  if (!user.scheduledDeletionAt) {
+    return { ok: false as const, error: "NOT_SCHEDULED" as const }
+  }
+
+  if (normalizeEmail(input.email) !== normalizeEmail(user.email)) {
+    return { ok: false as const, error: "EMAIL_MISMATCH" as const }
+  }
+
+  await usersRepo.clearAccountDeletionSchedule(input.userId)
+  await removeAccountDeletionJob(input.userId)
+
+  return { ok: true as const }
 }

@@ -71,6 +71,9 @@ importers:
       '@sentry/node':
         specifier: ^10.52.0
         version: 10.52.0
+      '@workspace/account-deletion':
+        specifier: workspace:*
+        version: link:../../packages/account-deletion
       '@workspace/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -235,6 +238,9 @@ importers:
       '@sentry/node':
         specifier: ^10.52.0
         version: 10.52.0
+      '@workspace/account-deletion':
+        specifier: workspace:*
+        version: link:../../packages/account-deletion
       '@workspace/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -278,6 +284,18 @@ importers:
       vitest:
         specifier: ^4.1.5
         version: 4.1.5(@opentelemetry/api@1.9.1)(@types/node@25.2.3)(@vitest/coverage-v8@4.1.5)(jsdom@29.0.1(@noble/hashes@2.2.0))(msw@2.12.14(@types/node@25.2.3)(typescript@5.9.3))(vite@8.0.11(@types/node@25.2.3)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  packages/account-deletion:
+    dependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.1031.0
+        version: 3.1031.0
+      '@workspace/database':
+        specifier: workspace:*
+        version: link:../database
+      stripe:
+        specifier: ^22.1.1
+        version: 22.1.1(@types/node@25.6.0)
 
   packages/api-client:
     dependencies:
@@ -15182,6 +15200,10 @@ snapshots:
   stripe@22.1.1(@types/node@25.2.3):
     optionalDependencies:
       '@types/node': 25.2.3
+
+  stripe@22.1.1(@types/node@25.6.0):
+    optionalDependencies:
+      '@types/node': 25.6.0
 
   strnum@2.2.3: {}
 

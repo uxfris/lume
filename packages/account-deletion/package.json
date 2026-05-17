@@ -1,0 +1,14 @@
+{
+  "name": "@workspace/account-deletion",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1031.0",
+    "@workspace/database": "workspace:*",
+    "stripe": "^22.1.1"
+  }
+}

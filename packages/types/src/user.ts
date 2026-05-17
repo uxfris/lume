@@ -65,6 +65,7 @@ export const AccountDeletionContextSchema = z.object({
       name: z.string(),
     })
   ),
+  scheduledDeletionAt: z.iso.datetime().nullable(),
 })
 export type AccountDeletionContext = z.infer<
   typeof AccountDeletionContextSchema
@@ -73,6 +74,20 @@ export type AccountDeletionContext = z.infer<
 export const DeleteAccountBodySchema = z.object({
   email: z.email(),
   confirmedWorkspaceNames: z.array(z.string()).default([]),
-  reason: AccountDeletionReasonSchema.optional(),
+  reason: AccountDeletionReasonSchema,
 })
 export type DeleteAccountBody = z.infer<typeof DeleteAccountBodySchema>
+
+export const ScheduleAccountDeletionResponseSchema = z.object({
+  scheduledDeletionAt: z.iso.datetime(),
+})
+export type ScheduleAccountDeletionResponse = z.infer<
+  typeof ScheduleAccountDeletionResponseSchema
+>
+
+export const CancelAccountDeletionBodySchema = z.object({
+  email: z.email(),
+})
+export type CancelAccountDeletionBody = z.infer<
+  typeof CancelAccountDeletionBodySchema
+>

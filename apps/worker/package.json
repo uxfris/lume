@@ -15,6 +15,7 @@
     "@aws-sdk/client-s3": "^3.940.0",
     "@aws-sdk/s3-request-presigner": "^3.940.0",
     "@sentry/node": "^10.52.0",
+    "@workspace/account-deletion": "workspace:*",
     "@workspace/database": "workspace:*",
     "@workspace/queue": "workspace:*",
     "bullmq": "^5.76.1",

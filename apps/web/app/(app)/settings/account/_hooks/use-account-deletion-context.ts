@@ -1,6 +1,10 @@
 import { useQuery, UseQueryResult } from "@tanstack/react-query"
 import { accountApi } from "@workspace/api-client"
 
+export const accountDeletionKeys = {
+  context: ["account", "deletion-context"] as const,
+}
+
 type AccountDeletionContext = Awaited<
   ReturnType<typeof accountApi.getDeletionContext>
 >

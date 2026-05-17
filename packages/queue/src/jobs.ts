@@ -17,6 +17,8 @@ export const QueueName = {
    * Whisper + pyannote pipeline by going straight to `analyze`.
    */
   ImportBotTranscript: "import-bot-transcript",
+  /** Executes a scheduled account deletion after the grace period. */
+  DeleteAccount: "delete-account",
 } as const
 
 export type QueueName = (typeof QueueName)[keyof typeof QueueName]
@@ -69,12 +71,18 @@ export interface ImportBotTranscriptJobPayload {
   traceId?: string
 }
 
+export interface DeleteAccountJobPayload {
+  userId: string
+  traceId?: string
+}
+
 export interface JobPayloadMap {
   [QueueName.Transcribe]: TranscribeJobPayload
   [QueueName.Diarize]: DiarizeJobPayload
   [QueueName.Analyze]: AnalyzeJobPayload
   [QueueName.Embed]: EmbedJobPayload
   [QueueName.ImportBotTranscript]: ImportBotTranscriptJobPayload
+  [QueueName.DeleteAccount]: DeleteAccountJobPayload
 }
 
 export type JobNameFor<Q extends QueueName> =
@@ -88,4 +96,6 @@ export type JobNameFor<Q extends QueueName> =
           ? "embed"
           : Q extends typeof QueueName.ImportBotTranscript
             ? "import-bot-transcript"
-            : never
+            : Q extends typeof QueueName.DeleteAccount
+              ? "execute"
+              : never

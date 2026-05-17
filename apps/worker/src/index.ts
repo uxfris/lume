@@ -19,6 +19,8 @@ import { diarizeHandler } from "./handlers/diarize"
 import { analyzeHandler } from "./handlers/analyze"
 import { embedHandler } from "./handlers/embed"
 import { importBotTranscriptHandler } from "./handlers/import-bot-transcript"
+import { deleteAccountHandler } from "./handlers/delete-account"
+import { sweepDueAccountDeletions } from "./lib/account-deletion-sweeper"
 
 const healthServer = startHealthServer(env.WORKER_HEALTH_PORT)
 
@@ -29,6 +31,11 @@ const embedWorker = createWorker(QueueName.Embed, embedHandler)
 const importBotTranscriptWorker = createWorker(
   QueueName.ImportBotTranscript,
   importBotTranscriptHandler
+)
+const deleteAccountWorker = createWorker(
+  QueueName.DeleteAccount,
+  deleteAccountHandler,
+  { concurrency: 1 }
 )
 
 transcribeWorker.on("ready", () => {
@@ -45,6 +52,9 @@ embedWorker.on("ready", () => {
 })
 importBotTranscriptWorker.on("ready", () => {
   logger.info({ queue: QueueName.ImportBotTranscript }, "worker ready")
+})
+deleteAccountWorker.on("ready", () => {
+  logger.info({ queue: QueueName.DeleteAccount }, "worker ready")
 })
 
 function reportFailedJob(queue: string, job: { id?: string } | undefined, err: Error) {
@@ -70,6 +80,16 @@ embedWorker.on("failed", (job, err) =>
 importBotTranscriptWorker.on("failed", (job, err) =>
   reportFailedJob(QueueName.ImportBotTranscript, job, err as Error)
 )
+deleteAccountWorker.on("failed", (job, err) =>
+  reportFailedJob(QueueName.DeleteAccount, job, err as Error)
+)
+
+const ACCOUNT_DELETION_SWEEP_MS = 60 * 60 * 1000
+const accountDeletionSweepTimer = setInterval(() => {
+  void sweepDueAccountDeletions()
+}, ACCOUNT_DELETION_SWEEP_MS)
+
+void sweepDueAccountDeletions()
 
 logger.info("worker online")
 
@@ -82,6 +102,8 @@ async function shutdown(signal: string) {
     await analyzeWorker.close()
     await embedWorker.close()
     await importBotTranscriptWorker.close()
+    await deleteAccountWorker.close()
+    clearInterval(accountDeletionSweepTimer)
     await closeAllQueues()
     await closeRedisConnection()
     // Flush in-flight Sentry events before exiting (otherwise we lose the

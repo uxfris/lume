@@ -1,21 +1,29 @@
-import { useMutation, type UseMutationResult } from "@tanstack/react-query"
+import { useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query"
 
 import { accountApi } from "@workspace/api-client"
+import { accountDeletionKeys } from "./use-account-deletion-context"
 import type { ApiError } from "@workspace/api-client"
-import type { AccountDeletionReason, DeleteAccountBody } from "@workspace/types"
-
-type DeleteAccountResponse = Awaited<
-  ReturnType<typeof accountApi.deleteAccount>
->
+import type {
+  AccountDeletionReason,
+  DeleteAccountBody,
+  ScheduleAccountDeletionResponse,
+} from "@workspace/types"
 
 export function useDeleteAccountMutation(): UseMutationResult<
-  DeleteAccountResponse,
+  ScheduleAccountDeletionResponse,
   ApiError,
   DeleteAccountBody
 > {
-  return useMutation({
-    mutationFn: (body: DeleteAccountBody) => accountApi.deleteAccount(body),
+  const queryClient = useQueryClient()
 
+  return useMutation({
+    mutationFn: (body: DeleteAccountBody) =>
+      accountApi.scheduleAccountDeletion(body),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: accountDeletionKeys.context,
+      })
+    },
     meta: {
       getErrorMessage: (error: ApiError) => {
         if (error.detail?.includes("EMAIL_MISMATCH")) {
@@ -26,7 +34,13 @@ export function useDeleteAccountMutation(): UseMutationResult<
           return "Workspace name does not match."
         }
 
-        return error.detail || error.title || "Failed to delete account"
+        if (error.detail?.includes("ALREADY_SCHEDULED")) {
+          return "Account deletion is already scheduled."
+        }
+
+        return (
+          error.detail || error.title || "Failed to schedule account deletion"
+        )
       },
     },
   })

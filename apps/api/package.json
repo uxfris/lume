@@ -27,6 +27,7 @@
     "@fastify/swagger-ui": "^5.2.5",
     "@fastify/under-pressure": "^9.0.3",
     "@sentry/node": "^10.52.0",
+    "@workspace/account-deletion": "workspace:*",
     "@workspace/auth": "workspace:*",
     "@workspace/database": "workspace:*",
     "@workspace/queue": "workspace:*",

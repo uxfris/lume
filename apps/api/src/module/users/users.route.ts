@@ -2,28 +2,20 @@ import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod"
 import { z } from "zod"
 import {
   accountDeletionContextSchema,
+  avatarErrorSchema,
+  cancelAccountDeletionBodySchema,
   deleteAccountBodySchema,
+  deleteAccountErrorSchema,
   getMeResponseSchema,
+  scheduleAccountDeletionResponseSchema,
   presignAvatarBodySchema,
   presignAvatarResponseSchema,
   updateUserBodySchema,
   updateUserResponseSchema,
+  userIdParamsSchema,
 } from "./users.schema"
 import * as usersService from "./users.service"
 import { streamUserAvatar } from "../../lib/user-avatar"
-
-const avatarErrorSchema = z.object({
-  error: z.string(),
-})
-
-const deleteAccountErrorSchema = z.object({
-  error: z.string(),
-  workspaceName: z.string().optional(),
-})
-
-const userIdParamsSchema = z.object({
-  userId: z.string().min(1),
-})
 
 export const userRoute: FastifyPluginAsyncZod = async (app) => {
   app.get(
@@ -85,17 +77,18 @@ export const userRoute: FastifyPluginAsyncZod = async (app) => {
       },
       schema: {
         tags: ["Users"],
-        summary: "Permanently delete the current user account",
+        summary: "Schedule permanent deletion of the current user account",
         body: deleteAccountBodySchema,
         response: {
-          204: z.null(),
+          200: scheduleAccountDeletionResponseSchema,
           400: deleteAccountErrorSchema,
           404: deleteAccountErrorSchema,
+          409: deleteAccountErrorSchema,
         },
       },
     },
     async (request, reply) => {
-      const result = await usersService.deleteAccount({
+      const result = await usersService.scheduleAccountDeletion({
         userId: request.user!.id,
         email: request.body.email,
         confirmedWorkspaceNames: request.body.confirmedWorkspaceNames,
@@ -105,6 +98,12 @@ export const userRoute: FastifyPluginAsyncZod = async (app) => {
       if (!result.ok) {
         if (result.error === "USER_NOT_FOUND") {
           return reply.status(404).send({ error: result.error })
+        }
+        if (result.error === "ALREADY_SCHEDULED") {
+          return reply.status(409).send({
+            error: result.error,
+            scheduledDeletionAt: result.scheduledDeletionAt,
+          })
         }
         if (result.error === "EMAIL_MISMATCH") {
           return reply.status(400).send({ error: result.error })
@@ -116,6 +115,51 @@ export const userRoute: FastifyPluginAsyncZod = async (app) => {
           })
         }
         return reply.status(400).send({ error: "DELETE_ACCOUNT_FAILED" })
+      }
+
+      return { scheduledDeletionAt: result.scheduledDeletionAt }
+    }
+  )
+
+  app.post(
+    "/me/delete/cancel",
+    {
+      preHandler: [app.verifySession],
+      config: {
+        rateLimit: {
+          max: 10,
+          timeWindow: "1 hour",
+          keyGenerator: (request) => request.user?.id ?? request.ip,
+        },
+      },
+      schema: {
+        tags: ["Users"],
+        summary: "Cancel a scheduled account deletion",
+        body: cancelAccountDeletionBodySchema,
+        response: {
+          204: z.null(),
+          400: deleteAccountErrorSchema,
+          404: deleteAccountErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await usersService.cancelAccountDeletion({
+        userId: request.user!.id,
+        email: request.body.email,
+      })
+
+      if (!result.ok) {
+        if (result.error === "USER_NOT_FOUND") {
+          return reply.status(404).send({ error: result.error })
+        }
+        if (result.error === "NOT_SCHEDULED") {
+          return reply.status(400).send({ error: result.error })
+        }
+        if (result.error === "EMAIL_MISMATCH") {
+          return reply.status(400).send({ error: result.error })
+        }
+        return reply.status(400).send({ error: "CANCEL_DELETION_FAILED" })
       }
 
       return reply.status(204).send(null)

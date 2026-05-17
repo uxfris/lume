@@ -1,8 +1,11 @@
 import {
   AccountDeletionContextSchema,
   CurrentUserSchema,
+  ScheduleAccountDeletionResponseSchema,
   type AccountDeletionContext,
+  type CancelAccountDeletionBody,
   type DeleteAccountBody,
+  type ScheduleAccountDeletionResponse,
   PresignAvatarBody,
   PresignAvatarResponseSchema,
   type CurrentUser,
@@ -39,10 +42,18 @@ export const accountApi = {
     return AccountDeletionContextSchema.parse(data)
   },
 
-  async deleteAccount(
+  async scheduleAccountDeletion(
     body: DeleteAccountBody,
     options?: RequestOptions
+  ): Promise<ScheduleAccountDeletionResponse> {
+    const data = await client.post<unknown>("/users/me/delete", body, options)
+    return ScheduleAccountDeletionResponseSchema.parse(data)
+  },
+
+  async cancelAccountDeletion(
+    body: CancelAccountDeletionBody,
+    options?: RequestOptions
   ): Promise<void> {
-    await client.post<unknown>("/users/me/delete", body, options)
+    await client.post<unknown>("/users/me/delete/cancel", body, options)
   },
 }

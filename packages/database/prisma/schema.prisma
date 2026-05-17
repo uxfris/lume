@@ -25,6 +25,14 @@ model User {
   image         String?
   createdAt     DateTime
   updatedAt     DateTime
+  /**
+   * When set, the account is scheduled for permanent deletion at this time.
+   */
+  scheduledDeletionAt DateTime?
+  /**
+   * Reason provided when the user requested account deletion.
+   */
+  deletionReason      String?
 
   sessions                  Session[]
   accounts                  Account[]
@@ -42,6 +50,7 @@ model User {
 
   @@unique([email])
   @@index([id])
+  @@index([scheduledDeletionAt])
   @@map("user")
 }
 
