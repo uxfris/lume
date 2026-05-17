@@ -65,7 +65,8 @@ export function PushNotificationSetting() {
     )
   }
 
-  const categoryDisabled = !preferences.pushEnabled || updatePreferences.isPending
+  const categoryDisabled =
+    !preferences.pushEnabled || updatePreferences.isPending
 
   return (
     <Card className="py-2">
@@ -87,15 +88,17 @@ export function PushNotificationSetting() {
             <Switch
               checked={preferences.pushEnabled}
               disabled={updatePreferences.isPending}
-              onCheckedChange={(checked) => handleToggle("pushEnabled", checked)}
+              onCheckedChange={(checked) =>
+                handleToggle("pushEnabled", checked)
+              }
             />
           </SettingSection>
-          {PREFERENCE_ROWS.map((row) => (
+          {PREFERENCE_ROWS.map((row, index) => (
             <SettingSection
               key={row.key}
               title={row.title}
               description={row.description}
-              borderBottom={false}
+              borderBottom={index !== PREFERENCE_ROWS.length - 1}
               childrenWidth="w-9"
               className="flex-row items-start"
               isChild
