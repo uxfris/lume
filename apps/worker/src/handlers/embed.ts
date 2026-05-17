@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 import type { Job } from "bullmq"
-import { Prisma, prisma } from "@workspace/database"
+import { deliverUserNotification, Prisma, prisma } from "@workspace/database"
 import type { MeetingStatus } from "@workspace/database"
 import { QueueName, type EmbedJobPayload } from "@workspace/queue"
 import { logger } from "../logger"
@@ -26,12 +26,21 @@ export async function embedHandler(
   try {
     type MeetingEmbedRow = {
       id: string
+      userId: string
+      title: string
       status: MeetingStatus
       summary: Prisma.JsonValue | null
     }
 
     const meeting = (await prisma.meeting.findFirst({
       where: { id: meetingId, workspaceId },
+      select: {
+        id: true,
+        userId: true,
+        title: true,
+        status: true,
+        summary: true,
+      },
     })) as MeetingEmbedRow | null
 
     if (!meeting || meeting.summary == null) {
@@ -124,6 +133,16 @@ export async function embedHandler(
         cost_usd: totalEmbedCost,
         chunkCount: windows.length,
       },
+    })
+
+    await deliverUserNotification({
+      userId: meeting.userId,
+      type: "MEETING_SUMMARY",
+      title: "Meeting summary ready",
+      body: `AI notes for "${meeting.title}" are ready to view.`,
+      href: `/meeting/${meetingId}`,
+    }).catch((err) => {
+      log.warn({ err }, "failed to deliver meeting summary notification")
     })
 
     log.info({ costUsd: totalEmbedCost, chunks: windows.length }, "embed job completed")

@@ -9,6 +9,7 @@ import type {
   MeetingGeneralAccess,
   MeetingShareRole,
 } from "@workspace/database"
+import { deliverUserNotification } from "@workspace/database"
 import { initialsFromName } from "./meetings.presenter"
 import { meetingShareRepo } from "./meeting-share.repo"
 import {
@@ -229,6 +230,22 @@ export async function inviteToMeeting(input: {
     })
 
     invited.push({ email, shareId: share.id })
+
+    if (
+      matchedUser?.id &&
+      matchedUser.id !== input.inviterUserId &&
+      email !== normalizeEmail(input.inviterEmail)
+    ) {
+      await deliverUserNotification({
+        userId: matchedUser.id,
+        type: "COLLABORATION",
+        title: "Meeting shared with you",
+        body: `${input.inviterName} invited you to "${meeting.title}".`,
+        href: `/meeting/${meeting.id}`,
+      }).catch(() => {
+        /* notification is best-effort */
+      })
+    }
 
     if (email !== normalizeEmail(input.inviterEmail)) {
       await sendMeetingShareInviteEmail({

@@ -1,11 +1,10 @@
 import {
-  SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from "@workspace/ui/components/sidebar"
 import { cn } from "@workspace/ui/lib/utils"
 import { DropdownUserMenu } from "./nav-dropdown-user-menu"
-import { Inbox } from "@solar-icons/react"
+import { NotificationInbox } from "./notification-inbox"
 
 export function NavUser() {
   const { state } = useSidebar()
@@ -17,12 +16,7 @@ export function NavUser() {
       )}
     >
       <DropdownUserMenu />
-      <SidebarMenuButton className="w-auto">
-        <div className="relative">
-          <Inbox size={16} />
-          <div className="absolute top-0 right-0 h-1.5 w-1.5 rounded-full bg-[#FF5252]" />
-        </div>
-      </SidebarMenuButton>
+      <NotificationInbox />
     </SidebarMenuItem>
   )
 }

@@ -4,6 +4,11 @@ export {
   transcribedMinutesFromDuration,
   recordTranscriptionBillingUsage,
 } from "./billing-usage";
+export {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  deliverUserNotification,
+  getOrCreateNotificationPreferences,
+} from "./notifications";
 export type { PrismaClient } from "@prisma/client";
 export type {
   Workspace,

@@ -16,6 +16,7 @@ import { calendarRoutes } from "../module/calendar/calendar.route"
 import { billingRoutes } from "../module/billing/billing.route"
 import { channelRoutes } from "../module/channels/channel.route"
 import { peopleRoutes } from "../module/people/people.route"
+import { notificationsRoutes } from "../module/notifications/notifications.route"
 
 export async function registerRoute(app: FastifyInstance) {
   await app.register(healthRoute)
@@ -33,4 +34,5 @@ export async function registerRoute(app: FastifyInstance) {
   await app.register(calendarRoutes, { prefix: "/calendar" })
   await app.register(billingRoutes, { prefix: "/billing" })
   await app.register(peopleRoutes, { prefix: "/people" })
+  await app.register(notificationsRoutes, { prefix: "/notifications" })
 }
