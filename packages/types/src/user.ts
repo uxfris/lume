@@ -44,3 +44,35 @@ export const PresignAvatarResponseSchema = z.object({
   expiresInSeconds: z.number().int().positive(),
 })
 export type PresignAvatarResponse = z.infer<typeof PresignAvatarResponseSchema>
+
+export const AccountDeletionReasonSchema = z.enum([
+  "not-useful",
+  "confusing",
+  "missing-features",
+  "too-expensive",
+  "privacy-concerns",
+  "switching-product",
+  "duplicate-account",
+  "other",
+])
+export type AccountDeletionReason = z.infer<typeof AccountDeletionReasonSchema>
+
+export const AccountDeletionContextSchema = z.object({
+  email: z.email(),
+  soleOwnerWorkspaces: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+    })
+  ),
+})
+export type AccountDeletionContext = z.infer<
+  typeof AccountDeletionContextSchema
+>
+
+export const DeleteAccountBodySchema = z.object({
+  email: z.email(),
+  confirmedWorkspaceNames: z.array(z.string()).default([]),
+  reason: AccountDeletionReasonSchema.optional(),
+})
+export type DeleteAccountBody = z.infer<typeof DeleteAccountBodySchema>

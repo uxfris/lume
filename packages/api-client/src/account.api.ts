@@ -1,5 +1,8 @@
 import {
+  AccountDeletionContextSchema,
   CurrentUserSchema,
+  type AccountDeletionContext,
+  type DeleteAccountBody,
   PresignAvatarBody,
   PresignAvatarResponseSchema,
   type CurrentUser,
@@ -27,5 +30,19 @@ export const accountApi = {
   async completeAvatar(options?: RequestOptions): Promise<CurrentUser> {
     const data = await client.post<unknown>("/users/avatar/complete", {}, options)
     return CurrentUserSchema.parse(data)
+  },
+
+  async getDeletionContext(
+    options?: RequestOptions
+  ): Promise<AccountDeletionContext> {
+    const data = await client.get<unknown>("/users/me/deletion-context", options)
+    return AccountDeletionContextSchema.parse(data)
+  },
+
+  async deleteAccount(
+    body: DeleteAccountBody,
+    options?: RequestOptions
+  ): Promise<void> {
+    await client.post<unknown>("/users/me/delete", body, options)
   },
 }

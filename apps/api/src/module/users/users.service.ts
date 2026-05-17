@@ -1,4 +1,9 @@
+import type { AccountDeletionReason } from "@workspace/types"
 import { ensurePersonalWorkspace } from "@workspace/auth"
+import { DeleteObjectCommand } from "@aws-sdk/client-s3"
+import { env } from "../../config/env"
+import { getStripe } from "../../lib/stripe"
+import { s3 } from "../../lib/s3"
 import {
   buildUserAvatarKey,
   createPresignedAvatarUpload,
@@ -143,4 +148,116 @@ export async function completeAvatar(input: { userId: string }) {
   })
 
   return { ok: true as const, user: toCurrentUser(user) }
+}
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase()
+}
+
+function normalizeWorkspaceName(name: string): string {
+  return name.trim()
+}
+
+export async function getAccountDeletionContext(userId: string) {
+  const [user, soleOwnerWorkspaces] = await Promise.all([
+    usersRepo.findUserEmail(userId),
+    usersRepo.listSoleOwnerWorkspaces(userId),
+  ])
+
+  if (!user) {
+    return { ok: false as const, error: "USER_NOT_FOUND" as const }
+  }
+
+  return {
+    ok: true as const,
+    context: {
+      email: user.email,
+      soleOwnerWorkspaces,
+    },
+  }
+}
+
+async function cancelWorkspaceStripeSubscription(stripeSubscriptionId: string) {
+  const stripe = getStripe()
+  if (!stripe) return
+
+  try {
+    await stripe.subscriptions.cancel(stripeSubscriptionId)
+  } catch {
+    // Best-effort: workspace row is removed even if Stripe is unreachable.
+  }
+}
+
+async function deleteUserAvatarFromS3(userId: string) {
+  try {
+    await s3.send(
+      new DeleteObjectCommand({
+        Bucket: env.S3_BUCKET,
+        Key: buildUserAvatarKey(userId),
+      })
+    )
+  } catch {
+    // Avatar may not exist.
+  }
+}
+
+export async function deleteAccount(input: {
+  userId: string
+  email: string
+  confirmedWorkspaceNames: string[]
+  reason?: AccountDeletionReason
+}) {
+  const user = await usersRepo.findUserEmail(input.userId)
+  if (!user) {
+    return { ok: false as const, error: "USER_NOT_FOUND" as const }
+  }
+
+  if (normalizeEmail(input.email) !== normalizeEmail(user.email)) {
+    return { ok: false as const, error: "EMAIL_MISMATCH" as const }
+  }
+
+  const soleOwnerWorkspaces = await usersRepo.listSoleOwnerWorkspaces(
+    input.userId
+  )
+  const confirmedNames = new Set(
+    input.confirmedWorkspaceNames.map(normalizeWorkspaceName)
+  )
+
+  for (const workspace of soleOwnerWorkspaces) {
+    if (!confirmedNames.has(normalizeWorkspaceName(workspace.name))) {
+      return {
+        ok: false as const,
+        error: "WORKSPACE_NAME_MISMATCH" as const,
+        workspaceName: workspace.name,
+      }
+    }
+  }
+
+  const soleOwnerWorkspaceIds = new Set(
+    soleOwnerWorkspaces.map((workspace) => workspace.id)
+  )
+  const memberships = await usersRepo.listMembershipWorkspaceIds(input.userId)
+  const sharedWorkspaceIds = memberships
+    .map((membership) => membership.workspaceId)
+    .filter((workspaceId) => !soleOwnerWorkspaceIds.has(workspaceId))
+
+  for (const workspace of soleOwnerWorkspaces) {
+    if (workspace.stripeSubscriptionId) {
+      await cancelWorkspaceStripeSubscription(workspace.stripeSubscriptionId)
+    }
+  }
+
+  await usersRepo.deleteMeetingsForUserInWorkspaces(
+    input.userId,
+    sharedWorkspaceIds
+  )
+  await usersRepo.deleteChannelsCreatedByUser(input.userId)
+  await usersRepo.deleteWorkspaces([...soleOwnerWorkspaceIds])
+  await deleteUserAvatarFromS3(input.userId)
+  await usersRepo.deleteUser(input.userId)
+
+  return {
+    ok: true as const,
+    reason: input.reason ?? null,
+  }
 }

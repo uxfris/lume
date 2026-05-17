@@ -4,4 +4,6 @@ export {
   UpdateUserResponseSchema as updateUserResponseSchema,
   PresignAvatarBodySchema as presignAvatarBodySchema,
   PresignAvatarResponseSchema as presignAvatarResponseSchema,
+  AccountDeletionContextSchema as accountDeletionContextSchema,
+  DeleteAccountBodySchema as deleteAccountBodySchema,
 } from "@workspace/types"

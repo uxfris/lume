@@ -1,6 +1,8 @@
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod"
 import { z } from "zod"
 import {
+  accountDeletionContextSchema,
+  deleteAccountBodySchema,
   getMeResponseSchema,
   presignAvatarBodySchema,
   presignAvatarResponseSchema,
@@ -12,6 +14,11 @@ import { streamUserAvatar } from "../../lib/user-avatar"
 
 const avatarErrorSchema = z.object({
   error: z.string(),
+})
+
+const deleteAccountErrorSchema = z.object({
+  error: z.string(),
+  workspaceName: z.string().optional(),
 })
 
 const userIdParamsSchema = z.object({
@@ -36,6 +43,82 @@ export const userRoute: FastifyPluginAsyncZod = async (app) => {
         user: request.user!,
         workspaceIdHeader: request.headers["x-workspace-id"],
       })
+    }
+  )
+
+  app.get(
+    "/me/deletion-context",
+    {
+      preHandler: [app.verifySession],
+      schema: {
+        tags: ["Users"],
+        summary: "Get data required to confirm account deletion",
+        response: {
+          200: accountDeletionContextSchema,
+          404: deleteAccountErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await usersService.getAccountDeletionContext(
+        request.user!.id
+      )
+
+      if (!result.ok) {
+        return reply.status(404).send({ error: result.error })
+      }
+
+      return result.context
+    }
+  )
+
+  app.post(
+    "/me/delete",
+    {
+      preHandler: [app.verifySession],
+      config: {
+        rateLimit: {
+          max: 5,
+          timeWindow: "1 hour",
+          keyGenerator: (request) => request.user?.id ?? request.ip,
+        },
+      },
+      schema: {
+        tags: ["Users"],
+        summary: "Permanently delete the current user account",
+        body: deleteAccountBodySchema,
+        response: {
+          204: z.null(),
+          400: deleteAccountErrorSchema,
+          404: deleteAccountErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await usersService.deleteAccount({
+        userId: request.user!.id,
+        email: request.body.email,
+        confirmedWorkspaceNames: request.body.confirmedWorkspaceNames,
+        reason: request.body.reason,
+      })
+
+      if (!result.ok) {
+        if (result.error === "USER_NOT_FOUND") {
+          return reply.status(404).send({ error: result.error })
+        }
+        if (result.error === "EMAIL_MISMATCH") {
+          return reply.status(400).send({ error: result.error })
+        }
+        if (result.error === "WORKSPACE_NAME_MISMATCH") {
+          return reply.status(400).send({
+            error: result.error,
+            workspaceName: result.workspaceName,
+          })
+        }
+        return reply.status(400).send({ error: "DELETE_ACCOUNT_FAILED" })
+      }
+
+      return reply.status(204).send(null)
     }
   )
 
