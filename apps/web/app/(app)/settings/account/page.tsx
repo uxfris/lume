@@ -22,7 +22,7 @@ export default function Account() {
         </CardContent>
       </Card>
       <PushNotificationSetting />
-      <TwoFactorAuthSetting />
+      {/* <TwoFactorAuthSetting /> */}
       <DeleteAccount />
     </div>
   )
