@@ -14,6 +14,39 @@ export function buildMeetingAudioKey(meetingId: string): string {
   return `meetings/${meetingId}/audio`
 }
 
+export function buildUserAvatarKey(userId: string): string {
+  return `users/${userId}/avatar`
+}
+
+export function buildPublicObjectUrl(key: string): string {
+  const base = env.S3_BASE_URL.replace(/\/$/, "")
+  return `${base}/${key}`
+}
+
+export async function createPresignedAvatarUpload(params: {
+  userId: string
+  contentType: string
+}) {
+  const key = buildUserAvatarKey(params.userId)
+
+  const command = new PutObjectCommand({
+    Bucket: env.S3_BUCKET,
+    Key: key,
+    ContentType: params.contentType,
+  })
+
+  const url = await getSignedUrl(s3, command, {
+    expiresIn: PRESIGN_TTL_SECONDS,
+  })
+
+  return {
+    key,
+    url,
+    imageUrl: buildPublicObjectUrl(key),
+    expiresInSeconds: PRESIGN_TTL_SECONDS,
+  }
+}
+
 export async function createPresignedAudioUpload(params: {
   meetingId: string
   fileType: string

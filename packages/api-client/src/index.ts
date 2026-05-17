@@ -1,4 +1,5 @@
 export * from "./client"
+export * from "./account.api"
 export * from "./billing.api"
 export * from "./bots.api"
 export * from "./channel.api"

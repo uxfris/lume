@@ -18,35 +18,41 @@ export type SidebarSection = {
   items: SidebarItem[]
 }
 
-export const sections: SidebarSection[] = [
-  {
-    title: "Workspace",
-    items: [
-      {
-        label: "Fris's Sidereal",
-        href: routes.settings.workspace,
-        avatar: { fallback: "F" },
-      },
-      {
-        label: "People",
-        href: routes.settings.people,
-        icon: <UsersGroupRounded />,
-      },
-      {
-        label: "Plans & credits",
-        href: routes.settings.billing,
-        icon: <Card />,
-      },
-    ],
-  },
-  {
-    title: "Account",
-    items: [
-      {
-        label: "Fris El",
-        href: routes.settings.account,
-        icon: <UserCircle />,
-      },
-    ],
-  },
-]
+export function createSidebarSections(input: {
+  workspaceName: string
+  workspaceFallback: string
+  accountName: string
+}): SidebarSection[] {
+  return [
+    {
+      title: "Workspace",
+      items: [
+        {
+          label: input.workspaceName,
+          href: routes.settings.workspace,
+          avatar: { fallback: input.workspaceFallback },
+        },
+        {
+          label: "People",
+          href: routes.settings.people,
+          icon: <UsersGroupRounded />,
+        },
+        {
+          label: "Plans & credits",
+          href: routes.settings.billing,
+          icon: <Card />,
+        },
+      ],
+    },
+    {
+      title: "Account",
+      items: [
+        {
+          label: input.accountName,
+          href: routes.settings.account,
+          icon: <UserCircle />,
+        },
+      ],
+    },
+  ]
+}

@@ -17,12 +17,12 @@ export function NavUser() {
       )}
     >
       <DropdownUserMenu />
-      {/* <SidebarMenuButton className="w-auto"> */}
-      {/* <div className="relative">
+      <SidebarMenuButton className="w-auto">
+        <div className="relative">
           <Inbox size={16} />
           <div className="absolute top-0 right-0 h-1.5 w-1.5 rounded-full bg-[#FF5252]" />
-        </div> */}
-      {/* </SidebarMenuButton> */}
+        </div>
+      </SidebarMenuButton>
     </SidebarMenuItem>
   )
 }

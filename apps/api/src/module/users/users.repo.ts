@@ -18,4 +18,24 @@ export const usersRepo = {
       orderBy: { joinedAt: "asc" },
     })
   },
+
+  updateProfile(
+    userId: string,
+    data: { name?: string; image?: string | null }
+  ) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.image !== undefined ? { image: data.image } : {}),
+        updatedAt: new Date(),
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+      },
+    })
+  },
 }
