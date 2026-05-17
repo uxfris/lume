@@ -18,6 +18,7 @@ import {
 import { useRef } from "react"
 import { Spinner } from "@workspace/ui/components/spinner"
 import { getInitial } from "@/lib/get-initial"
+import { resolveUserImageSrc } from "@/lib/user-avatar"
 import { useUpdateAccountAvatarMutation } from "../_hooks/use-update-account-avatar-mutation"
 
 export function AccountAvatarSetting() {
@@ -43,8 +44,11 @@ export function AccountAvatarSetting() {
   }
 
   const loading = updateAvatar.isPending
-  const image = session?.user.image
   const name = session?.user.name
+  const image =
+    session?.user.id != null
+      ? resolveUserImageSrc(session.user.id, session.user.image)
+      : undefined
 
   return (
     <SettingSection

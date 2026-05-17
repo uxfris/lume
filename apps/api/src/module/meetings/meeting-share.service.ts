@@ -10,6 +10,7 @@ import type {
   MeetingShareRole,
 } from "@workspace/database"
 import { deliverUserNotification } from "@workspace/database"
+import { resolveUserImageUrl } from "../../lib/user-avatar"
 import { initialsFromName } from "./meetings.presenter"
 import { meetingShareRepo } from "./meeting-share.repo"
 import {
@@ -49,13 +50,6 @@ function toDbGeneralAccess(value: ApiGeneralAccess): MeetingGeneralAccess {
     default:
       return "RESTRICTED"
   }
-}
-
-function avatarUrlIfValid(image: string | null | undefined): string | null {
-  if (!image || typeof image !== "string") return null
-  const t = image.trim()
-  if (t.startsWith("https://") || t.startsWith("http://")) return t
-  return null
 }
 
 function getAvatarInitials(name: string): string {
@@ -131,7 +125,7 @@ export async function getMeetingShareState(input: {
       id: meeting.user.id,
       email: meeting.user.email,
       name: meeting.user.name,
-      avatarUrl: avatarUrlIfValid(meeting.user.image),
+      avatarUrl: resolveUserImageUrl(meeting.user.id, meeting.user.image),
       avatarInitials: getAvatarInitials(meeting.user.name),
       role: "edit",
       isOwner: true,
@@ -143,7 +137,9 @@ export async function getMeetingShareState(input: {
         id: share.id,
         email: share.email,
         name: share.user?.name ?? null,
-        avatarUrl: avatarUrlIfValid(share.user?.image),
+        avatarUrl: share.user
+          ? resolveUserImageUrl(share.user.id, share.user.image)
+          : null,
         avatarInitials: initialsFromName(label),
         role: toApiRole(share.role),
         isOwner: false,

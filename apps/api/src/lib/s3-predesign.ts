@@ -18,11 +18,6 @@ export function buildUserAvatarKey(userId: string): string {
   return `users/${userId}/avatar`
 }
 
-export function buildPublicObjectUrl(key: string): string {
-  const base = env.S3_BASE_URL.replace(/\/$/, "")
-  return `${base}/${key}`
-}
-
 export async function createPresignedAvatarUpload(params: {
   userId: string
   contentType: string
@@ -42,7 +37,6 @@ export async function createPresignedAvatarUpload(params: {
   return {
     key,
     url,
-    imageUrl: buildPublicObjectUrl(key),
     expiresInSeconds: PRESIGN_TTL_SECONDS,
   }
 }

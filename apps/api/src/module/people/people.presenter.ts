@@ -1,4 +1,5 @@
 import { UserSummary } from "@workspace/types"
+import { resolveUserImageUrl } from "../../lib/user-avatar"
 import { initialsFromName } from "../meetings/meetings.presenter"
 
 export function toUserSummary(user: {
@@ -6,10 +7,11 @@ export function toUserSummary(user: {
   name: string
   image: string | null
 }): UserSummary {
+  const avatarUrl = resolveUserImageUrl(user.id, user.image)
   return {
     id: user.id,
     name: user.name,
     initials: initialsFromName(user.name),
-    ...(user.image ? { avatarUrl: user.image } : {}),
+    ...(avatarUrl ? { avatarUrl } : {}),
   }
 }

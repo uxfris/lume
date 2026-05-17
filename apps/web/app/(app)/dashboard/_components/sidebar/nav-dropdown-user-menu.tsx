@@ -39,12 +39,16 @@ import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
 import { routes } from "@/lib/routes"
 import Link from "next/link"
 import { getInitial } from "@/lib/get-initial"
+import { resolveUserImageSrc } from "@/lib/user-avatar"
 
 export function DropdownUserMenu({ className }: { className?: string }) {
   const { theme, setTheme } = useTheme()
   const router = useRouter()
 
   const { data: session } = authClient.useSession()
+  const avatarSrc = session?.user.id
+    ? resolveUserImageSrc(session.user.id, session.user.image)
+    : undefined
 
   async function signOut() {
     await authClient.signOut({
@@ -67,7 +71,7 @@ export function DropdownUserMenu({ className }: { className?: string }) {
               className
             )}
           >
-            {session?.user.image && <AvatarImage src={session?.user.image} />}
+            {avatarSrc ? <AvatarImage src={avatarSrc} /> : null}
             <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">
               {getInitial(session?.user.name)}
             </AvatarFallback>
@@ -83,7 +87,7 @@ export function DropdownUserMenu({ className }: { className?: string }) {
         <DropdownMenuLabel className="py-2 font-normal">
           <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
             <Avatar className="h-8 w-8 rounded-lg">
-              {session?.user.image && <AvatarImage src={session?.user.image} />}
+              {avatarSrc ? <AvatarImage src={avatarSrc} /> : null}
               <AvatarFallback className="rounded-lg">
                 {getInitial(session?.user.name)}
               </AvatarFallback>

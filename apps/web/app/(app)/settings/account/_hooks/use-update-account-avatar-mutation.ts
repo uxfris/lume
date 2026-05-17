@@ -43,9 +43,9 @@ export function useUpdateAccountAvatarMutation(): updateAccountAvatarState {
       await uploadsApi.uploadToSignedUrl(presigned.uploadUrl, file)
       return accountApi.completeAvatar()
     },
-    onSuccess: async () => {
+    onSuccess: async (user) => {
       await Promise.all([
-        authClient.getSession(),
+        authClient.updateUser({ image: user.image }),
         queryClient.invalidateQueries({ queryKey: workspaceKeys.me() }),
       ])
     },

@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto"
 import type { Workspace, WorkspaceRole } from "@workspace/database"
 import { ensurePersonalWorkspace } from "@workspace/auth"
+import { resolveUserImageUrl } from "../../lib/user-avatar"
 import { workspacesRepo } from "./workspaces.repo"
 import {
   buildWorkspaceInviteUrl,
@@ -87,7 +88,7 @@ export async function listWorkspacePeople(
     id: row.id,
     name: row.user.name,
     email: row.user.email,
-    avatarUrl: row.user.image,
+    avatarUrl: resolveUserImageUrl(row.user.id, row.user.image),
     avatarInitials: getAvatarInitials(row.user.name),
     role: roleToPeopleRole(row.role),
     joinedAt: row.joinedAt.toISOString(),
@@ -110,7 +111,9 @@ export async function listWorkspaceInvitations(invitationId: string) {
   return invitations.map((invitation) => {
     const matchedUser = usersByEmail.get(invitation.email)
     const name = matchedUser?.name ?? null
-    const avatarUrl = matchedUser?.image ?? null
+    const avatarUrl = matchedUser
+      ? resolveUserImageUrl(matchedUser.id, matchedUser.image)
+      : null
     const initialSource = name ?? invitationNameFromEmail(invitation.email)
     return {
       id: invitation.id,

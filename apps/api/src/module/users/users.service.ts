@@ -1,10 +1,13 @@
 import { ensurePersonalWorkspace } from "@workspace/auth"
 import {
-  buildPublicObjectUrl,
   buildUserAvatarKey,
   createPresignedAvatarUpload,
   headUploadedObject,
 } from "../../lib/s3-predesign"
+import {
+  buildUserAvatarApiPath,
+  resolveUserImageUrl,
+} from "../../lib/user-avatar"
 import { usersRepo } from "./users.repo"
 
 type SessionUser = {
@@ -41,7 +44,7 @@ function toCurrentUser(user: {
     id: user.id,
     name: user.name,
     email: user.email,
-    image: user.image,
+    image: resolveUserImageUrl(user.id, user.image),
   }
 }
 
@@ -62,7 +65,10 @@ export async function getMe(input: {
 
   const oauthCalendarProviders = oauthAccounts
     .map((a) => a.providerId)
-    .filter((id): id is "google" | "microsoft" => id === "google" || id === "microsoft")
+    .filter(
+      (id): id is "google" | "microsoft" =>
+        id === "google" || id === "microsoft"
+    )
   const requestedWorkspaceId = resolveWorkspaceIdHeader(input.workspaceIdHeader)
 
   const activeWorkspaceId =
@@ -76,7 +82,7 @@ export async function getMe(input: {
       id: input.user.id,
       name: input.user.name,
       email: input.user.email,
-      image: input.user.image ?? null,
+      image: resolveUserImageUrl(input.user.id, input.user.image),
     },
     workspaces: memberships.map((item) => ({
       id: item.workspace.id,
@@ -95,6 +101,10 @@ export async function updateProfile(input: { userId: string; name: string }) {
     name: input.name.trim(),
   })
   return toCurrentUser(user)
+}
+
+export function buildAvatarImageUrl(userId: string) {
+  return buildUserAvatarApiPath(userId)
 }
 
 export async function presignAvatar(input: {
@@ -129,7 +139,7 @@ export async function completeAvatar(input: { userId: string }) {
   }
 
   const user = await usersRepo.updateProfile(input.userId, {
-    image: buildPublicObjectUrl(key),
+    image: buildUserAvatarApiPath(input.userId),
   })
 
   return { ok: true as const, user: toCurrentUser(user) }

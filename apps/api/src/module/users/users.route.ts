@@ -8,9 +8,14 @@ import {
   updateUserResponseSchema,
 } from "./users.schema"
 import * as usersService from "./users.service"
+import { streamUserAvatar } from "../../lib/user-avatar"
 
 const avatarErrorSchema = z.object({
   error: z.string(),
+})
+
+const userIdParamsSchema = z.object({
+  userId: z.string().min(1),
 })
 
 export const userRoute: FastifyPluginAsyncZod = async (app) => {
@@ -83,7 +88,7 @@ export const userRoute: FastifyPluginAsyncZod = async (app) => {
 
       return reply.status(201).send({
         uploadUrl: result.url,
-        imageUrl: result.imageUrl,
+        imageUrl: usersService.buildAvatarImageUrl(request.user!.id),
         expiresInSeconds: result.expiresInSeconds,
       })
     }
@@ -95,7 +100,8 @@ export const userRoute: FastifyPluginAsyncZod = async (app) => {
       preHandler: [app.verifySession],
       schema: {
         tags: ["Users"],
-        summary: "Finalize avatar upload and attach the image to the user profile",
+        summary:
+          "Finalize avatar upload and attach the image to the user profile",
         response: {
           200: updateUserResponseSchema,
           400: avatarErrorSchema,
@@ -119,6 +125,32 @@ export const userRoute: FastifyPluginAsyncZod = async (app) => {
       }
 
       return reply.status(200).send(result.user)
+    }
+  )
+
+  app.get(
+    "/:userId/avatar",
+    {
+      preHandler: [app.verifySession],
+      schema: {
+        tags: ["Users"],
+        summary: "Stream a user's avatar from private object storage",
+        params: userIdParamsSchema,
+      },
+    },
+    async (request, reply) => {
+      const streamed = await streamUserAvatar(request.params.userId)
+      if (!streamed) {
+        return reply.status(404).send({ error: "AVATAR_NOT_FOUND" })
+      }
+
+      reply.header("Content-Type", streamed.contentType)
+      reply.header("Cache-Control", "private, max-age=86400")
+      if (streamed.etag) {
+        reply.header("ETag", streamed.etag)
+      }
+
+      return reply.send(streamed.body)
     }
   )
 }
