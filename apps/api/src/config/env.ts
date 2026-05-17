@@ -102,6 +102,22 @@ const envSchema = z.object({
       typeof value === "string" && value.trim() === "" ? undefined : value,
     z.string().optional()
   ),
+
+  TWILLIO_ACCOUNT_SID: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
+  TWILLIO_AUTH_TOKEN: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
+  TWILLIO_PHONE_NUMBER: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
 })
 
 export const env = envSchema.parse(process.env)

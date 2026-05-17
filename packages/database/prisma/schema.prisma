@@ -33,8 +33,12 @@ model User {
    * Reason provided when the user requested account deletion.
    */
   deletionReason      String?
+  twoFactorEnabled    Boolean  @default(false)
+  phoneNumber         String?  @unique
+  phoneNumberVerified Boolean  @default(false)
 
   sessions                  Session[]
+  twoFactor                 TwoFactor?
   accounts                  Account[]
   memberships               WorkspaceMember[]
   invitesSent               Invitation[]               @relation("InvitedBy")
@@ -120,6 +124,18 @@ model Verification {
   updatedAt  DateTime?
 
   @@map("verification")
+}
+
+model TwoFactor {
+  id          String  @id
+  secret      String
+  backupCodes String
+  userId      String  @unique
+  verified    Boolean @default(true)
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("twoFactor")
 }
 
 // ─────────────────────────────────────────────
