@@ -1,9 +1,12 @@
 import { QueueName, getQueue } from "@workspace/queue"
+import { publishMeetingEvent } from "../../lib/meeting-events"
 import {
   buildMeetingAudioKey,
   createPresignedAudioUpload,
   headUploadedObject,
+  putMeetingAudioObject,
 } from "../../lib/s3-predesign"
+import { fetchRemoteUpload, RemoteUrlError } from "../../lib/remote-url"
 import { uploadsRepo } from "./uploads.repo"
 import path from "node:path"
 
@@ -111,6 +114,11 @@ export async function completeUpload(input: {
     { jobId: `transcribe-${meeting.id}` }
   )
 
+  await publishMeetingEvent({
+    meetingId: meeting.id,
+    meetingStatus: "UPLOADED",
+  })
+
   return {
     ok: true,
     meetingId: meeting.id,
@@ -120,4 +128,66 @@ export async function completeUpload(input: {
 
 export async function listRecentUploads(workspaceId: string, limit: number) {
   return uploadsRepo.listRecentUploadMeetings(workspaceId, limit)
+}
+
+export type ImportFromUrlResult =
+  | CompleteUploadResult
+  | {
+      ok: false
+      error:
+        | "INVALID_URL"
+        | "BLOCKED_HOST"
+        | "UNSUPPORTED_TYPE"
+        | "FILE_TOO_LARGE"
+        | "FETCH_FAILED"
+        | "REDIRECT_LOOP"
+      message?: string
+    }
+
+export async function importFromUrl(input: {
+  workspaceId: string
+  userId: string
+  url: string
+  title?: string
+  traceId?: string
+}): Promise<ImportFromUrlResult> {
+  const { workspaceId, userId, url, title, traceId } = input
+
+  let remote
+  try {
+    remote = await fetchRemoteUpload(url)
+  } catch (err) {
+    if (err instanceof RemoteUrlError) {
+      return { ok: false, error: err.code, message: err.message }
+    }
+    return {
+      ok: false,
+      error: "FETCH_FAILED",
+      message: err instanceof Error ? err.message : undefined,
+    }
+  }
+
+  const meeting = await uploadsRepo.createPendingMeeting({
+    workspaceId,
+    userId,
+    title: title?.trim() || deriveTitleFromFileName(remote.fileName),
+    fileName: remote.fileName,
+    fileType: remote.fileType,
+    fileSize: remote.fileSize,
+  })
+
+  const { key } = await putMeetingAudioObject({
+    meetingId: meeting.id,
+    fileType: remote.fileType,
+    body: remote.body,
+  })
+
+  await uploadsRepo.attachAudioKey(meeting.id, key)
+
+  return completeUpload({
+    meetingId: meeting.id,
+    workspaceId,
+    userId,
+    traceId,
+  })
 }

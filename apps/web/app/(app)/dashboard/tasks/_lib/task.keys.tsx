@@ -8,4 +8,10 @@ export const taskKeys = {
 
   list: (workspaceId: string | null, filter: TaskListFilter) =>
     [...taskKeys.lists(workspaceId), filter] as const,
+
+  insight: (workspaceId: string | null) =>
+    [...taskKeys.all(workspaceId), "insight"] as const,
+
+  productivity: (workspaceId: string | null) =>
+    [...taskKeys.all(workspaceId), "productivity"] as const,
 }

@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto"
 import type { Job } from "bullmq"
-import { Prisma, prisma } from "@workspace/database"
+import { deliverUserNotification, Prisma, prisma } from "@workspace/database"
 import type { MeetingStatus } from "@workspace/database"
-import { QueueName, type EmbedJobPayload } from "@workspace/queue"
+import { QueueName, getQueue, type EmbedJobPayload } from "@workspace/queue"
 import { logger } from "../logger"
 import { createProcessingEventAndPublish } from "../lib/processing-events"
 import { embedText } from "../lib/openai"
@@ -26,12 +26,21 @@ export async function embedHandler(
   try {
     type MeetingEmbedRow = {
       id: string
+      userId: string
+      title: string
       status: MeetingStatus
       summary: Prisma.JsonValue | null
     }
 
     const meeting = (await prisma.meeting.findFirst({
       where: { id: meetingId, workspaceId },
+      select: {
+        id: true,
+        userId: true,
+        title: true,
+        status: true,
+        summary: true,
+      },
     })) as MeetingEmbedRow | null
 
     if (!meeting || meeting.summary == null) {
@@ -125,6 +134,21 @@ export async function embedHandler(
         chunkCount: windows.length,
       },
     })
+
+    await deliverUserNotification({
+      userId: meeting.userId,
+      type: "MEETING_SUMMARY",
+      title: "Meeting summary ready",
+      body: `AI notes for "${meeting.title}" are ready to view.`,
+      href: `/meeting/${meetingId}`,
+    }).catch((err) => {
+      log.warn({ err }, "failed to deliver meeting summary notification")
+    })
+    await getQueue(QueueName.DeliverIntegrations).add(
+      "deliver-integrations",
+      { meetingId, workspaceId, userId, traceId },
+      { jobId: `deliver-integrations-${meetingId}` }
+    )
 
     log.info({ costUsd: totalEmbedCost, chunks: windows.length }, "embed job completed")
     return { meetingId }

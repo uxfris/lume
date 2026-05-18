@@ -1,6 +1,10 @@
 "use client"
 
-import React from "react"
+import React, { useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Spinner } from "@workspace/ui/components/spinner"
+import { authClient } from "@/lib/auth-client"
+import { routes } from "@/lib/routes"
 import { AuthHeader } from "./components/auth-header"
 import { TermCheckbox } from "./components/term-checkbox"
 import { useAuthForm } from "./hooks/use-auth-form"
@@ -9,9 +13,33 @@ import { loginWithGoogle, loginWithMicrosoft } from "./services/auth.service"
 import { useAuthController } from "./hooks/use-auth-controller"
 import { AUTH_PROVIDERS } from "./config/auth-providers"
 
+function resolveRedirectPath(next: string | null): string {
+  if (next && next.startsWith("/") && !next.startsWith("//")) {
+    return next
+  }
+  return routes.dashboard.root
+}
+
 export default function AuthenticationPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const next = searchParams.get("next")
+  const { data: session, isPending: isSessionPending } = authClient.useSession()
   const { form, showEmail, setShowEmail, requireAgreement } = useAuthForm()
   const { loadingProvider, handleAuth } = useAuthController()
+
+  useEffect(() => {
+    if (isSessionPending || !session) return
+    router.replace(resolveRedirectPath(next))
+  }, [isSessionPending, next, router, session])
+
+  if (isSessionPending || session) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Spinner className="size-6" />
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center">
@@ -28,10 +56,10 @@ export default function AuthenticationPage() {
                 if (!ok) return
 
                 if (provider.id === "google") {
-                  await handleAuth(provider.id, loginWithGoogle)
+                  await handleAuth(provider.id, () => loginWithGoogle(next))
                 }
                 if (provider.id === "microsoft") {
-                  await handleAuth(provider.id, loginWithMicrosoft)
+                  await handleAuth(provider.id, () => loginWithMicrosoft(next))
                 }
                 if (provider.id === "email") {
                   setShowEmail(true)

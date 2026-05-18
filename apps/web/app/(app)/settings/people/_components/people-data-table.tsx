@@ -14,11 +14,40 @@ import { cn } from "@workspace/ui/lib/utils"
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
     data: TData[]
+    onUpdateRole?: (memberId: string, role: string) => void
+    onBulkUpdateRole?: (memberIds: string[], role: string) => void | Promise<void>
+    onRemoveMembers?: (memberIds: string[]) => void | Promise<void>
+    onLeaveWorkspace?: () => void
+    onRevokeInvitation?: (invitationId: string) => void
+    onInviteMembers?: (emails: string[], role: string) => void
+    isMutating?: boolean
+    canManageMembers?: boolean
+    actorRole?: string
+    activeTab?: "all" | "invited"
+    exportInvitations?: import("@workspace/types").WorkspaceMemberInvitation[]
 }
 
-export function PeopleDataTable<TData, TValue>({ columns, data }: DataTableProps<TData, TValue>) {
+export function PeopleDataTable<TData, TValue>({
+    columns,
+    data,
+    onUpdateRole,
+    onBulkUpdateRole,
+    onRemoveMembers,
+    onLeaveWorkspace,
+    onRevokeInvitation,
+    onInviteMembers,
+    isMutating = false,
+    canManageMembers = true,
+    actorRole,
+    activeTab = "all",
+    exportInvitations = [],
+}: DataTableProps<TData, TValue>) {
 
     const [tableData, setTableData] = useState(data)
+
+    useEffect(() => {
+        setTableData(data)
+    }, [data])
 
     const [sorting, setSorting] = useState<SortingState>([])
     const [globalFilter, setGlobalFilter] = useState("")
@@ -30,25 +59,11 @@ export function PeopleDataTable<TData, TValue>({ columns, data }: DataTableProps
     })
 
     const updateMemberRole = (memberId: string, newRole: string) => {
-        setTableData((prev) =>
-            prev.map((member) =>
-                (member as WorkspaceMember).id === memberId
-                    ? { ...member, role: newRole }
-                    : member
-            )
-        )
+        onUpdateRole?.(memberId, newRole)
     }
 
-    const updateMultipleRoles = (role: string) => {
-        const selectedRows = table.getFilteredSelectedRowModel().rows
-
-        setTableData((prev) =>
-            prev.map((member) =>
-                selectedRows.some((row) => (row.original as WorkspaceMember).id === (member as WorkspaceMember).id)
-                    ? { ...member, role }
-                    : member
-            )
-        )
+    const removeMember = (memberId: string) => {
+        onRemoveMembers?.([memberId])
     }
 
     const table = useReactTable({
@@ -76,12 +91,26 @@ export function PeopleDataTable<TData, TValue>({ columns, data }: DataTableProps
             }
         },
         enableRowSelection: (row) => {
+            if (!canManageMembers) return false
             const member = row.original as WorkspaceMember
-            return !member.isCurrentUser
+            return member.isCurrentUser !== true
         },
         meta: {
             updateRole: updateMemberRole,
-            updateMultipleRoles: updateMultipleRoles
+            updateMultipleRoles: async (role: string) => {
+                const memberIds = table
+                    .getFilteredSelectedRowModel()
+                    .rows.map((row) => (row.original as WorkspaceMember).id)
+                if (memberIds.length === 0) return
+                await onBulkUpdateRole?.(memberIds, role)
+                table.resetRowSelection()
+                setSelectionMode(false)
+            },
+            removeMember,
+            leaveWorkspace: onLeaveWorkspace,
+            revokeInvitation: onRevokeInvitation,
+            canManageMembers,
+            actorRole,
         },
         globalFilterFn: (row, _columnId, filterValue) => {
             const search = String(filterValue).toLowerCase()
@@ -92,14 +121,18 @@ export function PeopleDataTable<TData, TValue>({ columns, data }: DataTableProps
                 joinedAt: string
                 invitedAt: string
             }
-            const joinedAtformattedDate = formatDateOnly(joinedAt).toLowerCase()
-            const invitedAtFormattedDate = formatDateOnly(invitedAt).toLowerCase()
+            const joinedAtFormattedDate = joinedAt
+                ? formatDateOnly(joinedAt).toLowerCase()
+                : ""
+            const invitedAtFormattedDate = invitedAt
+                ? formatDateOnly(invitedAt).toLowerCase()
+                : ""
 
             return (
                 name.toLowerCase().includes(search) ||
                 email.toLowerCase().includes(search) ||
                 role.toLowerCase().includes(search) ||
-                joinedAtformattedDate.includes(search) ||
+                joinedAtFormattedDate.includes(search) ||
                 invitedAtFormattedDate.includes(search)
             )
         }
@@ -142,7 +175,17 @@ export function PeopleDataTable<TData, TValue>({ columns, data }: DataTableProps
                 onFilterChange={(value) => table.getColumn("role")?.setFilterValue(value === "all" ? undefined : value)}
                 selectionMode={selectionMode}
                 onSelectionModeChange={setSelectionMode}
-
+                onInviteMembers={onInviteMembers}
+                isInvitePending={isMutating}
+                canManageMembers={canManageMembers}
+                actorRole={actorRole}
+                members={
+                  activeTab === "all" ? (data as WorkspaceMember[]) : []
+                }
+                invitations={
+                  activeTab === "invited" ? exportInvitations : exportInvitations
+                }
+                activeTab={activeTab}
             />
             <div>
                 <div className="overflow-hidden rounded-md border">
@@ -223,7 +266,14 @@ export function PeopleDataTable<TData, TValue>({ columns, data }: DataTableProps
                     </div>
                 </div>
             </div>
-            {selectionMode && <PeopleBulkActionBar table={table} setSelectionMode={setSelectionMode} />}
+            {selectionMode && (
+                <PeopleBulkActionBar
+                    table={table}
+                    setSelectionMode={setSelectionMode}
+                    onRemoveMembers={onRemoveMembers}
+                    isMutating={isMutating}
+                />
+            )}
         </div>
 
     )

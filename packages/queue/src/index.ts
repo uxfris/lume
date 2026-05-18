@@ -3,6 +3,8 @@ export {
   type AnalyzeJobPayload,
   type EmbedJobPayload,
   type ImportBotTranscriptJobPayload,
+  type DeleteAccountJobPayload,
+  type DeliverIntegrationsJobPayload,
   QueueName,
   type DiarizeJobPayload,
   type JobNameFor,

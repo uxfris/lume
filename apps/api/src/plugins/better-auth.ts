@@ -5,10 +5,23 @@ import { fromNodeHeaders } from "better-auth/node"
 import { syncRecallCalendarsForUser } from "../module/calendar/calendar.service"
 
 export default fp(async (app) => {
+  const twilio =
+    env.TWILLIO_ACCOUNT_SID &&
+    env.TWILLIO_AUTH_TOKEN &&
+    env.TWILLIO_PHONE_NUMBER
+      ? {
+          accountSid: env.TWILLIO_ACCOUNT_SID,
+          authToken: env.TWILLIO_AUTH_TOKEN,
+          fromNumber: env.TWILLIO_PHONE_NUMBER,
+        }
+      : undefined
+
   const auth = createAuth({
     baseUrl: env.AUTH_URL,
     betterAuthSecret: env.BETTER_AUTH_SECRET,
     trustedOrigins: [env.FRONTEND_URL],
+    appName: "Lume",
+    twilio,
     google: {
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
@@ -38,7 +51,8 @@ export default fp(async (app) => {
       // Tighter limit on auth endpoints: deters credential stuffing /
       // password-spray. Counts per-IP via @fastify/rate-limit defaults.
       rateLimit: {
-        max: 5,
+        // get-session is polled on focus/mount; 5/min was blocking normal app usage.
+        max: env.NODE_ENV === "development" ? 120 : 40,
         timeWindow: "1 minute",
       },
     },

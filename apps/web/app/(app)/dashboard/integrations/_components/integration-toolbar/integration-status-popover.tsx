@@ -1,3 +1,5 @@
+"use client"
+
 import { IntegrationStatusEnum } from "@workspace/types";
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -9,14 +11,18 @@ import {
 } from "@workspace/ui/components/popover"
 import { Separator } from "@workspace/ui/components/separator";
 import { Check, ChevronDown, } from "lucide-react";
+import { useIntegrationListStatus } from "../../_stores/integration-list-status-store";
 
 
 export function IntegrationStatusPopover() {
+    const status = useIntegrationListStatus((s) => s.status)
+    const setStatus = useIntegrationListStatus((s) => s.setStatus)
+
     return (
         <Popover>
             <PopoverTrigger asChild>
                 <Button variant="outline" size="xs" className="w-full md:w-fit justify-between text-muted-foreground">
-                    Any status
+                    {status ?? "Any status"}
                     <ChevronDown />
                 </Button>
             </PopoverTrigger>
@@ -28,12 +34,25 @@ export function IntegrationStatusPopover() {
                 </PopoverHeader>
                 <Separator />
                 <div>
+                    <button
+                        type="button"
+                        className="flex w-full items-center p-3 hover:bg-secondary rounded-md"
+                        onClick={() => setStatus(null)}
+                    >
+                        <span className="flex-1 text-left">Any status</span>
+                        {!status && <Check size={16} />}
+                    </button>
                     {
-                        IntegrationStatusEnum.options.map((status) => (
-                            <div key={status} className="flex items-center p-3 hover:bg-secondary rounded-md">
-                                <span className="flex-1">{status}</span>
-                                <Check size={16} />
-                            </div>
+                        IntegrationStatusEnum.options.map((item) => (
+                            <button
+                                key={item}
+                                type="button"
+                                className="flex w-full items-center p-3 hover:bg-secondary rounded-md"
+                                onClick={() => setStatus(item)}
+                            >
+                                <span className="flex-1 text-left capitalize">{item}</span>
+                                {status === item && <Check size={16} />}
+                            </button>
                         ))
                     }
                 </div>

@@ -7,6 +7,7 @@ export const meetingPlatform = pgEnum("MeetingPlatform", ['ZOOM', 'GOOGLE_MEET',
 export const meetingShareRole = pgEnum("MeetingShareRole", ['VIEWER', 'EDITOR'])
 export const meetingSource = pgEnum("MeetingSource", ['UPLOAD', 'BOT'])
 export const meetingStatus = pgEnum("MeetingStatus", ['PENDING_UPLOAD', 'UPLOADED', 'TRANSCRIBING', 'TRANSCRIBED', 'ANALYZING', 'SUMMARIZED', 'FAILED', 'SCHEDULED', 'LIVE'])
+export const notificationType = pgEnum("NotificationType", ['MEETING_SUMMARY', 'INSIGHT_REPORT', 'COLLABORATION'])
 export const processingEventStatus = pgEnum("ProcessingEventStatus", ['STARTED', 'SUCCEEDED', 'FAILED'])
 export const processingStage = pgEnum("ProcessingStage", ['TRANSCRIBE', 'DIARIZE', 'ANALYZE', 'EMBED'])
 export const workspacePlan = pgEnum("WorkspacePlan", ['STARTER', 'STUDIO_PRO'])
@@ -130,19 +131,6 @@ export const invitation = pgTable("invitation", {
 		}).onUpdate("cascade").onDelete("cascade"),
 ]);
 
-export const user = pgTable("user", {
-	id: text().primaryKey().notNull(),
-	name: text().notNull(),
-	email: text().notNull(),
-	emailVerified: boolean().notNull(),
-	image: text(),
-	createdAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
-	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
-}, (table) => [
-	uniqueIndex("user_email_key").using("btree", table.email.asc().nullsLast().op("text_ops")),
-	index("user_id_idx").using("btree", table.id.asc().nullsLast().op("text_ops")),
-]);
-
 export const meetingShare = pgTable("meeting_share", {
 	id: text().primaryKey().notNull(),
 	meetingId: text().notNull(),
@@ -171,6 +159,56 @@ export const meetingShare = pgTable("meeting_share", {
 			foreignColumns: [user.id],
 			name: "meeting_share_invitedByUserId_fkey"
 		}).onUpdate("cascade").onDelete("cascade"),
+]);
+
+export const userNotificationPreference = pgTable("user_notification_preference", {
+	userId: text().primaryKey().notNull(),
+	pushEnabled: boolean().default(true).notNull(),
+	meetingSummaries: boolean().default(true).notNull(),
+	insightReports: boolean().default(true).notNull(),
+	collaborationAlerts: boolean().default(true).notNull(),
+	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+}, (table) => [
+	foreignKey({
+			columns: [table.userId],
+			foreignColumns: [user.id],
+			name: "user_notification_preference_userId_fkey"
+		}).onUpdate("cascade").onDelete("cascade"),
+]);
+
+export const notification = pgTable("notification", {
+	id: text().primaryKey().notNull(),
+	userId: text().notNull(),
+	type: notificationType().notNull(),
+	title: text().notNull(),
+	body: text().notNull(),
+	href: text(),
+	readAt: timestamp({ precision: 3, mode: 'string' }),
+	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (table) => [
+	index("notification_userId_readAt_createdAt_idx").using("btree", table.userId.asc().nullsLast().op("text_ops"), table.readAt.asc().nullsLast().op("text_ops"), table.createdAt.asc().nullsLast().op("text_ops")),
+	foreignKey({
+			columns: [table.userId],
+			foreignColumns: [user.id],
+			name: "notification_userId_fkey"
+		}).onUpdate("cascade").onDelete("cascade"),
+]);
+
+export const user = pgTable("user", {
+	id: text().primaryKey().notNull(),
+	name: text().notNull(),
+	email: text().notNull(),
+	emailVerified: boolean().notNull(),
+	image: text(),
+	createdAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+	scheduledDeletionAt: timestamp({ precision: 3, mode: 'string' }),
+	deletionReason: text(),
+}, (table) => [
+	uniqueIndex("user_email_key").using("btree", table.email.asc().nullsLast().op("text_ops")),
+	index("user_id_idx").using("btree", table.id.asc().nullsLast().op("text_ops")),
+	index("user_scheduledDeletionAt_idx").using("btree", table.scheduledDeletionAt.asc().nullsLast().op("timestamp_ops")),
 ]);
 
 export const session = pgTable("session", {
@@ -369,6 +407,7 @@ export const workspace = pgTable("workspace", {
 	id: text().primaryKey().notNull(),
 	name: text().notNull(),
 	slug: text().notNull(),
+	image: text(),
 	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
 	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
 	plan: workspacePlan().default('STARTER').notNull(),

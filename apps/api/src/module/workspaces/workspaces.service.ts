@@ -1,13 +1,50 @@
 import { createHash, randomBytes } from "node:crypto"
 import type { Workspace, WorkspaceRole } from "@workspace/database"
 import { ensurePersonalWorkspace } from "@workspace/auth"
+import {
+  buildWorkspaceAvatarKey,
+  createPresignedWorkspaceAvatarUpload,
+  headUploadedObject,
+} from "../../lib/s3-predesign"
+import { buildWorkspaceAvatarApiPath } from "../../lib/workspace-avatar"
+import { resolveUserImageUrl } from "../../lib/user-avatar"
 import { workspacesRepo } from "./workspaces.repo"
+import { toWorkspaceSummary } from "./workspaces.presenter"
+import {
+  buildWorkspaceInviteUrl,
+  sendWorkspaceInviteEmail,
+} from "./workspace.email"
 
 const INVITE_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000
 const MAX_SLUG_ATTEMPTS = 5
 const PRISMA_UNIQUE = "P2002"
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024
+
+const ALLOWED_AVATAR_CONTENT_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+])
 
 export type InviteRole = Exclude<WorkspaceRole, "OWNER">
+export type AssignableMemberRole = InviteRole
+
+type MemberManagementError =
+  | "NOT_FOUND"
+  | "FORBIDDEN"
+  | "TARGET_NOT_FOUND"
+  | "CANNOT_CHANGE_OWN_ROLE"
+  | "CANNOT_MODIFY_OWNER"
+  | "CANNOT_ASSIGN_OWNER"
+  | "LAST_OWNER"
+  | "INVALID_ROLE"
+  | "PRO_PLAN_REQUIRED"
+
+type LeaveWorkspaceError =
+  | "NOT_FOUND"
+  | "LAST_WORKSPACE"
+  | "SOLE_OWNER"
 export type WorkspaceMembershipWithWorkspace = Awaited<
   ReturnType<typeof workspacesRepo.listMembershipsForUser>
 >[number]
@@ -83,7 +120,7 @@ export async function listWorkspacePeople(
     id: row.id,
     name: row.user.name,
     email: row.user.email,
-    avatarUrl: row.user.image,
+    avatarUrl: resolveUserImageUrl(row.user.id, row.user.image),
     avatarInitials: getAvatarInitials(row.user.name),
     role: roleToPeopleRole(row.role),
     joinedAt: row.joinedAt.toISOString(),
@@ -106,7 +143,9 @@ export async function listWorkspaceInvitations(invitationId: string) {
   return invitations.map((invitation) => {
     const matchedUser = usersByEmail.get(invitation.email)
     const name = matchedUser?.name ?? null
-    const avatarUrl = matchedUser?.image ?? null
+    const avatarUrl = matchedUser
+      ? resolveUserImageUrl(matchedUser.id, matchedUser.image)
+      : null
     const initialSource = name ?? invitationNameFromEmail(invitation.email)
     return {
       id: invitation.id,
@@ -145,13 +184,29 @@ export async function createWorkspace(
   throw new Error("Could not allocate a unique workspace slug")
 }
 
-export async function updateWorkspaceName(
+export function normalizeWorkspaceHandle(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/^@+/, "")
+    .replace(/[^a-z0-9_-]/g, "")
+    .slice(0, 20)
+}
+
+export function buildWorkspaceAvatarImageUrl(workspaceId: string) {
+  return buildWorkspaceAvatarApiPath(workspaceId)
+}
+
+export async function updateWorkspace(
   workspaceId: string,
   userId: string,
-  name: string
+  data: { name?: string; slug?: string }
 ): Promise<
-  | { ok: true; workspace: Workspace }
-  | { ok: false; error: "NOT_FOUND" | "FORBIDDEN" }
+  | { ok: true; workspace: ReturnType<typeof toWorkspaceSummary> }
+  | {
+      ok: false
+      error: "NOT_FOUND" | "FORBIDDEN" | "SLUG_TAKEN" | "INVALID_SLUG"
+    }
 > {
   const membership = await workspacesRepo.findMembershipWithWorkspace(
     workspaceId,
@@ -163,22 +218,139 @@ export async function updateWorkspaceName(
     return { ok: false, error: "FORBIDDEN" }
   }
 
-  const workspace = await workspacesRepo.updateWorkspaceName(
-    workspaceId,
-    name.trim()
+  const updateData: { name?: string; slug?: string } = {}
+
+  if (data.name !== undefined) {
+    updateData.name = data.name.trim()
+  }
+
+  if (data.slug !== undefined) {
+    const slug = normalizeWorkspaceHandle(data.slug)
+    if (slug.length < 3) {
+      return { ok: false, error: "INVALID_SLUG" }
+    }
+
+    const existing = await workspacesRepo.findWorkspaceBySlug(slug)
+    if (existing && existing.id !== workspaceId) {
+      return { ok: false, error: "SLUG_TAKEN" }
+    }
+
+    updateData.slug = slug
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return { ok: true, workspace: toWorkspaceSummary(membership.workspace) }
+  }
+
+  try {
+    const workspace = await workspacesRepo.updateWorkspace(workspaceId, updateData)
+    return { ok: true, workspace: toWorkspaceSummary(workspace) }
+  } catch (err) {
+    const code = (err as { code?: string }).code
+    if (code === PRISMA_UNIQUE) {
+      return { ok: false, error: "SLUG_TAKEN" }
+    }
+    throw err
+  }
+}
+
+export async function presignWorkspaceAvatar(input: {
+  workspaceId: string
+  userId: string
+  contentType: string
+}): Promise<
+  | { ok: true; url: string; expiresInSeconds: number }
+  | { ok: false; error: "NOT_FOUND" | "FORBIDDEN" }
+> {
+  const membership = await workspacesRepo.findMembershipWithWorkspace(
+    input.workspaceId,
+    input.userId
   )
 
-  return { ok: true, workspace }
+  if (!membership) return { ok: false, error: "NOT_FOUND" }
+  if (membership.role !== "OWNER" && membership.role !== "ADMIN") {
+    return { ok: false, error: "FORBIDDEN" }
+  }
+
+  const result = await createPresignedWorkspaceAvatarUpload({
+    workspaceId: input.workspaceId,
+    contentType: input.contentType,
+  })
+
+  return {
+    ok: true,
+    url: result.url,
+    expiresInSeconds: result.expiresInSeconds,
+  }
+}
+
+export async function completeWorkspaceAvatar(input: {
+  workspaceId: string
+  userId: string
+}): Promise<
+  | { ok: true; workspace: ReturnType<typeof toWorkspaceSummary> }
+  | {
+      ok: false
+      error:
+        | "NOT_FOUND"
+        | "FORBIDDEN"
+        | "OBJECT_NOT_IN_S3"
+        | "FILE_TOO_LARGE"
+        | "INVALID_CONTENT_TYPE"
+    }
+> {
+  const membership = await workspacesRepo.findMembershipWithWorkspace(
+    input.workspaceId,
+    input.userId
+  )
+
+  if (!membership) return { ok: false, error: "NOT_FOUND" }
+  if (membership.role !== "OWNER" && membership.role !== "ADMIN") {
+    return { ok: false, error: "FORBIDDEN" }
+  }
+
+  const key = buildWorkspaceAvatarKey(input.workspaceId)
+
+  let head: Awaited<ReturnType<typeof headUploadedObject>>
+  try {
+    head = await headUploadedObject(key)
+  } catch {
+    return { ok: false, error: "OBJECT_NOT_IN_S3" }
+  }
+
+  if (head.contentLength == null || head.contentLength > MAX_AVATAR_BYTES) {
+    return { ok: false, error: "FILE_TOO_LARGE" }
+  }
+
+  if (
+    !head.contentType ||
+    !ALLOWED_AVATAR_CONTENT_TYPES.has(head.contentType)
+  ) {
+    return { ok: false, error: "INVALID_CONTENT_TYPE" }
+  }
+
+  const workspace = await workspacesRepo.updateWorkspace(input.workspaceId, {
+    image: buildWorkspaceAvatarApiPath(input.workspaceId),
+  })
+
+  return { ok: true, workspace: toWorkspaceSummary(workspace) }
 }
 
 export async function createOrRefreshInvitation(
   workspaceId: string,
   inviterUserId: string,
   inviterEmail: string,
+  inviterName: string | null | undefined,
   emailRaw: string,
   role: InviteRole
 ): Promise<
-  | { ok: true; token: string; invitationId: string; expiresAt: Date }
+  | {
+      ok: true
+      token: string
+      invitationId: string
+      expiresAt: Date
+      emailSent: boolean
+    }
   | {
       ok: false
       error:
@@ -187,6 +359,7 @@ export async function createOrRefreshInvitation(
         | "ALREADY_MEMBER"
         | "SELF_INVITE"
         | "INVITE_ALREADY_ACCEPTED"
+        | "PRO_PLAN_REQUIRED"
     }
 > {
   const membership = await workspacesRepo.findMembershipWithWorkspace(
@@ -198,6 +371,9 @@ export async function createOrRefreshInvitation(
   if (membership.role !== "OWNER" && membership.role !== "ADMIN") {
     return { ok: false, error: "FORBIDDEN" }
   }
+
+  const proCheck = assertProPlanForRole(membership.workspace, role)
+  if (!proCheck.ok) return proCheck
 
   const email = normalizeEmail(emailRaw)
 
@@ -237,11 +413,23 @@ export async function createOrRefreshInvitation(
     expiresAt,
   })
 
+  const inviteUrl = buildWorkspaceInviteUrl(rawToken)
+  const displayInviterName =
+    inviterName?.trim() || invitationNameFromEmail(inviterEmail)
+
+  const emailSent = await sendWorkspaceInviteEmail({
+    to: email,
+    inviterName: displayInviterName,
+    workspaceName: membership.workspace.name,
+    inviteUrl,
+  })
+
   return {
     ok: true,
     token: rawToken,
     invitationId: invitation.id,
     expiresAt,
+    emailSent,
   }
 }
 
@@ -288,6 +476,194 @@ export async function revokeInvitation(
   return { ok: true }
 }
 
+function canManageMembers(role: WorkspaceRole): boolean {
+  return role === "OWNER" || role === "ADMIN"
+}
+
+function isProRole(role: WorkspaceRole): boolean {
+  return role === "ADMIN" || role === "GUEST"
+}
+
+function assertProPlanForRole(
+  workspace: Workspace,
+  role: WorkspaceRole
+): { ok: true } | { ok: false; error: "PRO_PLAN_REQUIRED" } {
+  if (isProRole(role) && workspace.plan !== "STUDIO_PRO") {
+    return { ok: false, error: "PRO_PLAN_REQUIRED" }
+  }
+  return { ok: true }
+}
+
+async function getActorMembership(workspaceId: string, actorUserId: string) {
+  return workspacesRepo.findMembershipWithWorkspace(workspaceId, actorUserId)
+}
+
+export async function updateMemberRole(
+  workspaceId: string,
+  actorUserId: string,
+  memberId: string,
+  role: WorkspaceRole
+): Promise<{ ok: true } | { ok: false; error: MemberManagementError }> {
+  const actor = await getActorMembership(workspaceId, actorUserId)
+  if (!actor) return { ok: false, error: "NOT_FOUND" }
+  if (!canManageMembers(actor.role)) return { ok: false, error: "FORBIDDEN" }
+
+  const proCheck = assertProPlanForRole(actor.workspace, role)
+  if (!proCheck.ok) return proCheck
+
+  const target = await workspacesRepo.findMemberById(memberId)
+  if (!target || target.workspaceId !== workspaceId) {
+    return { ok: false, error: "TARGET_NOT_FOUND" }
+  }
+
+  if (target.userId === actorUserId) {
+    return { ok: false, error: "CANNOT_CHANGE_OWN_ROLE" }
+  }
+
+  if (role === "OWNER" && actor.role !== "OWNER") {
+    return { ok: false, error: "CANNOT_ASSIGN_OWNER" }
+  }
+
+  if (target.role === "OWNER" && role !== "OWNER") {
+    const ownerCount = await workspacesRepo.countOwners(workspaceId)
+    if (ownerCount <= 1) {
+      return { ok: false, error: "LAST_OWNER" }
+    }
+  }
+
+  if (target.role === role) {
+    return { ok: true }
+  }
+
+  await workspacesRepo.updateMemberRole(memberId, role)
+  return { ok: true }
+}
+
+export async function getWorkspaceInviteLink(workspaceId: string) {
+  const link = await workspacesRepo.findInviteLinkByWorkspace(workspaceId)
+  if (!link || link.revokedAt || link.expiresAt.getTime() < Date.now()) {
+    return null
+  }
+  const inviteRole = link.role
+  if (inviteRole === "OWNER") {
+    return null
+  }
+  return {
+    role: inviteRole,
+    expiresAt: link.expiresAt.toISOString(),
+    createdAt: link.createdAt.toISOString(),
+  }
+}
+
+export async function createOrRegenerateInviteLink(
+  workspaceId: string,
+  actorUserId: string,
+  role: InviteRole
+): Promise<
+  | { ok: true; url: string; expiresAt: Date; role: InviteRole }
+  | { ok: false; error: "NOT_FOUND" | "FORBIDDEN" | "PRO_PLAN_REQUIRED" }
+> {
+  const membership = await getActorMembership(workspaceId, actorUserId)
+  if (!membership) return { ok: false, error: "NOT_FOUND" }
+  if (!canManageMembers(membership.role)) {
+    return { ok: false, error: "FORBIDDEN" }
+  }
+
+  const proCheck = assertProPlanForRole(membership.workspace, role)
+  if (!proCheck.ok) return proCheck
+
+  const rawToken = randomBytes(32).toString("hex")
+  const tokenHash = hashInviteToken(rawToken)
+  const expiresAt = new Date(Date.now() + INVITE_EXPIRY_MS)
+
+  await workspacesRepo.upsertInviteLink({
+    workspaceId,
+    role,
+    tokenHash,
+    expiresAt,
+    createdByUserId: actorUserId,
+  })
+
+  return {
+    ok: true,
+    url: buildWorkspaceInviteUrl(rawToken),
+    expiresAt,
+    role,
+  }
+}
+
+export async function revokeWorkspaceInviteLink(
+  workspaceId: string,
+  actorUserId: string
+): Promise<{ ok: true } | { ok: false; error: "NOT_FOUND" | "FORBIDDEN" }> {
+  const membership = await getActorMembership(workspaceId, actorUserId)
+  if (!membership) return { ok: false, error: "NOT_FOUND" }
+  if (!canManageMembers(membership.role)) {
+    return { ok: false, error: "FORBIDDEN" }
+  }
+
+  await workspacesRepo.revokeInviteLink(workspaceId, new Date())
+  return { ok: true }
+}
+
+export async function removeMember(
+  workspaceId: string,
+  actorUserId: string,
+  memberId: string
+): Promise<{ ok: true } | { ok: false; error: MemberManagementError }> {
+  const actor = await getActorMembership(workspaceId, actorUserId)
+  if (!actor) return { ok: false, error: "NOT_FOUND" }
+  if (!canManageMembers(actor.role)) return { ok: false, error: "FORBIDDEN" }
+
+  const target = await workspacesRepo.findMemberById(memberId)
+  if (!target || target.workspaceId !== workspaceId) {
+    return { ok: false, error: "TARGET_NOT_FOUND" }
+  }
+
+  if (target.userId === actorUserId) {
+    return { ok: false, error: "CANNOT_CHANGE_OWN_ROLE" }
+  }
+
+  if (target.role === "OWNER") {
+    const ownerCount = await workspacesRepo.countOwners(workspaceId)
+    if (ownerCount <= 1) {
+      return { ok: false, error: "LAST_OWNER" }
+    }
+    if (actor.role !== "OWNER") {
+      return { ok: false, error: "CANNOT_MODIFY_OWNER" }
+    }
+  }
+
+  await workspacesRepo.deleteMember(memberId)
+  return { ok: true }
+}
+
+export async function leaveWorkspace(
+  workspaceId: string,
+  userId: string
+): Promise<{ ok: true } | { ok: false; error: LeaveWorkspaceError }> {
+  const membership = await workspacesRepo.findMembershipWithWorkspace(
+    workspaceId,
+    userId
+  )
+  if (!membership) return { ok: false, error: "NOT_FOUND" }
+
+  const workspaceCount = await workspacesRepo.countMembershipsForUser(userId)
+  if (workspaceCount <= 1) {
+    return { ok: false, error: "LAST_WORKSPACE" }
+  }
+
+  if (membership.role === "OWNER") {
+    const ownerCount = await workspacesRepo.countOwners(workspaceId)
+    if (ownerCount <= 1) {
+      return { ok: false, error: "SOLE_OWNER" }
+    }
+  }
+
+  await workspacesRepo.deleteMember(membership.id)
+  return { ok: true }
+}
+
 export async function acceptInvitation(
   userId: string,
   userEmail: string,
@@ -305,6 +681,42 @@ export async function acceptInvitation(
     }
 > {
   const tokenHash = hashInviteToken(rawToken)
+  const inviteLink = await workspacesRepo.findInviteLinkByTokenHash(tokenHash)
+
+  if (inviteLink) {
+    if (inviteLink.revokedAt) {
+      return { ok: false, error: "INVITE_REVOKED" }
+    }
+    if (inviteLink.expiresAt.getTime() < Date.now()) {
+      return { ok: false, error: "INVITE_EXPIRED" }
+    }
+
+    const existingMember = await workspacesRepo.findMemberByWorkspaceAndUser(
+      inviteLink.workspaceId,
+      userId
+    )
+
+    if (existingMember) {
+      return {
+        ok: true,
+        workspaceId: inviteLink.workspaceId,
+        role: existingMember.role,
+      }
+    }
+
+    await workspacesRepo.createMembership({
+      workspaceId: inviteLink.workspaceId,
+      userId,
+      role: inviteLink.role,
+    })
+
+    return {
+      ok: true,
+      workspaceId: inviteLink.workspaceId,
+      role: inviteLink.role,
+    }
+  }
+
   const invitation = await workspacesRepo.findInvitationByTokenHash(tokenHash)
 
   if (!invitation) return { ok: false, error: "INVITE_NOT_FOUND" }

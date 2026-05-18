@@ -7,7 +7,8 @@ import { cn } from "@workspace/ui/lib/utils"
 import { useMeetingView } from "../_stores/meeting-view-store"
 import { useInfiniteScroll } from "../../../_hooks/use-infinite-scroll"
 import { meetingApi } from "@workspace/api-client"
-import { useMemo } from "react"
+import { useCallback, useMemo } from "react"
+import { useMeetingStatusEvents } from "../../../_hooks/use-meeting-status-events"
 import { useMeetingListSearch } from "../_stores/meeting-list-search-store"
 import { useMeetingListHostFilter } from "../_stores/meeting-list-host-filter-store"
 import { filterMeetingsByQuery } from "../_lib/filter-meetings-by-query"
@@ -35,6 +36,7 @@ export function MeetingView({
 
   const {
     items: meetings,
+    setItems,
     loading,
     hasMore,
     observerRef,
@@ -52,6 +54,22 @@ export function MeetingView({
         nextCursor: res.nextCursor,
       }
     },
+  })
+
+  const handleMeetingUpdate = useCallback(
+    (meetingId: string, update: Meeting | Partial<Meeting>) => {
+      setItems((prev) =>
+        prev.map((m) =>
+          m.id === meetingId ? ({ ...m, ...update } as Meeting) : m
+        )
+      )
+    },
+    [setItems]
+  )
+
+  useMeetingStatusEvents({
+    meetings,
+    onMeetingUpdate: handleMeetingUpdate,
   })
 
   const searchQuery = useMeetingListSearch((s) => s.searchQuery)

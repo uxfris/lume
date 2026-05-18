@@ -25,11 +25,24 @@ model User {
   image         String?
   createdAt     DateTime
   updatedAt     DateTime
+  /**
+   * When set, the account is scheduled for permanent deletion at this time.
+   */
+  scheduledDeletionAt DateTime?
+  /**
+   * Reason provided when the user requested account deletion.
+   */
+  deletionReason      String?
+  twoFactorEnabled    Boolean  @default(false)
+  phoneNumber         String?  @unique
+  phoneNumberVerified Boolean  @default(false)
 
   sessions                  Session[]
+  twoFactor                 TwoFactor?
   accounts                  Account[]
   memberships               WorkspaceMember[]
   invitesSent               Invitation[]               @relation("InvitedBy")
+  inviteLinksCreated        WorkspaceInviteLink[]      @relation("InviteLinkCreatedBy")
   meetings                  Meeting[]
   assignedTasks             Task[]
   calendarEvents            CalendarEvent[]
@@ -37,9 +50,12 @@ model User {
   channels                  Channel[]
   meetingShares             MeetingShare[]       @relation("MeetingShareUser")
   meetingSharesInvited      MeetingShare[]       @relation("MeetingShareInvitedBy")
+  notificationPreference    UserNotificationPreference?
+  notifications             Notification[]
 
   @@unique([email])
   @@index([id])
+  @@index([scheduledDeletionAt])
   @@map("user")
 }
 
@@ -111,6 +127,18 @@ model Verification {
   @@map("verification")
 }
 
+model TwoFactor {
+  id          String  @id
+  secret      String
+  backupCodes String
+  userId      String  @unique
+  verified    Boolean @default(true)
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("twoFactor")
+}
+
 // ─────────────────────────────────────────────
 // Tenancy
 // ─────────────────────────────────────────────
@@ -131,6 +159,7 @@ model Workspace {
   id        String   @id @default(cuid())
   name      String
   slug      String   @unique
+  image     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -150,11 +179,14 @@ model Workspace {
 
   members        WorkspaceMember[]
   invitations    Invitation[]
+  inviteLink     WorkspaceInviteLink?
   meetings       Meeting[]
   tasks          Task[]
   calendarEvents CalendarEvent[]
-  usageCounters  UsageCounter[]
-  channels       Channel[]
+  usageCounters         UsageCounter[]
+  channels              Channel[]
+  workspaceIntegrations WorkspaceIntegration[]
+  integrationActivities IntegrationActivity[]
 
   @@map("workspace")
 }
@@ -218,6 +250,24 @@ model Invitation {
   @@unique([workspaceId, email])
   @@index([workspaceId])
   @@map("invitation")
+}
+
+model WorkspaceInviteLink {
+  id              String        @id @default(cuid())
+  workspaceId     String        @unique
+  role            WorkspaceRole @default(MEMBER)
+  tokenHash       String        @unique
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  createdByUserId String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User      @relation("InviteLinkCreatedBy", fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("workspace_invite_link")
 }
 
 // ─────────────────────────────────────────────
@@ -306,6 +356,7 @@ model Meeting {
   channel              Channel?              @relation(fields: [channelId], references: [id])
   channelId            String?
   meetingShares        MeetingShare[]
+  integrationActivities IntegrationActivity[]
 
   @@index([workspaceId, createdAt(sort: Desc)])
   @@index([workspaceId, deletedAt, createdAt(sort: Desc)])
@@ -569,6 +620,64 @@ model ProcessingEvent {
 }
 
 // ─────────────────────────────────────────────
+// Integrations (Slack, Linear)
+// ─────────────────────────────────────────────
+
+enum IntegrationProvider {
+  SLACK
+  LINEAR
+}
+
+enum IntegrationActivityStatus {
+  SUCCEEDED
+  FAILED
+}
+
+/**
+ * Per-workspace OAuth connection for a third-party integration.
+ */
+model WorkspaceIntegration {
+  id                  String              @id @default(cuid())
+  workspaceId         String
+  provider            IntegrationProvider
+  accessToken         String?
+  refreshToken        String?
+  externalAccountId   String?
+  externalAccountName String?
+  connectedByUserId   String?
+  connectedAt         DateTime?
+  config              Json                @default("{}")
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, provider])
+  @@index([workspaceId])
+  @@map("workspace_integration")
+}
+
+/**
+ * Delivery log for integration actions (Slack posts, Linear issues).
+ */
+model IntegrationActivity {
+  id          String                    @id @default(cuid())
+  workspaceId String
+  provider    IntegrationProvider
+  meetingId   String?
+  status      IntegrationActivityStatus
+  title       String
+  description String?
+  createdAt   DateTime                  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  meeting   Meeting?  @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, provider, createdAt(sort: Desc)])
+  @@map("integration_activity")
+}
+
+// ─────────────────────────────────────────────
 // Webhooks
 // ─────────────────────────────────────────────
 
@@ -608,4 +717,44 @@ model FailedWebhook {
   @@index([provider, createdAt])
   @@index([externalBotId])
   @@map("failed_webhook")
+}
+
+// ─────────────────────────────────────────────
+// Notifications
+// ─────────────────────────────────────────────
+
+enum NotificationType {
+  MEETING_SUMMARY
+  INSIGHT_REPORT
+  COLLABORATION
+}
+
+model UserNotificationPreference {
+  userId               String   @id
+  pushEnabled          Boolean  @default(true)
+  meetingSummaries     Boolean  @default(true)
+  insightReports       Boolean  @default(true)
+  collaborationAlerts  Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_notification_preference")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@map("notification")
 }

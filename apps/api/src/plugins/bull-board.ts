@@ -22,6 +22,7 @@ export default fp(async (app) => {
       new BullMQAdapter(getQueue(QueueName.Analyze)),
       new BullMQAdapter(getQueue(QueueName.Embed)),
       new BullMQAdapter(getQueue(QueueName.ImportBotTranscript)),
+      new BullMQAdapter(getQueue(QueueName.DeleteAccount)),
     ],
     serverAdapter,
   })

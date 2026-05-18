@@ -6,7 +6,9 @@ import { EmptyState } from "@/components/empty-state"
 import { LiveMeetings } from "./live-meetings"
 import { LiveMeeting, Meeting } from "@workspace/types"
 import { useInfiniteScroll } from "../../_hooks/use-infinite-scroll"
+import { useMeetingStatusEvents } from "../../_hooks/use-meeting-status-events"
 import { meetingApi } from "@workspace/api-client"
+import { useCallback, useEffect, useState } from "react"
 
 export function RecentMeetings({
   initialMeetings,
@@ -19,6 +21,7 @@ export function RecentMeetings({
 }) {
   const {
     items: meetings,
+    setItems,
     loading,
     hasMore,
     observerRef,
@@ -38,6 +41,43 @@ export function RecentMeetings({
     },
   })
 
+  const [liveMeetingsState, setLiveMeetingsState] =
+    useState<LiveMeeting[]>(liveMeetings)
+
+  useEffect(() => {
+    setLiveMeetingsState(liveMeetings)
+  }, [liveMeetings])
+
+  const handleMeetingUpdate = useCallback(
+    (meetingId: string, update: Meeting | Partial<Meeting>) => {
+      setItems((prev) =>
+        prev.map((m) =>
+          m.id === meetingId ? ({ ...m, ...update } as Meeting) : m
+        )
+      )
+    },
+    [setItems]
+  )
+
+  const handleDbStatusChange = useCallback(
+    (meetingId: string, dbStatus: string) => {
+      if (dbStatus === "LIVE") {
+        void meetingApi.getLiveMeetings().then(setLiveMeetingsState)
+        return
+      }
+      if (dbStatus !== "LIVE") {
+        setLiveMeetingsState((prev) => prev.filter((m) => m.id !== meetingId))
+      }
+    },
+    []
+  )
+
+  useMeetingStatusEvents({
+    meetings,
+    onMeetingUpdate: handleMeetingUpdate,
+    onDbStatusChange: handleDbStatusChange,
+  })
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -45,7 +85,7 @@ export function RecentMeetings({
           Recent Meetings
         </h2>
       </div>
-      <LiveMeetings meetings={liveMeetings} />
+      <LiveMeetings meetings={liveMeetingsState} />
 
       {meetings.length === 0 ? (
         <EmptyState

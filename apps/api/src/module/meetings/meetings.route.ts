@@ -473,6 +473,7 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
         body: patchMeetingBodySchema,
         response: {
           204: z.undefined(),
+          403: meetingErrorSchema,
           404: meetingErrorSchema,
         },
       },
@@ -481,13 +482,21 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
       const result = await meetingsService.patchMeeting({
         meetingId: request.params.id,
         workspaceId: request.workspace!.id,
+        userId: request.user!.id,
+        userEmail: request.user!.email,
         title: request.body.title,
         isShared: request.body.isShared,
         isStarred: request.body.isStarred,
       })
 
       if (!result.ok) {
-        return reply.status(404).send({ error: "MEETING_NOT_FOUND" })
+        const status = result.reason === "FORBIDDEN" ? 403 : 404
+        return reply.status(status).send({
+          error:
+            result.reason === "FORBIDDEN"
+              ? "MEETING_FORBIDDEN"
+              : "MEETING_NOT_FOUND",
+        })
       }
 
       return reply.status(204).send()
@@ -504,6 +513,7 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
         params: getMeetingParamsSchema,
         response: {
           204: z.undefined(),
+          403: meetingErrorSchema,
           404: meetingErrorSchema,
         },
       },
@@ -512,10 +522,18 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
       const result = await meetingsService.deleteMeeting({
         meetingId: request.params.id,
         workspaceId: request.workspace!.id,
+        userId: request.user!.id,
+        userEmail: request.user!.email,
       })
 
       if (!result.ok) {
-        return reply.status(404).send({ error: "MEETING_NOT_FOUND" })
+        const status = result.reason === "FORBIDDEN" ? 403 : 404
+        return reply.status(status).send({
+          error:
+            result.reason === "FORBIDDEN"
+              ? "MEETING_FORBIDDEN"
+              : "MEETING_NOT_FOUND",
+        })
       }
 
       return reply.status(204).send()
@@ -532,6 +550,7 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
         body: deleteMeetingsBodySchema,
         response: {
           204: z.undefined(),
+          403: meetingErrorSchema,
           404: meetingErrorSchema,
         },
       },
@@ -540,10 +559,18 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
       const result = await meetingsService.deleteMeetings({
         workspaceId: request.workspace!.id,
         meetingIds: request.body.meetingIds,
+        userId: request.user!.id,
+        userEmail: request.user!.email,
       })
 
       if (!result.ok) {
-        return reply.status(404).send({ error: "MEETING_NOT_FOUND" })
+        const status = result.reason === "FORBIDDEN" ? 403 : 404
+        return reply.status(status).send({
+          error:
+            result.reason === "FORBIDDEN"
+              ? "MEETING_FORBIDDEN"
+              : "MEETING_NOT_FOUND",
+        })
       }
 
       return reply.status(204).send()

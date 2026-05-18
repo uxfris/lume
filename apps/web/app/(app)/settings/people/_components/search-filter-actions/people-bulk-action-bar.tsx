@@ -12,7 +12,17 @@ import { DeletePeoplesDialog } from "./people-delete-dialog";
 import { PeopleChangeRole } from "./people-change-role-dialog";
 
 
-export function PeopleBulkActionBar<TData>({ table, setSelectionMode }: { table: Table<TData>, setSelectionMode: (mode: boolean) => void }) {
+export function PeopleBulkActionBar<TData>({
+    table,
+    setSelectionMode,
+    onRemoveMembers,
+    isMutating = false,
+}: {
+    table: Table<TData>
+    setSelectionMode: (mode: boolean) => void
+    onRemoveMembers?: (memberIds: string[]) => void
+    isMutating?: boolean
+}) {
     const selectedCount = table.getFilteredSelectedRowModel().rows.length
     const totalCount = table.getFilteredRowModel().rows.length
 
@@ -52,8 +62,12 @@ export function PeopleBulkActionBar<TData>({ table, setSelectionMode }: { table:
             {
                 selectedCount > 0 &&
                 <>
-                    <PeopleChangeRole table={table} />
-                    <DeletePeoplesDialog table={table} />
+                    <PeopleChangeRole table={table} disabled={isMutating} />
+                    <DeletePeoplesDialog
+                        table={table}
+                        onRemoveMembers={onRemoveMembers}
+                        isMutating={isMutating}
+                    />
                     <VerticalDivider />
                     <Button
                         size="xs"

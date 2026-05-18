@@ -51,7 +51,7 @@ export function SendTaskSelectionDialog({ open, tasks, initialSelectedTasksIds, 
         if (!open) {
             setSelectedTaskIds(new Set())
         }
-    }, [open])
+    }, [open, initialSelectedTasksIds])
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>

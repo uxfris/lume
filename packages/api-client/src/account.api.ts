@@ -1,0 +1,59 @@
+import {
+  AccountDeletionContextSchema,
+  CurrentUserSchema,
+  ScheduleAccountDeletionResponseSchema,
+  type AccountDeletionContext,
+  type CancelAccountDeletionBody,
+  type DeleteAccountBody,
+  type ScheduleAccountDeletionResponse,
+  PresignAvatarBody,
+  PresignAvatarResponseSchema,
+  type CurrentUser,
+  type PresignAvatarResponse,
+} from "@workspace/types"
+import { client, RequestOptions } from "./client"
+
+export const accountApi = {
+  async updateProfile(
+    body: { name: string },
+    options?: RequestOptions
+  ): Promise<CurrentUser> {
+    const data = await client.patch<unknown>("/users", body, options)
+    return CurrentUserSchema.parse(data)
+  },
+
+  async presignAvatar(
+    body: PresignAvatarBody,
+    options?: RequestOptions
+  ): Promise<PresignAvatarResponse> {
+    const data = await client.post<unknown>("/users/avatar/presign", body, options)
+    return PresignAvatarResponseSchema.parse(data)
+  },
+
+  async completeAvatar(options?: RequestOptions): Promise<CurrentUser> {
+    const data = await client.post<unknown>("/users/avatar/complete", {}, options)
+    return CurrentUserSchema.parse(data)
+  },
+
+  async getDeletionContext(
+    options?: RequestOptions
+  ): Promise<AccountDeletionContext> {
+    const data = await client.get<unknown>("/users/me/deletion-context", options)
+    return AccountDeletionContextSchema.parse(data)
+  },
+
+  async scheduleAccountDeletion(
+    body: DeleteAccountBody,
+    options?: RequestOptions
+  ): Promise<ScheduleAccountDeletionResponse> {
+    const data = await client.post<unknown>("/users/me/delete", body, options)
+    return ScheduleAccountDeletionResponseSchema.parse(data)
+  },
+
+  async cancelAccountDeletion(
+    body: CancelAccountDeletionBody,
+    options?: RequestOptions
+  ): Promise<void> {
+    await client.post<unknown>("/users/me/delete/cancel", body, options)
+  },
+}

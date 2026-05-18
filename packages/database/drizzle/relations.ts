@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { workspace, channel, user, account, workspaceMember, invitation, meeting, meetingShare, session, processingEvent, task, meetingChunk, transcriptSegment, meetingParticipant, recallCalendarConnection, transcriptWord, meetingTranscriptRaw, calendarEvent, usageCounter } from "./schema";
+import { workspace, channel, user, account, workspaceMember, invitation, meeting, meetingShare, userNotificationPreference, notification, session, processingEvent, task, meetingChunk, transcriptSegment, meetingParticipant, recallCalendarConnection, transcriptWord, meetingTranscriptRaw, calendarEvent, usageCounter } from "./schema";
 
 export const channelRelations = relations(channel, ({one, many}) => ({
 	workspace: one(workspace, {
@@ -34,6 +34,8 @@ export const userRelations = relations(user, ({many}) => ({
 	meetingShares_invitedByUserId: many(meetingShare, {
 		relationName: "meetingShare_invitedByUserId_user_id"
 	}),
+	userNotificationPreferences: many(userNotificationPreference),
+	notifications: many(notification),
 	sessions: many(session),
 	tasks: many(task),
 	meetings: many(meeting),
@@ -107,6 +109,20 @@ export const meetingRelations = relations(meeting, ({one, many}) => ({
 	transcriptSegments: many(transcriptSegment),
 	meetingParticipants: many(meetingParticipant),
 	meetingTranscriptRaws: many(meetingTranscriptRaw),
+}));
+
+export const userNotificationPreferenceRelations = relations(userNotificationPreference, ({one}) => ({
+	user: one(user, {
+		fields: [userNotificationPreference.userId],
+		references: [user.id]
+	}),
+}));
+
+export const notificationRelations = relations(notification, ({one}) => ({
+	user: one(user, {
+		fields: [notification.userId],
+		references: [user.id]
+	}),
 }));
 
 export const sessionRelations = relations(session, ({one}) => ({

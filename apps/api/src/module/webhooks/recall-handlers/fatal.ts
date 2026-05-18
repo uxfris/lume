@@ -1,4 +1,5 @@
 import { prisma } from "@workspace/database"
+import { publishMeetingEvent } from "../../../lib/meeting-events"
 import { extractStatusCode } from "../recall-webhook-payload"
 import type { RecallEventResult } from "../recall-webhook.types"
 import type { MeetingRecallContext } from "./context"
@@ -21,6 +22,12 @@ export async function handleTranscriptFailedOrBotFatal(
       message: `Recall reported ${eventType}`,
       metadata: { event: eventType, code: subCode ?? null },
     },
+  })
+  await publishMeetingEvent({
+    meetingId: meeting.id,
+    meetingStatus: "FAILED",
+    stage: "TRANSCRIBE",
+    status: "FAILED",
   })
   return { ok: true, meetingId: meeting.id, action: "FAILED" }
 }

@@ -1,4 +1,5 @@
 import type { Meeting as MeetingDTO } from "@workspace/types"
+import { resolveUserImageUrl } from "../../lib/user-avatar"
 import type {
   MeetingWithOwner,
   TranscriptSegmentWithParticipant,
@@ -86,11 +87,11 @@ function uiStatus(status: MeetingWithOwner["status"]): MeetingDTO["status"] {
 
 const MAX_LIST_ATTENDEE_AVATARS = 4
 
-function avatarUrlIfValid(image: string | null | undefined): string | undefined {
-  if (!image || typeof image !== "string") return undefined
-  const t = image.trim()
-  if (t.startsWith("https://") || t.startsWith("http://")) return t
-  return undefined
+function avatarUrlIfValid(
+  userId: string,
+  image: string | null | undefined
+): string | undefined {
+  return resolveUserImageUrl(userId, image) ?? undefined
 }
 
 /** Card avatars: transcript participants, or meeting owner when none exist yet. */
@@ -107,7 +108,7 @@ function meetingAttendeesFromRow(row: MeetingWithOwner): MeetingDTO["attendees"]
     })
   }
 
-  const ownerImage = avatarUrlIfValid(row.user.image)
+  const ownerImage = avatarUrlIfValid(row.user.id, row.user.image)
   return [
     {
       id: row.user.id,

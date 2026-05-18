@@ -1,11 +1,27 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, Table } from "@tanstack/react-table";
 import { ChevronsUpDown, MoreHorizontal, } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, } from "@workspace/ui/components/dropdown-menu";
-import { WorkspaceMember } from "@workspace/types";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@workspace/ui/components/alert-dialog";
+import { ApiWorkspaceRole, WorkspaceMember } from "@workspace/types";
+import { useState } from "react";
 import { formatDateOnly } from "@/lib/date-format";
 import { Checkbox } from "@workspace/ui/components/checkbox";
 import { PeopleRoleDropdownMenu } from "../search-filter-actions/people-role-dropdown-menu";
@@ -20,6 +36,94 @@ import { cn } from "@workspace/ui/lib/utils";
 
 function formatRole(role: string) {
     return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
+function PeopleMemberActionsCell({
+    member,
+    table,
+}: {
+    member: WorkspaceMember
+    table: Table<WorkspaceMember>
+}) {
+    const [leaveOpen, setLeaveOpen] = useState(false)
+    const [removeOpen, setRemoveOpen] = useState(false)
+
+    return (
+        <>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <div className="w-full flex items-center justify-end">
+                        <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-fit">
+                    {member.isCurrentUser ? (
+                        <DropdownMenuItem
+                            className="text-sm font-medium px-4 py-3 text-destructive"
+                            onSelect={(event) => {
+                                event.preventDefault()
+                                setLeaveOpen(true)
+                            }}
+                        >
+                            Leave workspace
+                        </DropdownMenuItem>
+                    ) : (
+                        <DropdownMenuItem
+                            className="text-sm font-medium px-4 py-3 text-destructive"
+                            onSelect={(event) => {
+                                event.preventDefault()
+                                setRemoveOpen(true)
+                            }}
+                        >
+                            Remove Member
+                        </DropdownMenuItem>
+                    )}
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            <AlertDialog open={leaveOpen} onOpenChange={setLeaveOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Leave workspace?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            You will lose access to this workspace&apos;s projects and resources.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            variant="destructive"
+                            onClick={() => table.options.meta?.leaveWorkspace?.()}
+                        >
+                            Leave workspace
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={removeOpen} onOpenChange={setRemoveOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Remove member?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {member.name} will be removed from this workspace and lose access to shared projects.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            variant="destructive"
+                            onClick={() => table.options.meta?.removeMember?.(member.id)}
+                        >
+                            Remove member
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
+    )
 }
 
 
@@ -113,8 +217,18 @@ export const peopleColumns: ColumnDef<WorkspaceMember>[] = [
         cell: ({ row, table }) => {
             const isSelf = (row.original as WorkspaceMember).isCurrentUser
             const member = row.original
+            const canManage = table.options.meta?.canManageMembers !== false
+
+            if (!canManage) {
+                return (
+                    <span className="text-sm capitalize">{formatRole(member.role)}</span>
+                )
+            }
+
             return (
                 <PeopleRoleDropdownMenu
+                    assignableOnly
+                    actorRole={table.options.meta?.actorRole as ApiWorkspaceRole | undefined}
                     onSelectRole={(role) => table.options.meta?.updateRole?.(member.id, role)}
                     triggerButton={
                         <span>
@@ -177,35 +291,8 @@ export const peopleColumns: ColumnDef<WorkspaceMember>[] = [
 
         enableSorting: false,
 
-        cell: ({ row }) => {
-            const member = row.original;
-
-            return (
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <div className="w-full flex items-center justify-end">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                            >
-                                <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="min-w-fit">
-                        {member.isCurrentUser && (
-                            <DropdownMenuItem className="text-sm font-medium px-4 py-3 text-destructive">
-                                Leave workspace
-                            </DropdownMenuItem>
-                        )}
-                        {!member.isCurrentUser && (
-                            <DropdownMenuItem className="text-sm font-medium px-4 py-3 text-destructive">
-                                Remove Member
-                            </DropdownMenuItem>
-                        )}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            );
-        },
+        cell: ({ row, table }) => (
+            <PeopleMemberActionsCell member={row.original} table={table} />
+        ),
     },
 ];

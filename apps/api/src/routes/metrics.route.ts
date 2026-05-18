@@ -14,6 +14,7 @@ const QUEUE_NAMES = [
   QueueName.Analyze,
   QueueName.Embed,
   QueueName.ImportBotTranscript,
+  QueueName.DeleteAccount,
 ]
 
 const COUNTER_STATES = ["waiting", "active", "delayed", "failed", "completed"] as const

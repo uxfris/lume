@@ -5,6 +5,7 @@ export const workspacesRepo = {
   findMembershipWithWorkspace(workspaceId: string, userId: string) {
     return prisma.workspaceMember.findFirst({
       where: { workspaceId, userId },
+      include: { workspace: true },
     })
   },
 
@@ -76,6 +77,23 @@ export const workspacesRepo = {
     })
   },
 
+  updateWorkspace(
+    workspaceId: string,
+    data: { name?: string; slug?: string; image?: string | null }
+  ) {
+    return prisma.workspace.update({
+      where: { id: workspaceId },
+      data,
+    })
+  },
+
+  findWorkspaceBySlug(slug: string) {
+    return prisma.workspace.findUnique({
+      where: { slug },
+      select: { id: true },
+    })
+  },
+
   findUserByEmail(email: string) {
     return prisma.user.findUnique({
       where: { email },
@@ -91,6 +109,7 @@ export const workspacesRepo = {
         },
       },
       select: {
+        id: true,
         name: true,
         email: true,
         image: true,
@@ -106,6 +125,47 @@ export const workspacesRepo = {
           userId,
         },
       },
+    })
+  },
+
+  findMemberById(memberId: string) {
+    return prisma.workspaceMember.findUnique({
+      where: { id: memberId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
+      },
+    })
+  },
+
+  countOwners(workspaceId: string) {
+    return prisma.workspaceMember.count({
+      where: { workspaceId, role: "OWNER" },
+    })
+  },
+
+  countMembershipsForUser(userId: string) {
+    return prisma.workspaceMember.count({
+      where: { userId },
+    })
+  },
+
+  updateMemberRole(memberId: string, role: WorkspaceRole) {
+    return prisma.workspaceMember.update({
+      where: { id: memberId },
+      data: { role },
+    })
+  },
+
+  deleteMember(memberId: string) {
+    return prisma.workspaceMember.delete({
+      where: { id: memberId },
     })
   },
 
@@ -197,6 +257,62 @@ export const workspacesRepo = {
         where: { id: invitationId },
         data: { acceptedAt },
       })
+    })
+  },
+
+  findInviteLinkByWorkspace(workspaceId: string) {
+    return prisma.workspaceInviteLink.findUnique({
+      where: { workspaceId },
+    })
+  },
+
+  findInviteLinkByTokenHash(tokenHash: string) {
+    return prisma.workspaceInviteLink.findUnique({
+      where: { tokenHash },
+    })
+  },
+
+  upsertInviteLink(input: {
+    workspaceId: string
+    role: WorkspaceRole
+    tokenHash: string
+    expiresAt: Date
+    createdByUserId: string
+  }) {
+    const { workspaceId, role, tokenHash, expiresAt, createdByUserId } = input
+    return prisma.workspaceInviteLink.upsert({
+      where: { workspaceId },
+      create: {
+        workspaceId,
+        role,
+        tokenHash,
+        expiresAt,
+        createdByUserId,
+      },
+      update: {
+        role,
+        tokenHash,
+        expiresAt,
+        createdByUserId,
+        revokedAt: null,
+      },
+    })
+  },
+
+  revokeInviteLink(workspaceId: string, revokedAt: Date) {
+    return prisma.workspaceInviteLink.updateMany({
+      where: { workspaceId, revokedAt: null },
+      data: { revokedAt },
+    })
+  },
+
+  createMembership(input: {
+    workspaceId: string
+    userId: string
+    role: WorkspaceRole
+  }) {
+    return prisma.workspaceMember.create({
+      data: input,
     })
   },
 }

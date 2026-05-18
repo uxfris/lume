@@ -1,5 +1,13 @@
 import { z } from "zod"
-import { ActionItemSchema, TasksGroupSchema, UserSummarySchema } from "@workspace/types"
+import {
+  ActionItemSchema,
+  SyncTasksToLinearBodySchema,
+  SyncTasksToLinearResponseSchema,
+  TaskAIInsightResponseSchema,
+  TaskProductivityResponseSchema,
+  TasksGroupSchema,
+  UserSummarySchema,
+} from "@workspace/types"
 
 export const taskIdParamsSchema = z.object({
   id: z.string().min(1),
@@ -38,3 +46,11 @@ export const taskErrorSchema = z.object({
 })
 
 export const createTaskResponseSchema = ActionItemSchema
+
+export const taskAIInsightResponseSchema = TaskAIInsightResponseSchema
+
+export const taskProductivityResponseSchema = TaskProductivityResponseSchema
+
+export const syncTasksToLinearBodySchema = SyncTasksToLinearBodySchema
+
+export const syncTasksToLinearResponseSchema = SyncTasksToLinearResponseSchema

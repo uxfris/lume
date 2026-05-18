@@ -2,10 +2,23 @@ const DASHBOARD = "/dashboard"
 const SETTINGS = "/settings"
 
 export const routes = {
+  home: "/",
   term: "/term",
   privacy: "/privacy",
 
   authentication: "/authentication",
+
+  marketing: {
+    product: "/product",
+    integrations: "/integrations",
+    pricing: "/pricing",
+    security: "/security",
+    howItWorks: "/#how-it-works",
+    faq: "/#faq",
+    preview: "/#inside-lume",
+  },
+
+  invite: (token: string) => `/invite/${token}`,
 
   dashboard: {
     root: DASHBOARD,

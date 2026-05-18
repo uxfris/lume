@@ -18,35 +18,55 @@ export type SidebarSection = {
   items: SidebarItem[]
 }
 
-export const sections: SidebarSection[] = [
-  {
-    title: "Workspace",
-    items: [
-      {
-        label: "Fris's Sidereal",
-        href: routes.settings.workspace,
-        avatar: { fallback: "F" },
+export function createSidebarSections(input: {
+  workspaceName: string
+  workspaceFallback: string
+  workspaceAvatarSrc?: string
+  accountName: string
+  canManageMembers?: boolean
+  canManageBilling?: boolean
+}): SidebarSection[] {
+  const workspaceItems: SidebarItem[] = [
+    {
+      label: input.workspaceName,
+      href: routes.settings.workspace,
+      avatar: {
+        src: input.workspaceAvatarSrc,
+        fallback: input.workspaceFallback,
       },
-      {
-        label: "People",
-        href: routes.settings.people,
-        icon: <UsersGroupRounded />,
-      },
-      {
-        label: "Plans & credits",
-        href: routes.settings.billing,
-        icon: <Card />,
-      },
-    ],
-  },
-  {
-    title: "Account",
-    items: [
-      {
-        label: "Fris El",
-        href: routes.settings.account,
-        icon: <UserCircle />,
-      },
-    ],
-  },
-]
+    },
+  ]
+
+  if (input.canManageMembers !== false) {
+    workspaceItems.push({
+      label: "People",
+      href: routes.settings.people,
+      icon: <UsersGroupRounded />,
+    })
+  }
+
+  if (input.canManageBilling !== false) {
+    workspaceItems.push({
+      label: "Plans & credits",
+      href: routes.settings.billing,
+      icon: <Card />,
+    })
+  }
+
+  return [
+    {
+      title: "Workspace",
+      items: workspaceItems,
+    },
+    {
+      title: "Account",
+      items: [
+        {
+          label: input.accountName,
+          href: routes.settings.account,
+          icon: <UserCircle />,
+        },
+      ],
+    },
+  ]
+}

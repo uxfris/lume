@@ -1,4 +1,12 @@
-import type { ActionItem, TasksGroup, UserSummary } from "@workspace/types"
+import type {
+  ActionItem,
+  SyncTasksToLinearBody,
+  SyncTasksToLinearResponse,
+  TaskAIInsightResponse,
+  TaskProductivityResponse,
+  TasksGroup,
+  UserSummary,
+} from "@workspace/types"
 import { client, type RequestOptions } from "./client"
 
 export type CreateTaskInput = {
@@ -26,6 +34,29 @@ export const taskApi = {
 
   async fetchAssignees(options?: RequestOptions): Promise<UserSummary[]> {
     return client.get<UserSummary[]>("/tasks/assignees", options)
+  },
+
+  async fetchAIInsight(
+    options?: RequestOptions
+  ): Promise<TaskAIInsightResponse> {
+    return client.get<TaskAIInsightResponse>("/tasks/insights", options)
+  },
+
+  async fetchProductivity(
+    options?: RequestOptions
+  ): Promise<TaskProductivityResponse> {
+    return client.get<TaskProductivityResponse>("/tasks/productivity", options)
+  },
+
+  async syncToLinear(
+    body: SyncTasksToLinearBody,
+    options?: RequestOptions
+  ): Promise<SyncTasksToLinearResponse> {
+    return client.post<SyncTasksToLinearResponse>(
+      "/tasks/sync/linear",
+      body,
+      options
+    )
   },
 
   async toggle(

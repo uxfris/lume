@@ -37,6 +37,7 @@ export function useCreateWorkspaceMutation(): UseCreateWorkspaceMutationReturn {
 
       return {
         ...created,
+        image: created.image ?? null,
         role: "OWNER",
         joinedAt: new Date().toISOString(),
       }

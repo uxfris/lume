@@ -14,6 +14,60 @@ export function buildMeetingAudioKey(meetingId: string): string {
   return `meetings/${meetingId}/audio`
 }
 
+export function buildUserAvatarKey(userId: string): string {
+  return `users/${userId}/avatar`
+}
+
+export function buildWorkspaceAvatarKey(workspaceId: string): string {
+  return `workspaces/${workspaceId}/avatar`
+}
+
+export async function createPresignedAvatarUpload(params: {
+  userId: string
+  contentType: string
+}) {
+  const key = buildUserAvatarKey(params.userId)
+
+  const command = new PutObjectCommand({
+    Bucket: env.S3_BUCKET,
+    Key: key,
+    ContentType: params.contentType,
+  })
+
+  const url = await getSignedUrl(s3, command, {
+    expiresIn: PRESIGN_TTL_SECONDS,
+  })
+
+  return {
+    key,
+    url,
+    expiresInSeconds: PRESIGN_TTL_SECONDS,
+  }
+}
+
+export async function createPresignedWorkspaceAvatarUpload(params: {
+  workspaceId: string
+  contentType: string
+}) {
+  const key = buildWorkspaceAvatarKey(params.workspaceId)
+
+  const command = new PutObjectCommand({
+    Bucket: env.S3_BUCKET,
+    Key: key,
+    ContentType: params.contentType,
+  })
+
+  const url = await getSignedUrl(s3, command, {
+    expiresIn: PRESIGN_TTL_SECONDS,
+  })
+
+  return {
+    key,
+    url,
+    expiresInSeconds: PRESIGN_TTL_SECONDS,
+  }
+}
+
 export async function createPresignedAudioUpload(params: {
   meetingId: string
   fileType: string
@@ -49,4 +103,24 @@ export async function headUploadedObject(key: string) {
     contentLength: result.ContentLength ?? null,
     contentType: result.ContentType ?? null,
   }
+}
+
+export async function putMeetingAudioObject(params: {
+  meetingId: string
+  fileType: string
+  body: Buffer
+}) {
+  const key = buildMeetingAudioKey(params.meetingId)
+
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: env.S3_BUCKET,
+      Key: key,
+      Body: params.body,
+      ContentType: params.fileType,
+      ContentLength: params.body.byteLength,
+    })
+  )
+
+  return { key }
 }

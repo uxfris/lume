@@ -1,6 +1,6 @@
 "use client"
 
-import { uploadsApi } from "@workspace/api-client"
+import { uploadsApi, type ApiError } from "@workspace/api-client"
 import type { UploadSummary } from "@workspace/types"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
@@ -132,6 +132,70 @@ export function useUpload() {
     return () => window.clearInterval(timer)
   }, [queryClient, uploads])
 
+  const handleFetchFromLink = useCallback(
+    async (url: string) => {
+      const trimmedUrl = url.trim()
+      if (!trimmedUrl) return
+
+      const placeholderId = `link-${crypto.randomUUID()}`
+      const createdAt = new Date().toISOString()
+
+      setInFlight((prev) => ({
+        ...prev,
+        [placeholderId]: {
+          meetingId: placeholderId,
+          title: "Importing from link...",
+          fileName: trimmedUrl,
+          fileType: "application/octet-stream",
+          fileSize: 0,
+          progress: 25,
+          createdAt,
+          status: "PENDING_UPLOAD",
+        },
+      }))
+
+      try {
+        const result = await uploadsApi.fetchFromLink({ url: trimmedUrl })
+
+        setInFlight((prev) => {
+          const next = { ...prev }
+          delete next[placeholderId]
+          return next
+        })
+
+        queryClient.invalidateQueries({ queryKey: ["uploads", workspaceId] })
+        toast.success("Import queued for transcription")
+
+        return result
+      } catch (error) {
+        setInFlight((prev) => {
+          const current = prev[placeholderId]
+          if (!current) return prev
+          return {
+            ...prev,
+            [placeholderId]: { ...current, status: "FAILED", progress: 0 },
+          }
+        })
+
+        const apiDetail =
+          error &&
+          typeof error === "object" &&
+          "detail" in error &&
+          typeof (error as ApiError).detail === "string"
+            ? (error as ApiError).detail
+            : null
+
+        toast.error(
+          apiDetail ||
+            (error instanceof Error
+              ? error.message
+              : "Import failed. Check the URL and try again.")
+        )
+      }
+    },
+    [queryClient, workspaceId]
+  )
+
   const handleUploadFile = useCallback(
     async (file: File) => {
       const title = deriveTitle(file.name)
@@ -260,6 +324,7 @@ export function useUpload() {
 
   return {
     handleUploadFile,
+    handleFetchFromLink,
     displayUploads,
     progressByMeetingId,
     stageByMeetingId,

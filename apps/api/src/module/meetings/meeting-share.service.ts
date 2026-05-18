@@ -9,6 +9,8 @@ import type {
   MeetingGeneralAccess,
   MeetingShareRole,
 } from "@workspace/database"
+import { deliverUserNotification } from "@workspace/database"
+import { resolveUserImageUrl } from "../../lib/user-avatar"
 import { initialsFromName } from "./meetings.presenter"
 import { meetingShareRepo } from "./meeting-share.repo"
 import {
@@ -50,13 +52,6 @@ function toDbGeneralAccess(value: ApiGeneralAccess): MeetingGeneralAccess {
   }
 }
 
-function avatarUrlIfValid(image: string | null | undefined): string | null {
-  if (!image || typeof image !== "string") return null
-  const t = image.trim()
-  if (t.startsWith("https://") || t.startsWith("http://")) return t
-  return null
-}
-
 function getAvatarInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2)
   if (parts.length === 0) return "?"
@@ -71,6 +66,26 @@ function canManageShares(input: {
 }): boolean {
   if (input.ownerId === input.userId) return true
   return input.userShareRole === "EDITOR"
+}
+
+export async function userCanMutateMeeting(input: {
+  meetingId: string
+  userId: string
+  userEmail: string
+}): Promise<boolean> {
+  const meeting = await meetingShareRepo.findMeetingById(input.meetingId)
+  if (!meeting) return false
+
+  const normalizedEmail = normalizeEmail(input.userEmail)
+  const userShare = meeting.meetingShares.find(
+    (s) => s.userId === input.userId || s.email === normalizedEmail
+  )
+
+  return canManageShares({
+    ownerId: meeting.userId,
+    userId: input.userId,
+    userShareRole: userShare?.role ?? null,
+  })
 }
 
 export async function userCanAccessMeeting(input: {
@@ -130,7 +145,7 @@ export async function getMeetingShareState(input: {
       id: meeting.user.id,
       email: meeting.user.email,
       name: meeting.user.name,
-      avatarUrl: avatarUrlIfValid(meeting.user.image),
+      avatarUrl: resolveUserImageUrl(meeting.user.id, meeting.user.image),
       avatarInitials: getAvatarInitials(meeting.user.name),
       role: "edit",
       isOwner: true,
@@ -142,7 +157,9 @@ export async function getMeetingShareState(input: {
         id: share.id,
         email: share.email,
         name: share.user?.name ?? null,
-        avatarUrl: avatarUrlIfValid(share.user?.image),
+        avatarUrl: share.user
+          ? resolveUserImageUrl(share.user.id, share.user.image)
+          : null,
         avatarInitials: initialsFromName(label),
         role: toApiRole(share.role),
         isOwner: false,
@@ -229,6 +246,22 @@ export async function inviteToMeeting(input: {
     })
 
     invited.push({ email, shareId: share.id })
+
+    if (
+      matchedUser?.id &&
+      matchedUser.id !== input.inviterUserId &&
+      email !== normalizeEmail(input.inviterEmail)
+    ) {
+      await deliverUserNotification({
+        userId: matchedUser.id,
+        type: "COLLABORATION",
+        title: "Meeting shared with you",
+        body: `${input.inviterName} invited you to "${meeting.title}".`,
+        href: `/meeting/${meeting.id}`,
+      }).catch(() => {
+        /* notification is best-effort */
+      })
+    }
 
     if (email !== normalizeEmail(input.inviterEmail)) {
       await sendMeetingShareInviteEmail({

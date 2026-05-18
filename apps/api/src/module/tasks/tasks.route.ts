@@ -8,6 +8,10 @@ import {
   listTasksQuerySchema,
   listTasksResponseSchema,
   patchTaskBodySchema,
+  taskAIInsightResponseSchema,
+  taskProductivityResponseSchema,
+  syncTasksToLinearBodySchema,
+  syncTasksToLinearResponseSchema,
   taskErrorSchema,
   taskIdParamsSchema,
   toggleTaskBodySchema,
@@ -50,6 +54,87 @@ export const tasksRoutes: FastifyPluginAsyncZod = async (app) => {
         currentUserId: request.user!.id,
         filter: request.query.filter,
       })
+    }
+  )
+
+  app.get(
+    "/insights",
+    {
+      preHandler: [app.verifySession, app.requireWorkspace],
+      schema: {
+        tags: ["Tasks"],
+        summary: "AI prioritization insight from the latest analyzed meeting",
+        response: {
+          200: taskAIInsightResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      return tasksService.getTaskAIInsight(request.workspace!.id)
+    }
+  )
+
+  app.get(
+    "/productivity",
+    {
+      preHandler: [app.verifySession, app.requireWorkspace],
+      schema: {
+        tags: ["Tasks"],
+        summary: "Workspace task productivity totals and weekly pace",
+        response: {
+          200: taskProductivityResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      return tasksService.getTaskProductivity(request.workspace!.id)
+    }
+  )
+
+  app.post(
+    "/sync/linear",
+    {
+      preHandler: [app.verifySession, app.requireWorkspace],
+      schema: {
+        tags: ["Tasks"],
+        summary: "Create Linear issues from selected tasks",
+        body: syncTasksToLinearBodySchema,
+        response: {
+          200: syncTasksToLinearResponseSchema,
+          400: taskErrorSchema,
+          404: taskErrorSchema,
+          502: taskErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await tasksService.syncTasksToLinear({
+        workspaceId: request.workspace!.id,
+        taskIds: request.body.taskIds,
+        teamId: request.body.teamId,
+        meetingTitle: request.body.meetingTitle,
+      })
+
+      if (!result.ok) {
+        if (result.error === "NOT_CONNECTED") {
+          return reply.status(404).send({
+            error: result.error,
+            message: "Connect Linear in Integrations before syncing tasks.",
+          })
+        }
+        if (result.error === "NO_TASKS") {
+          return reply.status(400).send({
+            error: result.error,
+            message: "No valid tasks were found to sync.",
+          })
+        }
+        return reply.status(502).send({
+          error: result.error,
+          message: result.message ?? "Failed to create Linear issues.",
+        })
+      }
+
+      return { created: result.created }
     }
   )
 

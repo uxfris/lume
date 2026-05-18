@@ -1,8 +1,11 @@
 import {
   CompleteUploadResponseSchema,
+  FetchFromLinkResponseSchema,
   ListUploadsResponseSchema,
   PresignUploadResponseSchema,
   type CompleteUploadResponse,
+  type FetchFromLinkBody,
+  type FetchFromLinkResponse,
   type PresignUploadResponse,
   type UploadSummary,
   PresignUploadBody,
@@ -33,6 +36,13 @@ export const uploadsApi = {
       {}
     )
     return CompleteUploadResponseSchema.parse(data)
+  },
+
+  async fetchFromLink(
+    input: FetchFromLinkBody
+  ): Promise<FetchFromLinkResponse> {
+    const data = await client.post<unknown>("/uploads/from-url", input)
+    return FetchFromLinkResponseSchema.parse(data)
   },
 
   uploadToSignedUrl(

@@ -15,6 +15,9 @@ const envSchema = z.object({
   PYANNOTE_URL: z.url(),
   OPENAI_API_KEY: z.string().min(1),
 
+  /** Used in Slack / Linear delivery messages. */
+  FRONTEND_URL: z.string().default("http://localhost:3000"),
+
   // Phase 8 — Recall.ai
   RECALL_API_KEY: z.string().optional(),
   RECALL_API_URL: z.url().default("https://us-west-2.recall.ai/api/v1"),

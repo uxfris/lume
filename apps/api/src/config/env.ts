@@ -8,6 +8,7 @@ const envSchema = z.object({
     .enum(["development", "production", "test"])
     .default("development"),
   APP_URL: z.string(),
+  API_URL: z.string(),
 
   AUTH_URL: z.string(),
   BETTER_AUTH_SECRET: z.string(),
@@ -98,6 +99,43 @@ const envSchema = z.object({
   ),
   /** Sender address, e.g. `Lume <hello@yourdomain.com>`. */
   RESEND_FROM_EMAIL: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
+
+  SLACK_CLIENT_ID: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
+  SLACK_CLIENT_SECRET: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
+  LINEAR_CLIENT_ID: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
+  LINEAR_CLIENT_SECRET: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
+
+  TWILLIO_ACCOUNT_SID: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
+  TWILLIO_AUTH_TOKEN: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
+  TWILLIO_PHONE_NUMBER: z.preprocess(
     (value) =>
       typeof value === "string" && value.trim() === "" ? undefined : value,
     z.string().optional()

@@ -7,16 +7,21 @@ import { MeetingStatusEnum } from "./meetings"
  */
 const ALLOWED_MIME_PATTERNS = [/^audio\//i, /^video\//i, /^application\/pdf$/i]
 
-function isAllowedMime(value: string): boolean {
+export function isAllowedUploadMime(value: string): boolean {
   return ALLOWED_MIME_PATTERNS.some((pattern) => pattern.test(value))
 }
 
-const fileTypeSchema = z.string().min(1).max(255).refine(isAllowedMime, {
+export const MAX_UPLOAD_FILE_SIZE_BYTES = 2 * 1024 * 1024 * 1024
+
+const fileTypeSchema = z.string().min(1).max(255).refine(isAllowedUploadMime, {
   message: "Unsupported file type. Allowed: audio/*, video/*, application/pdf.",
 })
 
-// Arbitrary upper bound — 2 GB. Tighten per plan at billing time.
-const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024 * 1024
+export const FetchFromLinkBodySchema = z.object({
+  url: z.url({ message: "Enter a valid HTTP or HTTPS URL." }),
+  title: z.string().min(1).max(200).optional(),
+})
+export type FetchFromLinkBody = z.infer<typeof FetchFromLinkBodySchema>
 
 export const PresignUploadBodySchema = z.object({
   fileName: z.string().min(1).max(512),
@@ -25,7 +30,7 @@ export const PresignUploadBodySchema = z.object({
     .number()
     .int()
     .positive()
-    .max(MAX_FILE_SIZE_BYTES, { message: "File too large." }),
+    .max(MAX_UPLOAD_FILE_SIZE_BYTES, { message: "File too large." }),
   title: z.string().min(1).max(200).optional(),
 })
 export type PresignUploadBody = z.infer<typeof PresignUploadBodySchema>
@@ -62,6 +67,9 @@ export const CompleteUploadResponseSchema = z.object({
 export type CompleteUploadResponse = z.infer<
   typeof CompleteUploadResponseSchema
 >
+
+export const FetchFromLinkResponseSchema = CompleteUploadResponseSchema
+export type FetchFromLinkResponse = CompleteUploadResponse
 
 export const ListUploadsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),

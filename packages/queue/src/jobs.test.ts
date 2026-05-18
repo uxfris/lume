@@ -3,7 +3,7 @@ import { QueueName } from "./jobs"
 import { CONSERVATIVE_DEFAULT_JOB_OPTIONS } from "./queue"
 
 describe("QueueName registry", () => {
-  it("exposes the five Phase-3+ queue names", () => {
+  it("exposes the Phase-3+ queue names", () => {
     expect(Object.values(QueueName).sort()).toEqual(
       [
         "transcribe",
@@ -11,6 +11,7 @@ describe("QueueName registry", () => {
         "analyze",
         "embed",
         "import-bot-transcript",
+        "delete-account",
       ].sort()
     )
   })
