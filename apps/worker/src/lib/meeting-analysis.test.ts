@@ -7,6 +7,7 @@ import {
   extractBulletItemsAfterHeading,
   extractPlainTextFromDoc,
   parseMeetingSummary,
+  stripActionItemsFromDoc,
 } from "@workspace/types"
 
 const sampleAnalysis = {
@@ -49,6 +50,21 @@ describe("buildTiptapDocFromAnalysis", () => {
     const doc = buildTiptapDocFromAnalysis(sampleAnalysis)
     const taskList = doc.content?.find((n) => n.type === "taskList")
     expect(taskList?.content?.length).toBe(2)
+  })
+})
+
+describe("stripActionItemsFromDoc", () => {
+  it("removes the Action items heading and task list", () => {
+    const doc = buildTiptapDocFromAnalysis(sampleAnalysis)
+    const stripped = stripActionItemsFromDoc(doc)
+    const headings =
+      stripped.content
+        ?.filter((n) => n.type === "heading" && n.attrs?.level === 2)
+        .map((n) => n.content?.[0]?.text) ?? []
+
+    expect(headings).not.toContain("Action items")
+    expect(stripped.content?.some((n) => n.type === "taskList")).toBe(false)
+    expect(extractActionItemsFromDoc(stripped)).toEqual([])
   })
 })
 

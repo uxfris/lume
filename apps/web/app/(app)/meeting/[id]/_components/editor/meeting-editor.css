@@ -1,3 +1,14 @@
+.meeting-editor {
+  --editor-gutter: 2.75rem;
+}
+
+/* Extend left for drag handles; pad content so text aligns with the page header */
+.meeting-editor__surface {
+  position: relative;
+  margin-left: calc(-1 * var(--editor-gutter));
+  padding-left: var(--editor-gutter);
+}
+
 .meeting-editor .tiptap {
   outline: none;
   min-height: 320px;
@@ -21,10 +32,6 @@
 
 .meeting-editor[data-slash-placeholder="filter"] .tiptap .is-empty::before {
   content: "  Type to filter";
-}
-
-.meeting-editor .tiptap {
-  padding-left: 2.75rem;
 }
 
 .meeting-editor-block-controls {

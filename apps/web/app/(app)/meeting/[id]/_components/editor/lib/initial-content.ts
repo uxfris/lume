@@ -1,9 +1,15 @@
 import type { JSONContent } from "@tiptap/core"
-import type { Meeting } from "@workspace/types"
+import {
+  stripActionItemsFromDoc,
+  type Meeting,
+  type TiptapJSONContent,
+} from "@workspace/types"
 
 export function getInitialEditorContent(meeting: Meeting): JSONContent {
   if (meeting.document) {
-    return meeting.document as JSONContent
+    return stripActionItemsFromDoc(
+      meeting.document as TiptapJSONContent
+    ) as JSONContent
   }
 
   return {

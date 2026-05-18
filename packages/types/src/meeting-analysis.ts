@@ -285,6 +285,34 @@ export function normalizeTiptapDoc(doc: TiptapJSONContent): TiptapJSONContent {
   }
 }
 
+/** Remove the "Action items" section from a Tiptap doc (managed in the tasks UI). */
+export function stripActionItemsFromDoc(doc: TiptapJSONContent): TiptapJSONContent {
+  const root = normalizeTiptapDoc(doc)
+  const content = root.content ?? []
+  const target = "action items"
+  const filtered: TiptapJSONContent[] = []
+  let skipSection = false
+
+  for (const node of content) {
+    if (node.type === "heading" && node.attrs?.level === 2) {
+      const label = node.content?.[0]?.text?.toLowerCase() ?? ""
+      if (label.includes(target)) {
+        skipSection = true
+        continue
+      }
+      skipSection = false
+    }
+    if (!skipSection) {
+      filtered.push(node)
+    }
+  }
+
+  return {
+    type: "doc",
+    content: filtered.length > 0 ? filtered : [{ type: "paragraph" }],
+  }
+}
+
 /** Action item titles from the "Action items" task list in a saved document. */
 export function extractActionItemsFromDoc(
   doc: TiptapJSONContent

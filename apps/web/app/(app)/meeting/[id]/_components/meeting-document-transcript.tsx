@@ -44,7 +44,7 @@ export function MeetingDocumentTranscript() {
   return (
     <section className="space-y-4 pb-32">
       <div className="flex flex-col justify-between gap-2 md:flex-row">
-        <h2 className="text-lg font-semibold">Smart Transcript</h2>
+        <h2 className="text-2xl font-semibold leading-[1.3]">Smart Transcript</h2>
         <TranscriptSearch
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

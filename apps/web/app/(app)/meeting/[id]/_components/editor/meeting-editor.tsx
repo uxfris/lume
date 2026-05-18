@@ -3,12 +3,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { EditorContent, useEditor } from "@tiptap/react"
 import type { JSONContent } from "@tiptap/core"
-import type { Meeting, TiptapJSONContent } from "@workspace/types"
+import {
+  stripActionItemsFromDoc,
+  type Meeting,
+  type TiptapJSONContent,
+} from "@workspace/types"
 import { cn } from "@workspace/ui/lib/utils"
 import { useUpdateMeetingSummaryMutation } from "../../_hooks/mutations/use-update-meeting-summary-mutation"
 import { EditorBlockControls } from "./editor-block-controls"
 import { EditorBubbleMenu } from "./editor-bubble-menu"
-import { EditorTitle } from "./editor-title"
 import { getMeetingEditorExtensions } from "./extensions"
 import { getInitialEditorContent } from "./lib/initial-content"
 import type { SlashMenuState } from "./slash-command/slash-command-extension"
@@ -52,11 +55,12 @@ export function MeetingEditor({ meeting, className }: MeetingEditorProps) {
 
   const persistToServer = useCallback(
     (doc: JSONContent) => {
-      const serialized = JSON.stringify(doc)
+      const stripped = stripActionItemsFromDoc(doc as TiptapJSONContent)
+      const serialized = JSON.stringify(stripped)
       if (serialized === lastSavedRef.current) return
 
       setSaveStatus("saving")
-      saveSummary(doc as TiptapJSONContent, {
+      saveSummary(stripped, {
         onSuccess: () => {
           lastSavedRef.current = serialized
           setSaveStatus("saved")
@@ -128,17 +132,14 @@ export function MeetingEditor({ meeting, className }: MeetingEditorProps) {
             : undefined
         }
       >
-        <header className="space-y-1">
-          <EditorTitle meeting={meeting} />
-          {statusLabel ? (
-            <p className="text-xs text-muted-foreground" aria-live="polite">
-              {statusLabel}
-            </p>
-          ) : null}
-        </header>
+        {statusLabel ? (
+          <p className="text-xs text-muted-foreground" aria-live="polite">
+            {statusLabel}
+          </p>
+        ) : null}
 
         {editor && (
-          <div className="relative -ml-11">
+          <div className="meeting-editor__surface">
             <EditorBlockControls editor={editor} />
             <EditorBubbleMenu editor={editor} />
             <EditorContent editor={editor} />
@@ -149,4 +150,3 @@ export function MeetingEditor({ meeting, className }: MeetingEditorProps) {
     </TooltipProvider>
   )
 }
-

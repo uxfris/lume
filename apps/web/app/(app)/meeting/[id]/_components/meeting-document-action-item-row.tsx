@@ -1,7 +1,11 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar"
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@workspace/ui/components/avatar"
 import { Button } from "@workspace/ui/components/button"
 import { Checkbox } from "@workspace/ui/components/checkbox"
 import { Input } from "@workspace/ui/components/input"
@@ -62,7 +66,7 @@ export function MeetingDocumentActionItemRow({
   }
 
   return (
-    <div className="flex items-start gap-3 py-1 group/item">
+    <div className="group/item flex items-start gap-3 py-1">
       <Checkbox
         className="h-5 w-5 border-2"
         checked={item.isCompleted}
@@ -77,13 +81,13 @@ export function MeetingDocumentActionItemRow({
           onChange={(e) => setTitle(e.target.value)}
           onBlur={save}
           onKeyDown={handleKeyDown}
-          className="h-fit bg-transparent p-0"
+          className="h-fit flex-1 bg-transparent p-0 text-base md:text-base"
         />
       ) : (
         <p
           onClick={() => setIsEditing(true)}
           className={cn(
-            "line-clamp-2 flex-1 cursor-pointer",
+            "line-clamp-2 flex-1 cursor-pointer text-base",
             item.isCompleted && "text-muted-foreground line-through"
           )}
         >

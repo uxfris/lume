@@ -38,7 +38,7 @@ export function MeetingDocumentActionItemHeader({
   return (
     <div className="flex justify-between">
       <div className="flex items-center gap-2">
-        <h2 className="text-lg font-semibold">Action items</h2>
+        <h2 className="text-2xl font-semibold leading-[1.3]">Action items</h2>
         <Badge variant="secondary" className="text-muted-foreground">
           {tasks.length} items
         </Badge>
