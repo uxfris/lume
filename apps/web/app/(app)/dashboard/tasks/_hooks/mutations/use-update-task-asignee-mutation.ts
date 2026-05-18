@@ -5,28 +5,13 @@ import { toast } from "sonner"
 
 import { taskApi } from "@workspace/api-client"
 
-import type { TasksGroup, UserSummary } from "@workspace/types"
+import type { ActionItem, TasksGroup, UserSummary } from "@workspace/types"
+import {
+  updateTaskAssigneeInGroups,
+  updateTaskAssigneeInMeetingTasks,
+} from "../../_lib/task-cache"
 import { taskKeys } from "../../_lib/task.keys"
 import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
-
-function updateTaskAssigneeInGroups(
-  groups: TasksGroup[],
-  taskId: string,
-  assignee: UserSummary | null
-): TasksGroup[] {
-  return groups.map((group) => ({
-    ...group,
-
-    tasks: group.tasks.map((task) =>
-      task.id === taskId
-        ? {
-            ...task,
-            assignee,
-          }
-        : task
-    ),
-  }))
-}
 
 export type UpdateTaskPayload = {
   id: string
@@ -55,11 +40,15 @@ export function useUpdateTaskAssigneeMutation(): useUpdateTaskMutationReturn {
 
     onMutate: async ({ id, assignee }) => {
       await queryClient.cancelQueries({
-        queryKey: taskKeys.lists(workspaceId),
+        queryKey: taskKeys.all(workspaceId),
       })
 
       const previousLists = queryClient.getQueriesData<TasksGroup[]>({
         queryKey: taskKeys.lists(workspaceId),
+      })
+
+      const previousMeetingTasks = queryClient.getQueriesData<ActionItem[]>({
+        queryKey: taskKeys.meetings(workspaceId),
       })
 
       previousLists.forEach(([queryKey, groups]) => {
@@ -71,8 +60,18 @@ export function useUpdateTaskAssigneeMutation(): useUpdateTaskMutationReturn {
         )
       })
 
+      previousMeetingTasks.forEach(([queryKey, tasks]) => {
+        if (!tasks) return
+
+        queryClient.setQueryData<ActionItem[]>(
+          queryKey,
+          updateTaskAssigneeInMeetingTasks(tasks, id, assignee)
+        )
+      })
+
       return {
         previousLists,
+        previousMeetingTasks,
       }
     },
 
@@ -81,12 +80,16 @@ export function useUpdateTaskAssigneeMutation(): useUpdateTaskMutationReturn {
         queryClient.setQueryData(queryKey, data)
       })
 
+      context?.previousMeetingTasks.forEach(([queryKey, data]) => {
+        queryClient.setQueryData(queryKey, data)
+      })
+
       toast.error("Failed to update assignee.")
     },
 
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: taskKeys.lists(workspaceId),
+        queryKey: taskKeys.all(workspaceId),
       })
     },
   })

@@ -4,11 +4,11 @@ import { Meeting } from "@workspace/types"
 import { useMeetingStatusEvents } from "@/app/(app)/dashboard/_hooks/use-meeting-status-events"
 import { isTerminalUiMeetingStatus } from "@/lib/meeting-status"
 import { useCallback, useEffect, useState } from "react"
-import { MeetingDocumentOverview } from "./meeting-document-overview"
-import { MeetingDocumentTakeaway } from "./meeting-document-takeaway"
 import { MeetingDocumentActionItem } from "./meeting-document-action-item"
 import { MeetingDocumentTranscript } from "./meeting-document-transcript"
 import { MeetingMediaPlayerBar } from "./meeting-media-player-bar"
+import { MeetingPlaybackShell } from "./meeting-playback-shell"
+import { MeetingEditor } from "./editor/meeting-editor"
 
 const LOADING_MESSAGE: Record<Meeting["status"], string> = {
   transcribing: "Transcribing your meeting…",
@@ -69,11 +69,17 @@ export function MeetingBody({ meeting: initialMeeting }: { meeting: Meeting }) {
 
   return (
     <>
-      <MeetingDocumentOverview meeting={meeting} />
-      <MeetingDocumentTakeaway meeting={meeting} />
-      <MeetingDocumentActionItem />
-      <MeetingDocumentTranscript />
-      <MeetingMediaPlayerBar />
+      <div className="space-y-6">
+        <MeetingEditor meeting={meeting} />
+        <MeetingDocumentActionItem
+          meetingId={meeting.id}
+          meetingTitle={meeting.title}
+        />
+      </div>
+      <MeetingPlaybackShell meetingId={meeting.id}>
+        <MeetingDocumentTranscript />
+        <MeetingMediaPlayerBar />
+      </MeetingPlaybackShell>
     </>
   )
 }

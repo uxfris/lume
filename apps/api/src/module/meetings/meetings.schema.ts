@@ -2,7 +2,9 @@ import { z } from "zod"
 import {
   ConversationSchema,
   LiveMeetingSchema,
+  MeetingAudioResponseSchema,
   MeetingSchema,
+  TiptapJSONContentSchema,
 } from "@workspace/types"
 
 export const getConversationParamsSchema = z.object({
@@ -39,6 +41,14 @@ export const patchMeetingBodySchema = z.object({
   isStarred: z.boolean().optional(),
 })
 
+export const patchMeetingSummaryParamsSchema = z.object({
+  id: z.string().min(1),
+})
+
+export const patchMeetingSummaryBodySchema = z.object({
+  document: TiptapJSONContentSchema,
+})
+
 export const meetingSchema = MeetingSchema
 
 export const meetingErrorSchema = z.object({
@@ -47,6 +57,8 @@ export const meetingErrorSchema = z.object({
 })
 
 export const getConversationResponseSchema = ConversationSchema
+
+export const getMeetingAudioResponseSchema = MeetingAudioResponseSchema
 
 export const deleteMeetingsBodySchema = z.object({
   meetingIds: z.array(z.string().min(1)).min(1).max(100),

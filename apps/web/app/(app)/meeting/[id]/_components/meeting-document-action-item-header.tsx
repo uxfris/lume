@@ -9,16 +9,18 @@ import {
   TooltipTrigger,
 } from "@workspace/ui/components/tooltip"
 import { TaskSync } from "@/app/(app)/dashboard/tasks/_components/task-sync"
-import { ActionItem } from "@workspace/types"
+import { ActionItem, UserSummary } from "@workspace/types"
 import { CopyButton } from "@/components/copy-button"
 import { useTaskSyncFlow } from "@/app/(app)/dashboard/tasks/_hooks/use-task-sync-flow"
 
 export function MeetingDocumentActionItemHeader({
   tasks,
   meetingTitle,
+  onUpdateAssignee,
 }: {
   tasks: ActionItem[]
   meetingTitle: string
+  onUpdateAssignee?: (id: string, assignee: UserSummary | null) => void
 }) {
   const {
     taskSelectionOpen,
@@ -61,7 +63,7 @@ export function MeetingDocumentActionItemHeader({
         initialSelectedTasksIds={initialSelectedTasksIds}
         onContinue={onContinue}
         tasks={selectionTasks}
-        onUpdateAssignee={() => {}}
+        onUpdateAssignee={onUpdateAssignee ?? (() => {})}
       />
       <SendTaskDialog
         open={taskSendOpen}

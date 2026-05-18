@@ -72,6 +72,8 @@ function buildRecordingConfig(input: {
 }): Record<string, unknown> {
   const recordingConfig: Record<string, unknown> = {
     metadata: { meeting_id: input.meetingId },
+    // Post-meeting mixed MP3 for in-app playback (see Recall async mixed audio guide).
+    audio_mixed_mp3: {},
   }
 
   if (input.realtimeWebhookUrl) {

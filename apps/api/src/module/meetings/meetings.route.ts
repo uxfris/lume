@@ -8,6 +8,7 @@ import {
   moveMeetingsToWorkspaceBodySchema,
   getConversationParamsSchema,
   getConversationResponseSchema,
+  getMeetingAudioResponseSchema,
   getMeetingParamsSchema,
   listLiveMeetingsResponseSchema,
   listMeetingsQuerySchema,
@@ -16,6 +17,8 @@ import {
   meetingSchema,
   patchMeetingBodySchema,
   patchMeetingParamsSchema,
+  patchMeetingSummaryBodySchema,
+  patchMeetingSummaryParamsSchema,
 } from "./meetings.schema"
 import {
   inviteMeetingShareBodySchema,
@@ -185,6 +188,37 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
       }
 
       return reply.status(200).send(conversation)
+    }
+  )
+
+  app.get(
+    "/:id/audio",
+    {
+      preHandler: [app.verifySession, app.requireWorkspace],
+      schema: {
+        tags: ["Meetings"],
+        summary: "Get a presigned URL for meeting playback audio",
+        params: getMeetingParamsSchema,
+        response: {
+          200: getMeetingAudioResponseSchema,
+          404: meetingErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const audio = await meetingsService.getMeetingAudio({
+        meetingId: request.params.id,
+        userId: request.user!.id,
+        userEmail: request.user!.email,
+      })
+
+      if (!audio) {
+        return reply.status(404).send({
+          error: "MEETING_AUDIO_NOT_FOUND",
+        })
+      }
+
+      return reply.status(200).send(audio)
     }
   )
 
@@ -497,6 +531,41 @@ export const meetingsRoutes: FastifyPluginAsyncZod = async (app) => {
               ? "MEETING_FORBIDDEN"
               : "MEETING_NOT_FOUND",
         })
+      }
+
+      return reply.status(204).send()
+    }
+  )
+
+  app.patch(
+    "/:id/summary",
+    {
+      preHandler: [app.verifySession],
+      schema: {
+        tags: ["Meetings"],
+        summary: "Update meeting notes document (Tiptap JSON)",
+        params: patchMeetingSummaryParamsSchema,
+        body: patchMeetingSummaryBodySchema,
+        response: {
+          204: z.undefined(),
+          403: meetingErrorSchema,
+          404: meetingErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await meetingsService.updateMeetingSummary({
+        meetingId: request.params.id,
+        userId: request.user!.id,
+        userEmail: request.user!.email,
+        document: request.body.document,
+      })
+
+      if (!result.ok) {
+        if (result.reason === "FORBIDDEN") {
+          return reply.status(403).send({ error: "FORBIDDEN" })
+        }
+        return reply.status(404).send({ error: "MEETING_NOT_FOUND" })
       }
 
       return reply.status(204).send()

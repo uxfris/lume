@@ -16,6 +16,13 @@ export function formatDate(dateString: string) {
     return `${map.weekday}, ${map.month} ${map.year} ${map.hour}:${map.minute} ${map.dayPeriod}`
 }
 
+export function formatEditedLabel(dateString: string) {
+    return `Edited ${new Date(dateString).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+    })}`
+}
+
 export function formatDateOnly(value: string) {
     return new Date(value).toLocaleDateString("en-US", {
         month: "short",

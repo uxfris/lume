@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import type { UserSummary } from "../../../../../../../packages/types/src/task"
+import type { UserSummary } from "@workspace/types"
 
 interface UseNewTaskFormOptions {
     onCommit: (title: string, assignee: UserSummary | null, checked: boolean) => void

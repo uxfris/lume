@@ -14,4 +14,10 @@ export const taskKeys = {
 
   productivity: (workspaceId: string | null) =>
     [...taskKeys.all(workspaceId), "productivity"] as const,
+
+  meetings: (workspaceId: string | null) =>
+    [...taskKeys.all(workspaceId), "meeting"] as const,
+
+  meeting: (workspaceId: string | null, meetingId: string) =>
+    [...taskKeys.meetings(workspaceId), meetingId] as const,
 }
