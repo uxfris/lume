@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto"
 import type { Job } from "bullmq"
 import { deliverUserNotification, Prisma, prisma } from "@workspace/database"
 import type { MeetingStatus } from "@workspace/database"
-import { QueueName, type EmbedJobPayload } from "@workspace/queue"
+import { QueueName, getQueue, type EmbedJobPayload } from "@workspace/queue"
 import { logger } from "../logger"
 import { createProcessingEventAndPublish } from "../lib/processing-events"
 import { embedText } from "../lib/openai"
@@ -144,6 +144,11 @@ export async function embedHandler(
     }).catch((err) => {
       log.warn({ err }, "failed to deliver meeting summary notification")
     })
+    await getQueue(QueueName.DeliverIntegrations).add(
+      "deliver-integrations",
+      { meetingId, workspaceId, userId, traceId },
+      { jobId: `deliver-integrations-${meetingId}` }
+    )
 
     log.info({ costUsd: totalEmbedCost, chunks: windows.length }, "embed job completed")
     return { meetingId }

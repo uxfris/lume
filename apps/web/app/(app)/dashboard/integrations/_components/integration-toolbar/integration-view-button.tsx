@@ -1,32 +1,31 @@
+"use client"
+
 import { Button } from "@workspace/ui/components/button";
-import { List } from "lucide-react";
-import { MinimalisticMagnifier, Widget } from "@solar-icons/react";
 import { cn } from "@workspace/ui/lib/utils";
-import { useState } from "react";
+import { Grid2x2, List } from "lucide-react";
+import { useIntegrationListView } from "../../_stores/integration-list-view-store";
 
 
 export function IntegrationViewButton() {
-
-    // const meetingView = useMeetingView(v => v.meetingView)
-    // const setMeetingView = useMeetingView(v => v.setMeetingView)
-
-    const [integrationView, setIntegrationView] = useState("grid")
+    const view = useIntegrationListView((s) => s.view)
+    const setView = useIntegrationListView((s) => s.setView)
 
     return (
-        <div className="hidden md:flex w-fit items-center gap-1.5 p-1 bg-secondary rounded-md">
+        <div className="hidden md:flex items-center gap-1 p-1 bg-secondary rounded-lg">
             <Button
                 variant="ghost"
                 size="icon"
-                className={cn("h-auto w-auto p-1", integrationView === "grid" && "bg-card")}
-                onClick={() => setIntegrationView("grid")}>
-                <Widget className="w-3.5" />
+                className={cn("h-auto w-auto p-1", view === "grid" && "bg-card")}
+                onClick={() => setView("grid")}>
+                <Grid2x2 size={16} />
             </Button>
             <Button
                 variant="ghost"
                 size="icon"
-                className={cn("h-auto w-auto p-1", integrationView === "list" && "bg-card")}
-                onClick={() => setIntegrationView("list")}>
-                <List className="w-3.5" />
+                className={cn("h-auto w-auto p-1", view === "list" && "bg-card")}
+                onClick={() => setView("list")}>
+                <List size={16} />
             </Button>
-        </div>)
+        </div>
+    )
 }

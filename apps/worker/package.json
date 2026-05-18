@@ -18,6 +18,7 @@
     "@workspace/account-deletion": "workspace:*",
     "@workspace/database": "workspace:*",
     "@workspace/queue": "workspace:*",
+    "@workspace/types": "workspace:*",
     "bullmq": "^5.76.1",
     "dotenv": "^16.0.0",
     "openai": "^4.77.0",
