@@ -40,10 +40,13 @@ export function PeopleSearchFilterAction({
   activeTab?: "all" | "invited"
 }) {
   return (
-    <div className="flex flex-col lg:flex-row justify-between gap-2">
-      <div className="flex flex-col lg:flex-row items-center gap-2">
+    <div className="flex flex-col justify-between gap-2 lg:flex-row">
+      <div className="flex flex-col items-center gap-2 lg:flex-row">
         <PeopleSearch value={searchValue} onChange={onSearchChange} />
-        <PeopleRolePopover filterValue={filterValue} onFilterChange={onFilterChange} />
+        <PeopleRolePopover
+          filterValue={filterValue}
+          onFilterChange={onFilterChange}
+        />
       </div>
       {canManageMembers && (
         <div className="flex items-center gap-2">
@@ -56,7 +59,7 @@ export function PeopleSearchFilterAction({
             invitations={invitations}
             activeTab={activeTab}
           />
-          <PeopleLinkInvite />
+          {/* <PeopleLinkInvite /> */}
           <PeopleInviteMembers
             onInvite={onInviteMembers}
             isPending={isInvitePending}
