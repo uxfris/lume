@@ -111,6 +111,47 @@ export const workspacesRepo = {
     })
   },
 
+  findMemberById(memberId: string) {
+    return prisma.workspaceMember.findUnique({
+      where: { id: memberId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
+      },
+    })
+  },
+
+  countOwners(workspaceId: string) {
+    return prisma.workspaceMember.count({
+      where: { workspaceId, role: "OWNER" },
+    })
+  },
+
+  countMembershipsForUser(userId: string) {
+    return prisma.workspaceMember.count({
+      where: { userId },
+    })
+  },
+
+  updateMemberRole(memberId: string, role: WorkspaceRole) {
+    return prisma.workspaceMember.update({
+      where: { id: memberId },
+      data: { role },
+    })
+  },
+
+  deleteMember(memberId: string) {
+    return prisma.workspaceMember.delete({
+      where: { id: memberId },
+    })
+  },
+
   findInvitationByWorkspaceAndEmail(workspaceId: string, email: string) {
     return prisma.invitation.findUnique({
       where: {

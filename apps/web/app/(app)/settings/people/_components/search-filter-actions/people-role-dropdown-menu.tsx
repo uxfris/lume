@@ -16,17 +16,22 @@ import {
 } from "@workspace/ui/components/tooltip"
 import { ReactNode } from "react"
 import { ROLES } from "../../_lib/role-data"
+import { ASSIGNABLE_UI_ROLES } from "../../_lib/role-utils"
 
 export function PeopleRoleDropdownMenu({
     onSelectRole,
     triggerButton,
     hasHeader = false,
+    assignableOnly = false,
 }: {
     onSelectRole: (role: string) => void
     triggerButton: ReactNode
     hasHeader?: boolean
+    assignableOnly?: boolean
 }) {
-
+    const roles = assignableOnly
+        ? ROLES.filter((item) => ASSIGNABLE_UI_ROLES.includes(item.id as (typeof ASSIGNABLE_UI_ROLES)[number]))
+        : ROLES
 
     return (
         <DropdownMenu>
@@ -44,7 +49,7 @@ export function PeopleRoleDropdownMenu({
                     </>
                 )}
 
-                {ROLES.map((item) => (
+                {roles.map((item) => (
                     <Tooltip key={item.id} >
                         <TooltipTrigger asChild>
                             <DropdownMenuItem

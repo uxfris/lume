@@ -13,6 +13,21 @@ const MAX_SLUG_ATTEMPTS = 5
 const PRISMA_UNIQUE = "P2002"
 
 export type InviteRole = Exclude<WorkspaceRole, "OWNER">
+export type AssignableMemberRole = InviteRole
+
+type MemberManagementError =
+  | "NOT_FOUND"
+  | "FORBIDDEN"
+  | "TARGET_NOT_FOUND"
+  | "CANNOT_CHANGE_OWN_ROLE"
+  | "CANNOT_MODIFY_OWNER"
+  | "LAST_OWNER"
+  | "INVALID_ROLE"
+
+type LeaveWorkspaceError =
+  | "NOT_FOUND"
+  | "LAST_WORKSPACE"
+  | "SOLE_OWNER"
 export type WorkspaceMembershipWithWorkspace = Awaited<
   ReturnType<typeof workspacesRepo.listMembershipsForUser>
 >[number]
@@ -306,6 +321,107 @@ export async function revokeInvitation(
   }
 
   await workspacesRepo.markInvitationRevoked(invitationId, new Date())
+  return { ok: true }
+}
+
+function canManageMembers(role: WorkspaceRole): boolean {
+  return role === "OWNER" || role === "ADMIN"
+}
+
+function assertAssignableRole(role: WorkspaceRole): role is AssignableMemberRole {
+  return role === "ADMIN" || role === "MEMBER" || role === "GUEST"
+}
+
+async function getActorMembership(workspaceId: string, actorUserId: string) {
+  return workspacesRepo.findMembershipWithWorkspace(workspaceId, actorUserId)
+}
+
+export async function updateMemberRole(
+  workspaceId: string,
+  actorUserId: string,
+  memberId: string,
+  role: AssignableMemberRole
+): Promise<{ ok: true } | { ok: false; error: MemberManagementError }> {
+  const actor = await getActorMembership(workspaceId, actorUserId)
+  if (!actor) return { ok: false, error: "NOT_FOUND" }
+  if (!canManageMembers(actor.role)) return { ok: false, error: "FORBIDDEN" }
+
+  const target = await workspacesRepo.findMemberById(memberId)
+  if (!target || target.workspaceId !== workspaceId) {
+    return { ok: false, error: "TARGET_NOT_FOUND" }
+  }
+
+  if (target.userId === actorUserId) {
+    return { ok: false, error: "CANNOT_CHANGE_OWN_ROLE" }
+  }
+
+  if (target.role === "OWNER") {
+    return { ok: false, error: "CANNOT_MODIFY_OWNER" }
+  }
+
+  if (!assertAssignableRole(role)) {
+    return { ok: false, error: "INVALID_ROLE" }
+  }
+
+  await workspacesRepo.updateMemberRole(memberId, role)
+  return { ok: true }
+}
+
+export async function removeMember(
+  workspaceId: string,
+  actorUserId: string,
+  memberId: string
+): Promise<{ ok: true } | { ok: false; error: MemberManagementError }> {
+  const actor = await getActorMembership(workspaceId, actorUserId)
+  if (!actor) return { ok: false, error: "NOT_FOUND" }
+  if (!canManageMembers(actor.role)) return { ok: false, error: "FORBIDDEN" }
+
+  const target = await workspacesRepo.findMemberById(memberId)
+  if (!target || target.workspaceId !== workspaceId) {
+    return { ok: false, error: "TARGET_NOT_FOUND" }
+  }
+
+  if (target.userId === actorUserId) {
+    return { ok: false, error: "CANNOT_CHANGE_OWN_ROLE" }
+  }
+
+  if (target.role === "OWNER") {
+    const ownerCount = await workspacesRepo.countOwners(workspaceId)
+    if (ownerCount <= 1) {
+      return { ok: false, error: "LAST_OWNER" }
+    }
+    if (actor.role !== "OWNER") {
+      return { ok: false, error: "CANNOT_MODIFY_OWNER" }
+    }
+  }
+
+  await workspacesRepo.deleteMember(memberId)
+  return { ok: true }
+}
+
+export async function leaveWorkspace(
+  workspaceId: string,
+  userId: string
+): Promise<{ ok: true } | { ok: false; error: LeaveWorkspaceError }> {
+  const membership = await workspacesRepo.findMembershipWithWorkspace(
+    workspaceId,
+    userId
+  )
+  if (!membership) return { ok: false, error: "NOT_FOUND" }
+
+  const workspaceCount = await workspacesRepo.countMembershipsForUser(userId)
+  if (workspaceCount <= 1) {
+    return { ok: false, error: "LAST_WORKSPACE" }
+  }
+
+  if (membership.role === "OWNER") {
+    const ownerCount = await workspacesRepo.countOwners(workspaceId)
+    if (ownerCount <= 1) {
+      return { ok: false, error: "SOLE_OWNER" }
+    }
+  }
+
+  await workspacesRepo.deleteMember(membership.id)
   return { ok: true }
 }
 

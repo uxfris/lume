@@ -11,7 +11,9 @@ import {
   listWorkspacePeopleResponseSchema,
   listWorkspacesResponseSchema,
   noContentResponseSchema,
+  memberParamsSchema,
   revokeInvitationParamsSchema,
+  updateMemberRoleBodySchema,
   updateWorkspaceBodySchema,
   workspaceParamsSchema,
   workspaceSummarySchema,
@@ -212,6 +214,129 @@ export const workspacesRoutes: FastifyPluginAsyncZod = async (app) => {
         token: result.token,
         expiresAt: result.expiresAt.toISOString(),
       })
+    }
+  )
+
+  app.patch(
+    "/:id/members/:memberId",
+    {
+      preHandler: [
+        app.verifySession,
+        app.requireWorkspaceFromParams,
+        app.requireRole(["OWNER", "ADMIN"]),
+      ],
+      schema: {
+        tags: ["Workspaces"],
+        summary: "Update a workspace member role",
+        params: memberParamsSchema,
+        body: updateMemberRoleBodySchema,
+        response: {
+          204: noContentResponseSchema,
+          403: errorResponseSchema,
+          404: errorResponseSchema,
+          409: errorResponseSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await workspacesService.updateMemberRole(
+        request.params.id,
+        request.user!.id,
+        request.params.memberId,
+        request.body.role
+      )
+
+      if (!result.ok) {
+        const status =
+          result.error === "NOT_FOUND" || result.error === "TARGET_NOT_FOUND"
+            ? 404
+            : result.error === "FORBIDDEN"
+              ? 403
+              : 409
+
+        return reply.status(status).send({ error: result.error })
+      }
+
+      return reply.status(204).send(null)
+    }
+  )
+
+  app.delete(
+    "/:id/members/:memberId",
+    {
+      preHandler: [
+        app.verifySession,
+        app.requireWorkspaceFromParams,
+        app.requireRole(["OWNER", "ADMIN"]),
+      ],
+      schema: {
+        tags: ["Workspaces"],
+        summary: "Remove a workspace member",
+        params: memberParamsSchema,
+        response: {
+          204: noContentResponseSchema,
+          403: errorResponseSchema,
+          404: errorResponseSchema,
+          409: errorResponseSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await workspacesService.removeMember(
+        request.params.id,
+        request.user!.id,
+        request.params.memberId
+      )
+
+      if (!result.ok) {
+        const status =
+          result.error === "NOT_FOUND" || result.error === "TARGET_NOT_FOUND"
+            ? 404
+            : result.error === "FORBIDDEN"
+              ? 403
+              : 409
+
+        return reply.status(status).send({ error: result.error })
+      }
+
+      return reply.status(204).send(null)
+    }
+  )
+
+  app.post(
+    "/:id/leave",
+    {
+      preHandler: [app.verifySession, app.requireWorkspaceFromParams],
+      schema: {
+        tags: ["Workspaces"],
+        summary: "Leave the workspace",
+        params: workspaceParamsSchema,
+        response: {
+          204: noContentResponseSchema,
+          403: errorResponseSchema,
+          404: errorResponseSchema,
+          409: errorResponseSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await workspacesService.leaveWorkspace(
+        request.params.id,
+        request.user!.id
+      )
+
+      if (!result.ok) {
+        const status =
+          result.error === "NOT_FOUND"
+            ? 404
+            : result.error === "LAST_WORKSPACE" || result.error === "SOLE_OWNER"
+              ? 409
+              : 403
+
+        return reply.status(status).send({ error: result.error })
+      }
+
+      return reply.status(204).send(null)
     }
   )
 

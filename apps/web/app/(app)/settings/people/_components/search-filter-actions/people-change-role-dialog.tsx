@@ -8,6 +8,7 @@ export function PeopleChangeRole<TData>({ table }: { table: Table<TData> }) {
 
     return (
         <PeopleRoleDropdownMenu
+            assignableOnly
             onSelectRole={(role) => table.options.meta?.updateMultipleRoles?.(role)}
             hasHeader={true} triggerButton={
                 <Button size="xs" variant="ghost">

@@ -6,15 +6,25 @@ import { PeopleLinkInvite } from "./people-link-invite";
 import { PeopleInviteMembers } from "./people-invite-members";
 
 
-export function PeopleSearchFilterAction(
-    { searchValue, onSearchChange, filterValue, onFilterChange, selectionMode, onSelectionModeChange }: {
-        searchValue: string, onSearchChange: (value: string) => void,
-        filterValue: string, onFilterChange: (value: string) => void,
-        selectionMode: boolean,
-        onSelectionModeChange: (mode: boolean) => void,
-    }
-
-) {
+export function PeopleSearchFilterAction({
+    searchValue,
+    onSearchChange,
+    filterValue,
+    onFilterChange,
+    selectionMode,
+    onSelectionModeChange,
+    onInviteMembers,
+    isInvitePending,
+}: {
+    searchValue: string
+    onSearchChange: (value: string) => void
+    filterValue: string
+    onFilterChange: (value: string) => void
+    selectionMode: boolean
+    onSelectionModeChange: (mode: boolean) => void
+    onInviteMembers?: (emails: string[], role: string) => void
+    isInvitePending?: boolean
+}) {
     return (
         <div className="flex flex-col lg:flex-row justify-between gap-2">
             <div className="flex flex-col lg:flex-row items-center gap-2">
@@ -25,7 +35,10 @@ export function PeopleSearchFilterAction(
                 <PeopleSelect selectionMode={selectionMode} onSelectionModeChange={onSelectionModeChange} />
                 <PeopleExport />
                 <PeopleLinkInvite />
-                <PeopleInviteMembers />
+                <PeopleInviteMembers
+                    onInvite={onInviteMembers}
+                    isPending={isInvitePending}
+                />
             </div>
         </div>
     )

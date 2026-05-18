@@ -49,6 +49,15 @@ export const revokeInvitationParamsSchema = z.object({
   invitationId: z.string().min(1),
 })
 
+export const memberParamsSchema = z.object({
+  id: z.string().min(1),
+  memberId: z.string().min(1),
+})
+
+export const updateMemberRoleBodySchema = z.object({
+  role: ApiInviteRoleSchema,
+})
+
 export const listWorkspacePeopleResponseSchema =
   WorkspacePeopleTableResponseSchema
 

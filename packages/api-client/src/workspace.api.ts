@@ -70,6 +70,7 @@ export const workspaceApi = {
         role,
       }
     )
+    console.log(data)
     return CreateInvitationResponseSchema.parse(data)
   },
 
@@ -85,5 +86,26 @@ export const workspaceApi = {
     await client.delete<unknown>(
       `/workspaces/${workspaceId}/invitations/${invitationId}`
     )
+  },
+
+  async updateMemberRole(
+    workspaceId: string,
+    memberId: string,
+    role: string
+  ): Promise<void> {
+    await client.patch<unknown>(
+      `/workspaces/${workspaceId}/members/${memberId}`,
+      { role }
+    )
+  },
+
+  async removeMember(workspaceId: string, memberId: string): Promise<void> {
+    await client.delete<unknown>(
+      `/workspaces/${workspaceId}/members/${memberId}`
+    )
+  },
+
+  async leaveWorkspace(workspaceId: string): Promise<void> {
+    await client.post<unknown>(`/workspaces/${workspaceId}/leave`)
   },
 }
