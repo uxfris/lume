@@ -64,10 +64,17 @@ export const integrationsRoutes: FastifyPluginAsyncZod = async (app) => {
         )
       }
 
-      const result = await integrationsService.completeOAuthCallback({ code, state })
+      const result = await integrationsService.completeOAuthCallback({
+        code,
+        state,
+      })
       if (!result.ok) {
         return reply.redirect(
-          integrationsService.oauthCallbackRedirectUrl(provider, "error", result.error)
+          integrationsService.oauthCallbackRedirectUrl(
+            provider,
+            "error",
+            result.error
+          )
         )
       }
 
@@ -92,7 +99,9 @@ export const integrationsRoutes: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (request, reply) => {
-      const provider = integrationsService.assertSupportedProvider(request.params.provider)
+      const provider = integrationsService.assertSupportedProvider(
+        request.params.provider
+      )
       if (!provider) {
         return reply.status(404).send({ error: "NOT_FOUND" })
       }
@@ -123,11 +132,16 @@ export const integrationsRoutes: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (request, reply) => {
-      const provider = integrationsService.assertSupportedProvider(request.params.provider)
+      const provider = integrationsService.assertSupportedProvider(
+        request.params.provider
+      )
       if (!provider) {
         return reply.status(404).send({ error: "NOT_FOUND" })
       }
-      return integrationsService.listIntegrationActivity(request.workspace!.id, provider)
+      return integrationsService.listIntegrationActivity(
+        request.workspace!.id,
+        provider
+      )
     }
   )
 
@@ -147,7 +161,9 @@ export const integrationsRoutes: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (request, reply) => {
-      const provider = integrationsService.assertSupportedProvider(request.params.provider)
+      const provider = integrationsService.assertSupportedProvider(
+        request.params.provider
+      )
       if (!provider) {
         return reply.status(404).send({ error: "NOT_FOUND" })
       }
@@ -184,7 +200,9 @@ export const integrationsRoutes: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (request, reply) => {
-      const provider = integrationsService.assertSupportedProvider(request.params.provider)
+      const provider = integrationsService.assertSupportedProvider(
+        request.params.provider
+      )
       if (!provider) {
         return reply.status(404).send({ error: "NOT_FOUND" })
       }
@@ -215,7 +233,9 @@ export const integrationsRoutes: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (request, reply) => {
-      const provider = integrationsService.assertSupportedProvider(request.params.provider)
+      const provider = integrationsService.assertSupportedProvider(
+        request.params.provider
+      )
       if (!provider) {
         return reply.status(404).send({ error: "NOT_FOUND" })
       }
@@ -239,7 +259,6 @@ export const integrationsRoutes: FastifyPluginAsyncZod = async (app) => {
         tags: ["Integrations"],
         summary: "Update integration settings",
         params: integrationProviderParamsSchema,
-        body: z.union([patchSlackSettingsBodySchema, patchLinearSettingsBodySchema]),
         response: {
           204: z.undefined(),
           404: integrationErrorSchema,
@@ -247,7 +266,9 @@ export const integrationsRoutes: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (request, reply) => {
-      const provider = integrationsService.assertSupportedProvider(request.params.provider)
+      const provider = integrationsService.assertSupportedProvider(
+        request.params.provider
+      )
       if (!provider) {
         return reply.status(404).send({ error: "NOT_FOUND" })
       }
@@ -256,11 +277,11 @@ export const integrationsRoutes: FastifyPluginAsyncZod = async (app) => {
         provider === "slack"
           ? await integrationsService.patchSlackSettings(
               request.workspace!.id,
-              request.body as z.infer<typeof patchSlackSettingsBodySchema>
+              patchSlackSettingsBodySchema.parse(request.body)
             )
           : await integrationsService.patchLinearSettings(
               request.workspace!.id,
-              request.body as z.infer<typeof patchLinearSettingsBodySchema>
+              patchLinearSettingsBodySchema.parse(request.body)
             )
 
       if (!result.ok) {

@@ -58,11 +58,16 @@ function parseLinearConfig(raw: unknown): LinearIntegrationConfig {
   })
 }
 
-function isConnected(row: { accessToken: string | null; connectedAt: Date | null }) {
+function isConnected(row: {
+  accessToken: string | null
+  connectedAt: Date | null
+}) {
   return Boolean(row.accessToken && row.connectedAt)
 }
 
-export async function listIntegrations(workspaceId: string): Promise<Integration[]> {
+export async function listIntegrations(
+  workspaceId: string
+): Promise<Integration[]> {
   const connections = await integrationsRepo.findByWorkspace(workspaceId)
   const connectedIds = new Set(
     connections
@@ -88,7 +93,10 @@ export async function getIntegrationDetail(
   const catalog = catalogEntryFor(providerId)
   if (!catalog || catalog.status === "coming soon") return null
 
-  const row = await integrationsRepo.findOne(workspaceId, providerToDb(providerId))
+  const row = await integrationsRepo.findOne(
+    workspaceId,
+    providerToDb(providerId)
+  )
   const connected = row && isConnected(row)
 
   const base: IntegrationDetail = {
@@ -105,11 +113,7 @@ export async function getIntegrationDetail(
   if (providerId === "slack") {
     const slackConfig = parseSlackConfig(row?.config ?? {})
     let channelAccessOk = slackConfig.channelAccessOk
-    if (
-      connected &&
-      row?.accessToken &&
-      slackConfig.defaultChannelId
-    ) {
+    if (connected && row?.accessToken && slackConfig.defaultChannelId) {
       channelAccessOk = await verifySlackChannelAccess(
         row.accessToken,
         slackConfig.defaultChannelId
@@ -270,7 +274,10 @@ export async function disconnectIntegration(
   workspaceId: string,
   providerId: IntegrationProviderId
 ) {
-  const row = await integrationsRepo.findOne(workspaceId, providerToDb(providerId))
+  const row = await integrationsRepo.findOne(
+    workspaceId,
+    providerToDb(providerId)
+  )
   if (!row || !isConnected(row)) {
     return { ok: false as const, error: "NOT_CONNECTED" }
   }
@@ -324,9 +331,10 @@ export async function setSlackChannel(
     return { ok: false as const, error: "NOT_CONNECTED" }
   }
 
-  const channelAccessOk = await joinSlackPublicChannel(row.accessToken, channelId).catch(
-    () => false
-  )
+  const channelAccessOk = await joinSlackPublicChannel(
+    row.accessToken,
+    channelId
+  ).catch(() => false)
 
   const next = SlackIntegrationConfigSchema.parse({
     ...parseSlackConfig(row.config),
@@ -343,7 +351,10 @@ export async function listProviderChannels(
   workspaceId: string,
   providerId: IntegrationProviderId
 ) {
-  const row = await integrationsRepo.findOne(workspaceId, providerToDb(providerId))
+  const row = await integrationsRepo.findOne(
+    workspaceId,
+    providerToDb(providerId)
+  )
   if (!row || !isConnected(row) || !row.accessToken) {
     return { ok: false as const, error: "NOT_CONNECTED" }
   }
@@ -368,6 +379,8 @@ export function oauthCallbackRedirectUrl(
   return `${base}?${params}`
 }
 
-export function assertSupportedProvider(id: string): IntegrationProviderId | null {
+export function assertSupportedProvider(
+  id: string
+): IntegrationProviderId | null {
   return isSupportedProvider(id) ? id : null
 }

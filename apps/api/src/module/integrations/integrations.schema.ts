@@ -5,8 +5,6 @@ import {
   IntegrationDetailSchema,
   IntegrationRecentActivitySchema,
   IntegrationChannelSchema,
-  SlackIntegrationConfigSchema,
-  LinearIntegrationConfigSchema,
 } from "@workspace/types"
 
 export const integrationProviderParamsSchema = z.object({
@@ -31,9 +29,32 @@ export const oauthUrlResponseSchema = z.object({
   url: z.string().url(),
 })
 
-export const patchSlackSettingsBodySchema = SlackIntegrationConfigSchema.partial()
+/** PATCH bodies: strict partials without defaults so union / parse cannot clobber unrelated fields. */
+export const patchSlackSettingsBodySchema = z
+  .object({
+    defaultChannelId: z.string().nullable(),
+    defaultChannelName: z.string().nullable(),
+    autoPostSummaries: z.boolean(),
+    tagActionItemOwners: z.boolean(),
+    sendDmToOrganizer: z.boolean(),
+    includeTranscriptLink: z.boolean(),
+    channelAccessOk: z.boolean(),
+  })
+  .partial()
+  .strict()
 
-export const patchLinearSettingsBodySchema = LinearIntegrationConfigSchema.partial()
+export const patchLinearSettingsBodySchema = z
+  .object({
+    autoCreateIssues: z.boolean(),
+    autoAssignParticipants: z.boolean(),
+    autoSetDueDate: z.boolean(),
+    defaultPriority: z.enum(["urgent", "medium", "low"]),
+    defaultTeamId: z.string().nullable(),
+    defaultTeamName: z.string().nullable(),
+    defaultProjectId: z.string().nullable(),
+  })
+  .partial()
+  .strict()
 
 export const patchSlackChannelBodySchema = z.object({
   channelId: z.string().min(1),

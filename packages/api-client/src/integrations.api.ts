@@ -41,7 +41,10 @@ export const integrationsApi = {
     return client.get(`/integrations/${provider}/channels`, options)
   },
 
-  disconnect(provider: "slack" | "linear", options?: RequestOptions): Promise<void> {
+  disconnect(
+    provider: "slack" | "linear",
+    options?: RequestOptions
+  ): Promise<void> {
     return client.delete(`/integrations/${provider}`, options)
   },
 
