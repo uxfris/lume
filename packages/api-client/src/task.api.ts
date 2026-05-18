@@ -1,5 +1,7 @@
 import type {
   ActionItem,
+  SyncTasksToLinearBody,
+  SyncTasksToLinearResponse,
   TaskAIInsightResponse,
   TaskProductivityResponse,
   TasksGroup,
@@ -44,6 +46,17 @@ export const taskApi = {
     options?: RequestOptions
   ): Promise<TaskProductivityResponse> {
     return client.get<TaskProductivityResponse>("/tasks/productivity", options)
+  },
+
+  async syncToLinear(
+    body: SyncTasksToLinearBody,
+    options?: RequestOptions
+  ): Promise<SyncTasksToLinearResponse> {
+    return client.post<SyncTasksToLinearResponse>(
+      "/tasks/sync/linear",
+      body,
+      options
+    )
   },
 
   async toggle(

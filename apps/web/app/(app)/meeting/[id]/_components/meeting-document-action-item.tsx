@@ -42,7 +42,10 @@ const MOCK_TASKS: ActionItem[] = [
 export function MeetingDocumentActionItem() {
     return (
         <section className="space-y-4 group/task">
-            <MeetingDocumentActionItemHeader tasks={MOCK_TASKS} />
+            <MeetingDocumentActionItemHeader
+              tasks={MOCK_TASKS}
+              meetingTitle="Meeting"
+            />
             <div className="space-y-2">
                 {MOCK_TASKS.map((task) => (
                     <MeetingDocumentActionItemRow key={task.id} item={task} onToggle={function (): void {

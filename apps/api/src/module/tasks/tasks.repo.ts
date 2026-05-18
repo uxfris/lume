@@ -158,4 +158,18 @@ export const tasksRepo = {
       },
     })
   },
+
+  findManyByIds(workspaceId: string, taskIds: string[]) {
+    return prisma.task.findMany({
+      where: {
+        id: { in: taskIds },
+        ...this.workspaceTaskWhere(workspaceId),
+      },
+      select: {
+        id: true,
+        title: true,
+        meetingId: true,
+      },
+    })
+  },
 }

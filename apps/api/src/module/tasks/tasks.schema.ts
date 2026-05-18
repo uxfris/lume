@@ -1,6 +1,8 @@
 import { z } from "zod"
 import {
   ActionItemSchema,
+  SyncTasksToLinearBodySchema,
+  SyncTasksToLinearResponseSchema,
   TaskAIInsightResponseSchema,
   TaskProductivityResponseSchema,
   TasksGroupSchema,
@@ -48,3 +50,7 @@ export const createTaskResponseSchema = ActionItemSchema
 export const taskAIInsightResponseSchema = TaskAIInsightResponseSchema
 
 export const taskProductivityResponseSchema = TaskProductivityResponseSchema
+
+export const syncTasksToLinearBodySchema = SyncTasksToLinearBodySchema
+
+export const syncTasksToLinearResponseSchema = SyncTasksToLinearResponseSchema

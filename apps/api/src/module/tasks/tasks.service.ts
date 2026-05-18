@@ -10,6 +10,7 @@ import { meetingsRepo } from "../meetings/meetings.repo"
 import { groupTasksIntoMeetingGroups, toActionItem } from "./tasks.presenter"
 import { buildTaskAIInsight } from "./tasks.insight"
 import { buildTaskProductivityStats } from "./tasks.productivity"
+import { syncTasksToLinear as syncTasksToLinearImpl } from "./tasks.sync"
 import { tasksRepo } from "./tasks.repo"
 import { peopleRepo } from "../people/people.repo"
 import { toUserSummary } from "../people/people.presenter"
@@ -173,4 +174,13 @@ export async function getTaskProductivity(
   })
 
   return { stats }
+}
+
+export function syncTasksToLinear(input: {
+  workspaceId: string
+  taskIds: string[]
+  teamId?: string
+  meetingTitle?: string
+}) {
+  return syncTasksToLinearImpl(input)
 }

@@ -1,3 +1,5 @@
+"use client"
+
 import { Badge } from "@workspace/ui/components/badge"
 
 import { formatDate } from "@/lib/date-format"
@@ -6,14 +8,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@workspace/ui/components/tooltip"
-import { cn } from "@workspace/ui/lib/utils"
-import { useState } from "react"
 import { ActionItem, UserSummary } from "@workspace/types"
 import { TaskSync } from "./task-sync"
 import { SendTaskSelectionDialog } from "./send-task-selection-dialog"
 import { SendTaskDialog } from "./send-task-dialog"
-import { toast } from "sonner"
 import { CopyButton } from "@/components/copy-button"
+import { useTaskSyncFlow } from "../_hooks/use-task-sync-flow"
 
 type TaskListHeaderProps = {
   title: string
@@ -28,27 +28,19 @@ export function TaskListHeader({
   tasks,
   onUpdateAssignee,
 }: TaskListHeaderProps) {
-  const [taskSelectionOpen, setTaskSelectionOpen] = useState(false)
-  const [areInitiallySelected, setAreInitiallySelected] = useState(false)
-  const [selectedTaskIds, setSelectedTaskIds] = useState<String[]>([])
-  const [taskSendOpen, setTaskSendOpen] = useState(false)
-
-  const onOpenTaskSelection = (state: boolean) => {
-    setAreInitiallySelected(state)
-    setTaskSelectionOpen(true)
-  }
-
-  const onContinue = (selectedTaskIds: string[]) => {
-    setSelectedTaskIds(selectedTaskIds)
-    setTaskSelectionOpen(false)
-    setTaskSendOpen(true)
-  }
-
-  const onSuccess = () => {
-    //TODO: change the platform
-    setTaskSendOpen(false)
-    toast.success("Tasks sent to Trello")
-  }
+  const {
+    taskSelectionOpen,
+    setTaskSelectionOpen,
+    taskSendOpen,
+    setTaskSendOpen,
+    openTaskSelection,
+    selectionTasks,
+    initialSelectedTasksIds,
+    tasksToSend,
+    meetingTitle,
+    onContinue,
+    onSendSuccess,
+  } = useTaskSyncFlow({ tasks, meetingTitle: title })
 
   return (
     <div className="flex w-full items-center">
@@ -77,11 +69,7 @@ export function TaskListHeader({
               </Tooltip>
             )}
           </div>
-          <TaskSync
-            openTaskSelectionDialog={(areInitiallySelected) =>
-              onOpenTaskSelection(areInitiallySelected)
-            }
-          />
+          <TaskSync openTaskSelection={openTaskSelection} />
         </div>
         <time dateTime={timestamp} className="text-xs text-muted-foreground">
           {formatDate(timestamp)}
@@ -90,18 +78,17 @@ export function TaskListHeader({
       <SendTaskSelectionDialog
         open={taskSelectionOpen}
         onOpenChange={setTaskSelectionOpen}
-        initialSelectedTasksIds={
-          areInitiallySelected ? tasks.map((t) => t.id) : undefined
-        }
+        initialSelectedTasksIds={initialSelectedTasksIds}
         onContinue={onContinue}
-        tasks={tasks}
+        tasks={selectionTasks}
         onUpdateAssignee={onUpdateAssignee}
       />
       <SendTaskDialog
         open={taskSendOpen}
         onOpenChange={setTaskSendOpen}
-        onSuccess={onSuccess}
-        tasks={tasks.filter((t) => selectedTaskIds.includes(t.id))}
+        onSuccess={onSendSuccess}
+        tasks={tasksToSend}
+        meetingTitle={meetingTitle}
       />
     </div>
   )
