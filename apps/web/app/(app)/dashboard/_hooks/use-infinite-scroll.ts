@@ -81,6 +81,7 @@ export function useInfiniteScroll<T>({
 
   return {
     items,
+    setItems,
     loading,
     hasMore,
     observerRef,

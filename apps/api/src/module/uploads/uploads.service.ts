@@ -1,4 +1,5 @@
 import { QueueName, getQueue } from "@workspace/queue"
+import { publishMeetingEvent } from "../../lib/meeting-events"
 import {
   buildMeetingAudioKey,
   createPresignedAudioUpload,
@@ -112,6 +113,11 @@ export async function completeUpload(input: {
     },
     { jobId: `transcribe-${meeting.id}` }
   )
+
+  await publishMeetingEvent({
+    meetingId: meeting.id,
+    meetingStatus: "UPLOADED",
+  })
 
   return {
     ok: true,

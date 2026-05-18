@@ -1,4 +1,5 @@
 import { prisma } from "@workspace/database"
+import { publishMeetingEvent } from "../../../lib/meeting-events"
 import {
   RecallApiError,
   createAsyncTranscriptForRecording,
@@ -42,6 +43,13 @@ export async function handleRecordingDone(
           transcriptId,
         },
       },
+    })
+
+    await publishMeetingEvent({
+      meetingId: meeting.id,
+      meetingStatus: "TRANSCRIBING",
+      stage: "TRANSCRIBE",
+      status: "STARTED",
     })
   } catch (err) {
     // Webhook retries may attempt create_transcript multiple times; if the
