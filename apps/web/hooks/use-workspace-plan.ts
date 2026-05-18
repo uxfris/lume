@@ -18,6 +18,7 @@ export function useWorkspacePlan() {
 
   return {
     plan: query.data?.plan ?? "starter",
+    usage: query.data ?? null,
     isStudioPro,
     isLoading: query.isLoading,
   }
