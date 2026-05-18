@@ -2,15 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@workspace/ui/components/avatar"
-import { cn } from "@workspace/ui/lib/utils"
-import { getInitial } from "@/lib/get-initial"
-import { resolveWorkspaceImageSrc } from "@/lib/workspace-avatar"
-import type { WorkspaceMembership } from "@workspace/types"
+import { WorkspaceAvatar } from "@/components/workspace-avatar"
 
 import {
   DropdownMenu,
@@ -41,31 +33,6 @@ import { routes } from "@/lib/routes"
 import { useWorkspacesQuery } from "@/app/(app)/settings/workspace/_hooks/queries/use-workpsace-query"
 import { useSetWorkspaceMutation } from "@/app/(app)/settings/workspace/_hooks/mutations/use-set-workspace-mutation"
 import { useRouter } from "next/navigation"
-
-function WorkspaceAvatar({
-  workspace,
-  className,
-}: {
-  workspace: Pick<WorkspaceMembership, "id" | "name" | "image">
-  className?: string
-}) {
-  const image = resolveWorkspaceImageSrc(workspace.id, workspace.image)
-
-  return (
-    <Avatar className={cn("rounded-[4px]", className)}>
-      {image ? (
-        <AvatarImage
-          src={image}
-          alt={workspace.name}
-          className="rounded-[4px] object-cover"
-        />
-      ) : null}
-      <AvatarFallback className="rounded-[4px] bg-primary text-xs font-medium text-primary-foreground">
-        {getInitial(workspace.name)}
-      </AvatarFallback>
-    </Avatar>
-  )
-}
 
 export function WorkspaceSwitcher() {
   const router = useRouter()

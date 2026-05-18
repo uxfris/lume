@@ -25,9 +25,9 @@ export function useWorkspacesQuery({ workspaceId }: Args) {
       })
     : null
 
-  const activeWorkspace: WorkspaceMembership | undefined =
-    query.data?.workspaces.find((w) => w.id === workspaceId) ??
-    query.data?.workspaces[0]
+  const activeWorkspace: WorkspaceMembership | undefined = workspaceId
+    ? query.data?.workspaces.find((w) => w.id === workspaceId)
+    : query.data?.workspaces[0]
 
   return {
     data: query.data,
