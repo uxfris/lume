@@ -58,3 +58,19 @@ export const TaskProductivityResponseSchema = z.object({
 export type TaskProductivityResponse = z.infer<
   typeof TaskProductivityResponseSchema
 >
+
+export const SyncTasksToLinearBodySchema = z.object({
+  taskIds: z.array(z.string().min(1)).min(1),
+  teamId: z.string().min(1).optional(),
+  meetingTitle: z.string().min(1).optional(),
+})
+export type SyncTasksToLinearBody = z.infer<typeof SyncTasksToLinearBodySchema>
+
+export const SyncTasksToLinearResponseSchema = z.object({
+  created: z.number().int().min(0),
+})
+export type SyncTasksToLinearResponse = z.infer<
+  typeof SyncTasksToLinearResponseSchema
+>
+
+export type TaskSyncSelectionMode = "all" | "mine" | "select"
