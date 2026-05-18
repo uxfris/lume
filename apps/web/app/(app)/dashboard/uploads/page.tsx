@@ -8,17 +8,17 @@ import { useUpload } from "./_hooks/use-upload"
 export default function Uploads() {
   const {
     handleUploadFile,
+    handleFetchFromLink,
     displayUploads,
     progressByMeetingId,
     stageByMeetingId,
     loading,
-  } =
-    useUpload()
+  } = useUpload()
   return (
     <div className="flex flex-col gap-8 overflow-y-auto px-4 pt-0 pb-12 md:p-10">
       <div className="flex flex-col gap-4 md:flex-row md:gap-8">
         <UploadInput onUploadFile={handleUploadFile} />
-        <FetchFromLink />
+        {/* <FetchFromLink onFetchFromLink={handleFetchFromLink} /> */}
       </div>
       <RecentUploads
         uploads={displayUploads}
