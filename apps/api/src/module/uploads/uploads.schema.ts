@@ -5,10 +5,16 @@ import {
   PresignUploadResponseSchema,
   CompleteUploadResponseSchema,
   PresignUploadBodySchema,
+  FetchFromLinkBodySchema,
+  FetchFromLinkResponseSchema,
   ListUploadsQuerySchema,
 } from "@workspace/types"
 
 export const presignUploadBodySchema = PresignUploadBodySchema
+
+export const fetchFromLinkBodySchema = FetchFromLinkBodySchema
+
+export const fetchFromLinkResponseSchema = FetchFromLinkResponseSchema
 
 export const presignUploadResponseSchema = PresignUploadResponseSchema
 

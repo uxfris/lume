@@ -29,9 +29,12 @@ import { Bolt, Settings, UserPlusRounded } from "@solar-icons/react"
 import { CreditLeftCard } from "@/components/credit-left-card"
 import { NewWorkspacePage } from "./new-workspace-page"
 import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
+import { useWorkspacePlan } from "@/hooks/use-workspace-plan"
+import { formatPlanLabel } from "@/lib/billing-display"
 import { routes } from "@/lib/routes"
 import { useWorkspacesQuery } from "@/app/(app)/settings/workspace/_hooks/queries/use-workpsace-query"
 import { useSetWorkspaceMutation } from "@/app/(app)/settings/workspace/_hooks/mutations/use-set-workspace-mutation"
+import { useMembersQuery } from "@/app/(app)/settings/people/_hooks/queries/use-members-query"
 import { useRouter } from "next/navigation"
 
 export function WorkspaceSwitcher() {
@@ -56,6 +59,15 @@ export function WorkspaceSwitcher() {
   }, [resolvedWorkspaceId])
 
   const setWorkspaceMutation = useSetWorkspaceMutation()
+  const { plan, isStudioPro, isLoading: isPlanLoading } = useWorkspacePlan()
+  const { data: members = [], isLoading: isMembersLoading } = useMembersQuery()
+
+  const memberCount = members.length
+  const memberLabel = memberCount === 1 ? "member" : "members"
+  const planSubtitle =
+    isPlanLoading || isMembersLoading
+      ? "Loading…"
+      : `${formatPlanLabel(plan)} • ${memberCount} ${memberLabel}`
 
   function handleWorkspaceChange(id: string) {
     setWorkspaceId(id) // local/global state
@@ -94,9 +106,12 @@ export function WorkspaceSwitcher() {
             <div className="flex flex-col items-center gap-4 px-1">
               <div className="flex w-full items-center gap-3">
                 {activeWorkspace ? (
-                  <WorkspaceAvatar workspace={activeWorkspace} className="h-9 w-9" />
+                  <WorkspaceAvatar
+                    workspace={activeWorkspace}
+                    className="h-9 w-9"
+                  />
                 ) : (
-                  <div className="flex h-9 w-9 items-center justify-center rounded-[4px] bg-primary text-primary-foreground text-sm font-medium">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-[4px] bg-primary text-sm font-medium text-primary-foreground">
                     W
                   </div>
                 )}
@@ -106,7 +121,7 @@ export function WorkspaceSwitcher() {
                     {activeWorkspace?.name ?? "Workspace"}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    Free Plan • 1 member
+                    {planSubtitle}
                   </span>
                 </div>
               </div>
@@ -131,13 +146,19 @@ export function WorkspaceSwitcher() {
             <DropdownMenuSeparator className="my-2" />
 
             <div className="flex flex-col gap-2 px-1">
+              {!isStudioPro && (
               <div className="flex items-center justify-between rounded-sm bg-secondary p-3">
                 <div className="flex items-center gap-1">
                   <Bolt weight="Bold" size={20} />
-                  <span className="text-sm font-medium">Turn Pro</span>
+                  <span className="text-sm font-medium">
+                    {isPlanLoading ? "Loading…" : "Upgrade to Studio Pro"}
+                  </span>
                 </div>
-                <Button size="sm">Upgrade</Button>
+                <Button size="sm" asChild>
+                  <Link href={routes.settings.billing}>Upgrade</Link>
+                </Button>
               </div>
+              )}
 
               <CreditLeftCard />
             </div>

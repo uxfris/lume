@@ -104,3 +104,23 @@ export async function headUploadedObject(key: string) {
     contentType: result.ContentType ?? null,
   }
 }
+
+export async function putMeetingAudioObject(params: {
+  meetingId: string
+  fileType: string
+  body: Buffer
+}) {
+  const key = buildMeetingAudioKey(params.meetingId)
+
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: env.S3_BUCKET,
+      Key: key,
+      Body: params.body,
+      ContentType: params.fileType,
+      ContentLength: params.body.byteLength,
+    })
+  )
+
+  return { key }
+}

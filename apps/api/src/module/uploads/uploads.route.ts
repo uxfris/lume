@@ -4,6 +4,8 @@ import { quotaExceededResponseSchema } from "../billing/billing.schema"
 import {
   completeUploadParamsSchema,
   completeUploadResponseSchema,
+  fetchFromLinkBodySchema,
+  fetchFromLinkResponseSchema,
   listUploadsQuerySchema,
   listUploadsResponseSchema,
   presignUploadBodySchema,
@@ -49,6 +51,65 @@ export const uploadsRoutes: FastifyPluginAsyncZod = async (app) => {
       })
 
       return reply.status(201).send(result)
+    }
+  )
+
+  app.post(
+    "/from-url",
+    {
+      preHandler: [
+        app.verifySession,
+        app.requireWorkspace,
+        app.requireQuota,
+      ],
+      config: {
+        rateLimit: {
+          max: 10,
+          timeWindow: "1 minute",
+          keyGenerator: (request) => request.user?.id ?? request.ip,
+        },
+      },
+      schema: {
+        tags: ["Uploads"],
+        summary:
+          "Fetch a remote audio/video/PDF URL server-side, store in S3, and queue transcription",
+        body: fetchFromLinkBodySchema,
+        response: {
+          200: fetchFromLinkResponseSchema,
+          400: uploadErrorSchema,
+          402: quotaExceededResponseSchema,
+          422: uploadErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await uploadsService.importFromUrl({
+        workspaceId: request.workspace!.id,
+        userId: request.user!.id,
+        url: request.body.url,
+        title: request.body.title,
+        traceId: request.id,
+      })
+
+      if (!result.ok) {
+        const status =
+          result.error === "FILE_TOO_LARGE" ||
+          result.error === "UNSUPPORTED_TYPE"
+            ? 422
+            : result.error === "BLOCKED_HOST" || result.error === "INVALID_URL"
+              ? 400
+              : 422
+
+        return reply.status(status).send({
+          error: result.error,
+          ...(result.message ? { message: result.message } : {}),
+        })
+      }
+
+      return reply.status(200).send({
+        meetingId: result.meetingId,
+        status: result.status,
+      })
     }
   )
 
