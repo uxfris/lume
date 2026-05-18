@@ -21,7 +21,7 @@ export default async function MeetingDetailPage({ params }: PageProps) {
   }
 
   return (
-    <main className="h-full bg-card px-4 pt-24 md:px-6">
+    <main className="bg-card px-4 pt-24 md:px-6">
       <div className="mx-auto max-w-[700px] space-y-12">
         <header>
           <MeetingDocumentToolbar meeting={meeting} />
