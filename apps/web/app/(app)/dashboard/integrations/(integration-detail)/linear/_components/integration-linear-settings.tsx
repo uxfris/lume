@@ -1,11 +1,38 @@
+"use client"
+
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { Separator } from "@workspace/ui/components/separator";
 import { Switch } from "@workspace/ui/components/switch";
 import { IntegrationSettingItem } from "../../_components/integration-setting-item";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/select";
+import type { LinearIntegrationConfig } from "@workspace/types";
+import { integrationsApi } from "@workspace/api-client";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace";
+import { integrationsKeys } from "../../../_lib/integrations.keys";
+import { toast } from "sonner";
+import { cn } from "@workspace/ui/lib/utils";
 
-export function IntegrationLinearSettings() {
+export function IntegrationLinearSettings({
+    config,
+}: {
+    config: LinearIntegrationConfig
+}) {
+    const queryClient = useQueryClient()
+    const { workspaceId } = useCurrentWorkspace()
+
+    async function patchSettings(patch: Partial<LinearIntegrationConfig>) {
+        try {
+            await integrationsApi.patchLinearSettings(patch)
+            await queryClient.invalidateQueries({
+                queryKey: integrationsKeys.detail(workspaceId, "linear"),
+            })
+        } catch {
+            toast.error("Could not save settings")
+        }
+    }
+
     return (
         <div className="space-y-4">
             <h2 className="text-xs text-muted-foreground uppercase">Settings</h2>
@@ -15,7 +42,14 @@ export function IntegrationLinearSettings() {
                         id="auto-create-issues"
                         label="Auto-create issues"
                         description="Create an issue from every action item"
-                        trailing={<Switch id="auto-create-issues" />}
+                        trailing={
+                            <Switch
+                                checked={config.autoCreateIssues}
+                                onCheckedChange={(checked) =>
+                                    patchSettings({ autoCreateIssues: checked })
+                                }
+                            />
+                        }
                     />
 
                     <Separator />
@@ -24,7 +58,14 @@ export function IntegrationLinearSettings() {
                         id="auto-assign"
                         label="Auto-assign to participants"
                         description="Match names to workspace members"
-                        trailing={<Switch id="auto-assign" />}
+                        trailing={
+                            <Switch
+                                checked={config.autoAssignParticipants}
+                                onCheckedChange={(checked) =>
+                                    patchSettings({ autoAssignParticipants: checked })
+                                }
+                            />
+                        }
                     />
 
                     <Separator />
@@ -33,7 +74,14 @@ export function IntegrationLinearSettings() {
                         id="auto-due-date"
                         label="Automatically set due date"
                         description="Based on deadlines mentioned in the meeting"
-                        trailing={<Switch id="auto-due-date" />}
+                        trailing={
+                            <Switch
+                                checked={config.autoSetDueDate}
+                                onCheckedChange={(checked) =>
+                                    patchSettings({ autoSetDueDate: checked })
+                                }
+                            />
+                        }
                     />
 
                     <Separator />
@@ -45,18 +93,27 @@ export function IntegrationLinearSettings() {
                         trailing={
                             <>
                                 <div className="hidden md:flex items-center gap-2">
-                                    <Button variant="outline" size="xs">
-                                        Urgent
-                                    </Button>
-                                    <Button variant="secondary" size="xs">
-                                        Medium
-                                    </Button>
-                                    <Button variant="outline" size="xs">
-                                        Low
-                                    </Button>
+                                    {(["urgent", "medium", "low"] as const).map((priority) => (
+                                        <Button
+                                            key={priority}
+                                            variant={config.defaultPriority === priority ? "secondary" : "outline"}
+                                            size="xs"
+                                            className="capitalize"
+                                            onClick={() => patchSettings({ defaultPriority: priority })}
+                                        >
+                                            {priority}
+                                        </Button>
+                                    ))}
                                 </div>
                                 <div className="md:hidden">
-                                    <Select defaultValue="medium">
+                                    <Select
+                                        value={config.defaultPriority}
+                                        onValueChange={(value) =>
+                                            patchSettings({
+                                                defaultPriority: value as LinearIntegrationConfig["defaultPriority"],
+                                            })
+                                        }
+                                    >
                                         <SelectTrigger size="sm" className="text-xs">
                                             <SelectValue />
                                         </SelectTrigger>
@@ -68,7 +125,6 @@ export function IntegrationLinearSettings() {
                                             </SelectGroup>
                                         </SelectContent>
                                     </Select>
-
                                 </div>
                             </>
                         }
@@ -78,16 +134,12 @@ export function IntegrationLinearSettings() {
 
                     <IntegrationSettingItem
                         id="default-project"
-                        label="Default project"
-                        description="ENG / Backend Platform"
+                        label="Default team"
+                        description={config.defaultTeamName ?? "First team in workspace"}
                         trailing={
-                            <Button
-                                variant="ghost"
-                                size="xs"
-                                className="text-primary"
-                            >
-                                Change
-                            </Button>
+                            <span className={cn("text-xs text-muted-foreground")}>
+                                {config.defaultTeamName ? "Configured" : "Auto"}
+                            </span>
                         }
                     />
                 </CardContent>
@@ -95,4 +147,3 @@ export function IntegrationLinearSettings() {
         </div>
     )
 }
-

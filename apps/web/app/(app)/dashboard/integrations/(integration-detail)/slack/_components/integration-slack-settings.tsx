@@ -1,11 +1,68 @@
+"use client"
+
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { Separator } from "@workspace/ui/components/separator";
 import { Switch } from "@workspace/ui/components/switch";
 import { IntegrationSettingItem } from "../../_components/integration-setting-item";
+import type { SlackIntegrationConfig } from "@workspace/types";
+import { integrationsApi } from "@workspace/api-client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace";
+import { integrationsKeys } from "../../../_lib/integrations.keys";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@workspace/ui/components/dialog"
+import { useState } from "react";
+import { toast } from "sonner";
 
-export function IntegrationSlackSettings() {
+export function IntegrationSlackSettings({
+    config,
+}: {
+    config: SlackIntegrationConfig
+}) {
+    const queryClient = useQueryClient()
+    const { workspaceId } = useCurrentWorkspace()
+    const [channelOpen, setChannelOpen] = useState(false)
+
+    const channelsQuery = useQuery({
+        queryKey: integrationsKeys.channels(workspaceId, "slack"),
+        queryFn: () => integrationsApi.listChannels("slack"),
+        enabled: channelOpen,
+    })
+
+    async function patchSettings(patch: Partial<SlackIntegrationConfig>) {
+        try {
+            await integrationsApi.patchSlackSettings(patch)
+            await queryClient.invalidateQueries({
+                queryKey: integrationsKeys.detail(workspaceId, "slack"),
+            })
+        } catch {
+            toast.error("Could not save settings")
+        }
+    }
+
+    async function selectChannel(channelId: string, channelName: string) {
+        try {
+            await integrationsApi.setSlackChannel({
+                channelId,
+                channelName: `#${channelName}`,
+            })
+            await queryClient.invalidateQueries({
+                queryKey: integrationsKeys.detail(workspaceId, "slack"),
+            })
+            setChannelOpen(false)
+            toast.success("Channel updated")
+        } catch {
+            toast.error("Could not update channel")
+        }
+    }
+
     return (
         <div className="space-y-4">
             <h2 className="text-xs text-muted-foreground uppercase">Settings</h2>
@@ -18,12 +75,35 @@ export function IntegrationSlackSettings() {
                         trailing={
                             <div className="flex items-center gap-4">
                                 <Badge variant="outline">
-                                    # Product
+                                    {config.defaultChannelName ?? "Not set"}
                                 </Badge>
-                                <Button
-                                    variant="outline" size="xs">
-                                    Change
-                                </Button>
+                                <Dialog open={channelOpen} onOpenChange={setChannelOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="outline" size="xs">
+                                            Change
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Select channel</DialogTitle>
+                                        </DialogHeader>
+                                        <div className="max-h-64 overflow-y-auto space-y-1">
+                                            {channelsQuery.isLoading && (
+                                                <p className="text-sm text-muted-foreground">Loading…</p>
+                                            )}
+                                            {channelsQuery.data?.channels.map((ch) => (
+                                                <button
+                                                    key={ch.id}
+                                                    type="button"
+                                                    className="w-full text-left rounded-md px-3 py-2 text-sm hover:bg-secondary"
+                                                    onClick={() => selectChannel(ch.id, ch.name)}
+                                                >
+                                                    #{ch.name}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </DialogContent>
+                                </Dialog>
                             </div>
                         }
                     />
@@ -33,7 +113,12 @@ export function IntegrationSlackSettings() {
                         label="Post summaries automatically"
                         description="Send without requiring manual approval"
                         trailing={
-                            <Switch id="auto-post" />
+                            <Switch
+                                checked={config.autoPostSummaries}
+                                onCheckedChange={(checked) =>
+                                    patchSettings({ autoPostSummaries: checked })
+                                }
+                            />
                         } />
                     <Separator />
                     <IntegrationSettingItem
@@ -41,7 +126,12 @@ export function IntegrationSlackSettings() {
                         label="Tag action item owners"
                         description="Mention assigned people in the post"
                         trailing={
-                            <Switch id="tag" />
+                            <Switch
+                                checked={config.tagActionItemOwners}
+                                onCheckedChange={(checked) =>
+                                    patchSettings({ tagActionItemOwners: checked })
+                                }
+                            />
                         } />
                     <Separator />
                     <IntegrationSettingItem
@@ -49,7 +139,12 @@ export function IntegrationSlackSettings() {
                         label="Send DM to organizer"
                         description="Also send a private copy to the meeting host"
                         trailing={
-                            <Switch id="dm" />
+                            <Switch
+                                checked={config.sendDmToOrganizer}
+                                onCheckedChange={(checked) =>
+                                    patchSettings({ sendDmToOrganizer: checked })
+                                }
+                            />
                         } />
                     <Separator />
                     <IntegrationSettingItem
@@ -57,11 +152,15 @@ export function IntegrationSlackSettings() {
                         label="Include transcript link"
                         description="Add a link to the full transcript at the end"
                         trailing={
-                            <Switch id="transcript-link" />
+                            <Switch
+                                checked={config.includeTranscriptLink}
+                                onCheckedChange={(checked) =>
+                                    patchSettings({ includeTranscriptLink: checked })
+                                }
+                            />
                         } />
                 </CardContent>
             </Card>
         </div>
     )
 }
-

@@ -31,5 +31,9 @@ export type {
   RecallCalendarConnection,
   TranscriptSegment,
   FailedWebhook,
+  IntegrationProvider,
+  IntegrationActivityStatus,
+  WorkspaceIntegration,
+  IntegrationActivity,
 } from "@prisma/client";
 export { Prisma } from "@prisma/client";

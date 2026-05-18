@@ -103,6 +103,27 @@ const envSchema = z.object({
     z.string().optional()
   ),
 
+  SLACK_CLIENT_ID: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
+  SLACK_CLIENT_SECRET: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
+  LINEAR_CLIENT_ID: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
+  LINEAR_CLIENT_SECRET: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().optional()
+  ),
+
   TWILLIO_ACCOUNT_SID: z.preprocess(
     (value) =>
       typeof value === "string" && value.trim() === "" ? undefined : value,

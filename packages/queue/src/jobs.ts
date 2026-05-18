@@ -19,6 +19,8 @@ export const QueueName = {
   ImportBotTranscript: "import-bot-transcript",
   /** Executes a scheduled account deletion after the grace period. */
   DeleteAccount: "delete-account",
+  /** Post meeting summary to Slack / create Linear issues after SUMMARIZED. */
+  DeliverIntegrations: "deliver-integrations",
 } as const
 
 export type QueueName = (typeof QueueName)[keyof typeof QueueName]
@@ -76,6 +78,13 @@ export interface DeleteAccountJobPayload {
   traceId?: string
 }
 
+export interface DeliverIntegrationsJobPayload {
+  meetingId: string
+  workspaceId: string
+  userId: string
+  traceId?: string
+}
+
 export interface JobPayloadMap {
   [QueueName.Transcribe]: TranscribeJobPayload
   [QueueName.Diarize]: DiarizeJobPayload
@@ -83,6 +92,7 @@ export interface JobPayloadMap {
   [QueueName.Embed]: EmbedJobPayload
   [QueueName.ImportBotTranscript]: ImportBotTranscriptJobPayload
   [QueueName.DeleteAccount]: DeleteAccountJobPayload
+  [QueueName.DeliverIntegrations]: DeliverIntegrationsJobPayload
 }
 
 export type JobNameFor<Q extends QueueName> =
@@ -98,4 +108,6 @@ export type JobNameFor<Q extends QueueName> =
             ? "import-bot-transcript"
             : Q extends typeof QueueName.DeleteAccount
               ? "execute"
-              : never
+              : Q extends typeof QueueName.DeliverIntegrations
+                ? "deliver-integrations"
+                : never

@@ -21,6 +21,7 @@ import { embedHandler } from "./handlers/embed"
 import { importBotTranscriptHandler } from "./handlers/import-bot-transcript"
 import { deleteAccountHandler } from "./handlers/delete-account"
 import { sweepDueAccountDeletions } from "./lib/account-deletion-sweeper"
+import { deliverIntegrationsHandler } from "./handlers/deliver-integrations"
 
 const healthServer = startHealthServer(env.WORKER_HEALTH_PORT)
 
@@ -36,6 +37,10 @@ const deleteAccountWorker = createWorker(
   QueueName.DeleteAccount,
   deleteAccountHandler,
   { concurrency: 1 }
+)
+const deliverIntegrationsWorker = createWorker(
+  QueueName.DeliverIntegrations,
+  deliverIntegrationsHandler
 )
 
 transcribeWorker.on("ready", () => {
@@ -55,6 +60,9 @@ importBotTranscriptWorker.on("ready", () => {
 })
 deleteAccountWorker.on("ready", () => {
   logger.info({ queue: QueueName.DeleteAccount }, "worker ready")
+})
+deliverIntegrationsWorker.on("ready", () => {
+  logger.info({ queue: QueueName.DeliverIntegrations }, "worker ready")
 })
 
 function reportFailedJob(queue: string, job: { id?: string } | undefined, err: Error) {
@@ -83,6 +91,9 @@ importBotTranscriptWorker.on("failed", (job, err) =>
 deleteAccountWorker.on("failed", (job, err) =>
   reportFailedJob(QueueName.DeleteAccount, job, err as Error)
 )
+deliverIntegrationsWorker.on("failed", (job, err) =>
+  reportFailedJob(QueueName.DeliverIntegrations, job, err as Error)
+)
 
 const ACCOUNT_DELETION_SWEEP_MS = 60 * 60 * 1000
 const accountDeletionSweepTimer = setInterval(() => {
@@ -103,6 +114,7 @@ async function shutdown(signal: string) {
     await embedWorker.close()
     await importBotTranscriptWorker.close()
     await deleteAccountWorker.close()
+    await deliverIntegrationsWorker.close()
     clearInterval(accountDeletionSweepTimer)
     await closeAllQueues()
     await closeRedisConnection()
