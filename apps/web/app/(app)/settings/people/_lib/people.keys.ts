@@ -8,4 +8,8 @@ export const peopleKeys = {
     ...peopleKeys.all(workspaceId),
     "invitations",
   ],
+  inviteLink: (workspaceId: string | null) => [
+    ...peopleKeys.all(workspaceId),
+    "invite-link",
+  ],
 }

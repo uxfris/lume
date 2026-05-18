@@ -21,8 +21,10 @@ type MemberManagementError =
   | "TARGET_NOT_FOUND"
   | "CANNOT_CHANGE_OWN_ROLE"
   | "CANNOT_MODIFY_OWNER"
+  | "CANNOT_ASSIGN_OWNER"
   | "LAST_OWNER"
   | "INVALID_ROLE"
+  | "PRO_PLAN_REQUIRED"
 
 type LeaveWorkspaceError =
   | "NOT_FOUND"
@@ -201,7 +203,13 @@ export async function createOrRefreshInvitation(
   emailRaw: string,
   role: InviteRole
 ): Promise<
-  | { ok: true; token: string; invitationId: string; expiresAt: Date }
+  | {
+      ok: true
+      token: string
+      invitationId: string
+      expiresAt: Date
+      emailSent: boolean
+    }
   | {
       ok: false
       error:
@@ -210,6 +218,7 @@ export async function createOrRefreshInvitation(
         | "ALREADY_MEMBER"
         | "SELF_INVITE"
         | "INVITE_ALREADY_ACCEPTED"
+        | "PRO_PLAN_REQUIRED"
     }
 > {
   const membership = await workspacesRepo.findMembershipWithWorkspace(
@@ -221,6 +230,9 @@ export async function createOrRefreshInvitation(
   if (membership.role !== "OWNER" && membership.role !== "ADMIN") {
     return { ok: false, error: "FORBIDDEN" }
   }
+
+  const proCheck = assertProPlanForRole(membership.workspace, role)
+  if (!proCheck.ok) return proCheck
 
   const email = normalizeEmail(emailRaw)
 
@@ -264,13 +276,11 @@ export async function createOrRefreshInvitation(
   const displayInviterName =
     inviterName?.trim() || invitationNameFromEmail(inviterEmail)
 
-  await sendWorkspaceInviteEmail({
+  const emailSent = await sendWorkspaceInviteEmail({
     to: email,
     inviterName: displayInviterName,
     workspaceName: membership.workspace.name,
     inviteUrl,
-  }).catch(() => {
-    /* email is best-effort when Resend is configured */
   })
 
   return {
@@ -278,6 +288,7 @@ export async function createOrRefreshInvitation(
     token: rawToken,
     invitationId: invitation.id,
     expiresAt,
+    emailSent,
   }
 }
 
@@ -328,8 +339,18 @@ function canManageMembers(role: WorkspaceRole): boolean {
   return role === "OWNER" || role === "ADMIN"
 }
 
-function assertAssignableRole(role: WorkspaceRole): role is AssignableMemberRole {
-  return role === "ADMIN" || role === "MEMBER" || role === "GUEST"
+function isProRole(role: WorkspaceRole): boolean {
+  return role === "ADMIN" || role === "GUEST"
+}
+
+function assertProPlanForRole(
+  workspace: Workspace,
+  role: WorkspaceRole
+): { ok: true } | { ok: false; error: "PRO_PLAN_REQUIRED" } {
+  if (isProRole(role) && workspace.plan !== "STUDIO_PRO") {
+    return { ok: false, error: "PRO_PLAN_REQUIRED" }
+  }
+  return { ok: true }
 }
 
 async function getActorMembership(workspaceId: string, actorUserId: string) {
@@ -340,11 +361,14 @@ export async function updateMemberRole(
   workspaceId: string,
   actorUserId: string,
   memberId: string,
-  role: AssignableMemberRole
+  role: WorkspaceRole
 ): Promise<{ ok: true } | { ok: false; error: MemberManagementError }> {
   const actor = await getActorMembership(workspaceId, actorUserId)
   if (!actor) return { ok: false, error: "NOT_FOUND" }
   if (!canManageMembers(actor.role)) return { ok: false, error: "FORBIDDEN" }
+
+  const proCheck = assertProPlanForRole(actor.workspace, role)
+  if (!proCheck.ok) return proCheck
 
   const target = await workspacesRepo.findMemberById(memberId)
   if (!target || target.workspaceId !== workspaceId) {
@@ -355,15 +379,89 @@ export async function updateMemberRole(
     return { ok: false, error: "CANNOT_CHANGE_OWN_ROLE" }
   }
 
-  if (target.role === "OWNER") {
-    return { ok: false, error: "CANNOT_MODIFY_OWNER" }
+  if (role === "OWNER" && actor.role !== "OWNER") {
+    return { ok: false, error: "CANNOT_ASSIGN_OWNER" }
   }
 
-  if (!assertAssignableRole(role)) {
-    return { ok: false, error: "INVALID_ROLE" }
+  if (target.role === "OWNER" && role !== "OWNER") {
+    const ownerCount = await workspacesRepo.countOwners(workspaceId)
+    if (ownerCount <= 1) {
+      return { ok: false, error: "LAST_OWNER" }
+    }
+  }
+
+  if (target.role === role) {
+    return { ok: true }
   }
 
   await workspacesRepo.updateMemberRole(memberId, role)
+  return { ok: true }
+}
+
+export async function getWorkspaceInviteLink(workspaceId: string) {
+  const link = await workspacesRepo.findInviteLinkByWorkspace(workspaceId)
+  if (!link || link.revokedAt || link.expiresAt.getTime() < Date.now()) {
+    return null
+  }
+  const inviteRole = link.role
+  if (inviteRole === "OWNER") {
+    return null
+  }
+  return {
+    role: inviteRole,
+    expiresAt: link.expiresAt.toISOString(),
+    createdAt: link.createdAt.toISOString(),
+  }
+}
+
+export async function createOrRegenerateInviteLink(
+  workspaceId: string,
+  actorUserId: string,
+  role: InviteRole
+): Promise<
+  | { ok: true; url: string; expiresAt: Date; role: InviteRole }
+  | { ok: false; error: "NOT_FOUND" | "FORBIDDEN" | "PRO_PLAN_REQUIRED" }
+> {
+  const membership = await getActorMembership(workspaceId, actorUserId)
+  if (!membership) return { ok: false, error: "NOT_FOUND" }
+  if (!canManageMembers(membership.role)) {
+    return { ok: false, error: "FORBIDDEN" }
+  }
+
+  const proCheck = assertProPlanForRole(membership.workspace, role)
+  if (!proCheck.ok) return proCheck
+
+  const rawToken = randomBytes(32).toString("hex")
+  const tokenHash = hashInviteToken(rawToken)
+  const expiresAt = new Date(Date.now() + INVITE_EXPIRY_MS)
+
+  await workspacesRepo.upsertInviteLink({
+    workspaceId,
+    role,
+    tokenHash,
+    expiresAt,
+    createdByUserId: actorUserId,
+  })
+
+  return {
+    ok: true,
+    url: buildWorkspaceInviteUrl(rawToken),
+    expiresAt,
+    role,
+  }
+}
+
+export async function revokeWorkspaceInviteLink(
+  workspaceId: string,
+  actorUserId: string
+): Promise<{ ok: true } | { ok: false; error: "NOT_FOUND" | "FORBIDDEN" }> {
+  const membership = await getActorMembership(workspaceId, actorUserId)
+  if (!membership) return { ok: false, error: "NOT_FOUND" }
+  if (!canManageMembers(membership.role)) {
+    return { ok: false, error: "FORBIDDEN" }
+  }
+
+  await workspacesRepo.revokeInviteLink(workspaceId, new Date())
   return { ok: true }
 }
 
@@ -442,6 +540,42 @@ export async function acceptInvitation(
     }
 > {
   const tokenHash = hashInviteToken(rawToken)
+  const inviteLink = await workspacesRepo.findInviteLinkByTokenHash(tokenHash)
+
+  if (inviteLink) {
+    if (inviteLink.revokedAt) {
+      return { ok: false, error: "INVITE_REVOKED" }
+    }
+    if (inviteLink.expiresAt.getTime() < Date.now()) {
+      return { ok: false, error: "INVITE_EXPIRED" }
+    }
+
+    const existingMember = await workspacesRepo.findMemberByWorkspaceAndUser(
+      inviteLink.workspaceId,
+      userId
+    )
+
+    if (existingMember) {
+      return {
+        ok: true,
+        workspaceId: inviteLink.workspaceId,
+        role: existingMember.role,
+      }
+    }
+
+    await workspacesRepo.createMembership({
+      workspaceId: inviteLink.workspaceId,
+      userId,
+      role: inviteLink.role,
+    })
+
+    return {
+      ok: true,
+      workspaceId: inviteLink.workspaceId,
+      role: inviteLink.role,
+    }
+  }
+
   const invitation = await workspacesRepo.findInvitationByTokenHash(tokenHash)
 
   if (!invitation) return { ok: false, error: "INVITE_NOT_FOUND" }

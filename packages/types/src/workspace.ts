@@ -49,6 +49,7 @@ export const CreateInvitationResponseSchema = z.object({
   invitationId: z.string(),
   token: z.string(),
   expiresAt: z.string(),
+  emailSent: z.boolean(),
 })
 export type CreateInvitationResponse = z.infer<typeof CreateInvitationResponseSchema>
 
@@ -57,3 +58,28 @@ export const AcceptInvitationResponseSchema = z.object({
   role: ApiWorkspaceRoleSchema,
 })
 export type AcceptInvitationResponse = z.infer<typeof AcceptInvitationResponseSchema>
+
+export const WorkspaceInviteLinkResponseSchema = z.object({
+  url: z.string().url(),
+  expiresAt: z.string(),
+  role: ApiInviteRoleSchema,
+})
+export type WorkspaceInviteLinkResponse = z.infer<
+  typeof WorkspaceInviteLinkResponseSchema
+>
+
+export const WorkspaceInviteLinkMetadataSchema = z.object({
+  role: ApiInviteRoleSchema,
+  expiresAt: z.string(),
+  createdAt: z.string(),
+})
+export type WorkspaceInviteLinkMetadata = z.infer<
+  typeof WorkspaceInviteLinkMetadataSchema
+>
+
+export const WorkspaceInviteLinkGetResponseSchema = z.object({
+  link: WorkspaceInviteLinkMetadataSchema.nullable(),
+})
+export type WorkspaceInviteLinkGetResponse = z.infer<
+  typeof WorkspaceInviteLinkGetResponseSchema
+>

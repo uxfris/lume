@@ -15,6 +15,11 @@ const PEOPLE_ERROR_MESSAGES: Record<string, string> = {
   LAST_WORKSPACE: "You cannot leave your last workspace.",
   SOLE_OWNER:
     "You cannot leave because you are the only owner. Transfer ownership first.",
+  PRO_PLAN_REQUIRED:
+    "Admin and Guest roles require a Studio Pro subscription.",
+  CANNOT_ASSIGN_OWNER: "Only owners can assign the Owner role.",
+  INSUFFICIENT_WORKSPACE_ROLE:
+    "You do not have permission to view workspace members.",
 }
 
 export function getPeopleErrorMessage(error: unknown): string | undefined {

@@ -11,6 +11,9 @@ import {
   listWorkspacePeopleResponseSchema,
   listWorkspacesResponseSchema,
   noContentResponseSchema,
+  createInviteLinkBodySchema,
+  inviteLinkGetResponseSchema,
+  inviteLinkResponseSchema,
   memberParamsSchema,
   revokeInvitationParamsSchema,
   updateMemberRoleBodySchema,
@@ -80,7 +83,11 @@ export const workspacesRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
     "/:id/people",
     {
-      preHandler: [app.verifySession, app.requireWorkspaceFromParams],
+      preHandler: [
+        app.verifySession,
+        app.requireWorkspaceFromParams,
+        app.requireRole(["OWNER", "ADMIN"]),
+      ],
       schema: {
         tags: ["Workspaces"],
         summary: "List all people in the workspace",
@@ -103,7 +110,11 @@ export const workspacesRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
     "/:id/invitations",
     {
-      preHandler: [app.verifySession, app.requireWorkspaceFromParams],
+      preHandler: [
+        app.verifySession,
+        app.requireWorkspaceFromParams,
+        app.requireRole(["OWNER", "ADMIN"]),
+      ],
       schema: {
         tags: ["Workspaces"],
         summary: "",
@@ -204,7 +215,9 @@ export const workspacesRoutes: FastifyPluginAsyncZod = async (app) => {
               ? 403
               : result.error === "SELF_INVITE"
                 ? 400
-                : 409
+                : result.error === "PRO_PLAN_REQUIRED"
+                  ? 409
+                  : 409
 
         return reply.status(status).send({ error: result.error })
       }
@@ -213,7 +226,159 @@ export const workspacesRoutes: FastifyPluginAsyncZod = async (app) => {
         invitationId: result.invitationId,
         token: result.token,
         expiresAt: result.expiresAt.toISOString(),
+        emailSent: result.emailSent,
       })
+    }
+  )
+
+  app.get(
+    "/:id/invite-link",
+    {
+      preHandler: [
+        app.verifySession,
+        app.requireWorkspaceFromParams,
+        app.requireRole(["OWNER", "ADMIN"]),
+      ],
+      schema: {
+        tags: ["Workspaces"],
+        summary: "Get active workspace invite link metadata",
+        params: workspaceParamsSchema,
+        response: {
+          200: inviteLinkGetResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      const link = await workspacesService.getWorkspaceInviteLink(
+        request.params.id
+      )
+      return { link }
+    }
+  )
+
+  app.post(
+    "/:id/invite-link",
+    {
+      preHandler: [
+        app.verifySession,
+        app.requireWorkspaceFromParams,
+        app.requireRole(["OWNER", "ADMIN"]),
+      ],
+      schema: {
+        tags: ["Workspaces"],
+        summary: "Create or refresh workspace invite link",
+        params: workspaceParamsSchema,
+        body: createInviteLinkBodySchema,
+        response: {
+          201: inviteLinkResponseSchema,
+          403: errorResponseSchema,
+          404: errorResponseSchema,
+          409: errorResponseSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await workspacesService.createOrRegenerateInviteLink(
+        request.params.id,
+        request.user!.id,
+        request.body.role
+      )
+
+      if (!result.ok) {
+        const status =
+          result.error === "NOT_FOUND"
+            ? 404
+            : result.error === "FORBIDDEN"
+              ? 403
+              : 409
+        return reply.status(status).send({ error: result.error })
+      }
+
+      return reply.status(201).send({
+        url: result.url,
+        expiresAt: result.expiresAt.toISOString(),
+        role: result.role,
+      })
+    }
+  )
+
+  app.post(
+    "/:id/invite-link/regenerate",
+    {
+      preHandler: [
+        app.verifySession,
+        app.requireWorkspaceFromParams,
+        app.requireRole(["OWNER", "ADMIN"]),
+      ],
+      schema: {
+        tags: ["Workspaces"],
+        summary: "Regenerate workspace invite link",
+        params: workspaceParamsSchema,
+        body: createInviteLinkBodySchema,
+        response: {
+          201: inviteLinkResponseSchema,
+          403: errorResponseSchema,
+          404: errorResponseSchema,
+          409: errorResponseSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await workspacesService.createOrRegenerateInviteLink(
+        request.params.id,
+        request.user!.id,
+        request.body.role
+      )
+
+      if (!result.ok) {
+        const status =
+          result.error === "NOT_FOUND"
+            ? 404
+            : result.error === "FORBIDDEN"
+              ? 403
+              : 409
+        return reply.status(status).send({ error: result.error })
+      }
+
+      return reply.status(201).send({
+        url: result.url,
+        expiresAt: result.expiresAt.toISOString(),
+        role: result.role,
+      })
+    }
+  )
+
+  app.delete(
+    "/:id/invite-link",
+    {
+      preHandler: [
+        app.verifySession,
+        app.requireWorkspaceFromParams,
+        app.requireRole(["OWNER", "ADMIN"]),
+      ],
+      schema: {
+        tags: ["Workspaces"],
+        summary: "Revoke workspace invite link",
+        params: workspaceParamsSchema,
+        response: {
+          204: noContentResponseSchema,
+          403: errorResponseSchema,
+          404: errorResponseSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await workspacesService.revokeWorkspaceInviteLink(
+        request.params.id,
+        request.user!.id
+      )
+
+      if (!result.ok) {
+        const status = result.error === "NOT_FOUND" ? 404 : 403
+        return reply.status(status).send({ error: result.error })
+      }
+
+      return reply.status(204).send(null)
     }
   )
 
@@ -250,7 +415,8 @@ export const workspacesRoutes: FastifyPluginAsyncZod = async (app) => {
         const status =
           result.error === "NOT_FOUND" || result.error === "TARGET_NOT_FOUND"
             ? 404
-            : result.error === "FORBIDDEN"
+            : result.error === "FORBIDDEN" ||
+                result.error === "CANNOT_ASSIGN_OWNER"
               ? 403
               : 409
 

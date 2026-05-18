@@ -13,6 +13,11 @@ import {
   AcceptInvitationResponseSchema,
   WorkspaceMemberInvitation,
   WorkspacePeopleInvitationTableResponseSchema,
+  WorkspaceInviteLinkGetResponseSchema,
+  WorkspaceInviteLinkResponseSchema,
+  type WorkspaceInviteLinkGetResponse,
+  type WorkspaceInviteLinkResponse,
+  type ApiInviteRole,
 } from "@workspace/types"
 import { client } from "./client"
 
@@ -70,7 +75,6 @@ export const workspaceApi = {
         role,
       }
     )
-    console.log(data)
     return CreateInvitationResponseSchema.parse(data)
   },
 
@@ -107,5 +111,40 @@ export const workspaceApi = {
 
   async leaveWorkspace(workspaceId: string): Promise<void> {
     await client.post<unknown>(`/workspaces/${workspaceId}/leave`)
+  },
+
+  async getInviteLink(
+    workspaceId: string
+  ): Promise<WorkspaceInviteLinkGetResponse> {
+    const data = await client.get<unknown>(
+      `/workspaces/${workspaceId}/invite-link`
+    )
+    return WorkspaceInviteLinkGetResponseSchema.parse(data)
+  },
+
+  async createInviteLink(
+    workspaceId: string,
+    role: ApiInviteRole
+  ): Promise<WorkspaceInviteLinkResponse> {
+    const data = await client.post<unknown>(
+      `/workspaces/${workspaceId}/invite-link`,
+      { role }
+    )
+    return WorkspaceInviteLinkResponseSchema.parse(data)
+  },
+
+  async regenerateInviteLink(
+    workspaceId: string,
+    role: ApiInviteRole
+  ): Promise<WorkspaceInviteLinkResponse> {
+    const data = await client.post<unknown>(
+      `/workspaces/${workspaceId}/invite-link/regenerate`,
+      { role }
+    )
+    return WorkspaceInviteLinkResponseSchema.parse(data)
+  },
+
+  async revokeInviteLink(workspaceId: string): Promise<void> {
+    await client.delete<unknown>(`/workspaces/${workspaceId}/invite-link`)
   },
 }

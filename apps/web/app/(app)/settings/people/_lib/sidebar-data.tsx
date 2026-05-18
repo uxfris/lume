@@ -22,27 +22,37 @@ export function createSidebarSections(input: {
   workspaceName: string
   workspaceFallback: string
   accountName: string
+  canManageMembers?: boolean
+  canManageBilling?: boolean
 }): SidebarSection[] {
+  const workspaceItems: SidebarItem[] = [
+    {
+      label: input.workspaceName,
+      href: routes.settings.workspace,
+      avatar: { fallback: input.workspaceFallback },
+    },
+  ]
+
+  if (input.canManageMembers !== false) {
+    workspaceItems.push({
+      label: "People",
+      href: routes.settings.people,
+      icon: <UsersGroupRounded />,
+    })
+  }
+
+  if (input.canManageBilling !== false) {
+    workspaceItems.push({
+      label: "Plans & credits",
+      href: routes.settings.billing,
+      icon: <Card />,
+    })
+  }
+
   return [
     {
       title: "Workspace",
-      items: [
-        {
-          label: input.workspaceName,
-          href: routes.settings.workspace,
-          avatar: { fallback: input.workspaceFallback },
-        },
-        {
-          label: "People",
-          href: routes.settings.people,
-          icon: <UsersGroupRounded />,
-        },
-        {
-          label: "Plans & credits",
-          href: routes.settings.billing,
-          icon: <Card />,
-        },
-      ],
+      items: workspaceItems,
     },
     {
       title: "Account",

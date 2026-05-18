@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import {
   Tabs,
   TabsContent,
@@ -23,12 +24,14 @@ import {
   useRevokeInvitationMutation,
   useUpdateMemberRoleMutation,
 } from "../_hooks/mutations/use-people-mutations"
+import { canManageMembers } from "@/lib/workspace-permissions"
 
 export function PeoplePageClient() {
   const { workspaceId } = useCurrentWorkspace()
   const { activeWorkspace } = useWorkspacesQuery({ workspaceId })
   const peopleQuery = usePeopleQuery()
   const invitationsQuery = useInvitationsQuery()
+  const [activeTab, setActiveTab] = useState<"all" | "invited">("all")
 
   const updateRoleMutation = useUpdateMemberRoleMutation()
   const removeMembersMutation = useRemoveMembersMutation()
@@ -36,11 +39,23 @@ export function PeoplePageClient() {
   const leaveWorkspaceMutation = useLeaveWorkspaceMutation()
   const inviteMembersMutation = useInviteMembersMutation()
 
+  const canManage = canManageMembers(activeWorkspace?.role)
   const workspaceName = activeWorkspace?.name ?? "your workspace"
   const memberCount = peopleQuery.data?.length ?? 0
   const builderLabel = memberCount === 1 ? "builder" : "builders"
 
   const isLoading = peopleQuery.isLoading || invitationsQuery.isLoading
+
+  if (!canManage && !isLoading) {
+    return (
+      <div className="flex flex-col gap-4 px-4 pt-20 md:gap-8 md:p-12">
+        <SettingHeader title="People" description="Workspace members" />
+        <p className="text-sm text-muted-foreground">
+          You do not have permission to view workspace members.
+        </p>
+      </div>
+    )
+  }
 
   if (isLoading) {
     return (
@@ -58,7 +73,11 @@ export function PeoplePageClient() {
         title="People"
         description={`Inviting people to ${workspaceName} gives access to workspace shared projects and credits. You have ${memberCount} ${builderLabel} in this workspace.`}
       />
-      <Tabs defaultValue="all" className="space-y-4">
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as "all" | "invited")}
+        className="space-y-4"
+      >
         <TabsList className="w-fit gap-2">
           <TabsTrigger value="all" className="px-4">
             All
@@ -74,14 +93,16 @@ export function PeoplePageClient() {
             onUpdateRole={(memberId, role) =>
               updateRoleMutation.mutate({ memberId, role })
             }
-            onBulkUpdateRole={(memberIds, role) => {
-              memberIds.forEach((memberId) =>
-                updateRoleMutation.mutate({ memberId, role })
+            onBulkUpdateRole={async (memberIds, role) => {
+              await Promise.all(
+                memberIds.map((memberId) =>
+                  updateRoleMutation.mutateAsync({ memberId, role })
+                )
               )
             }}
-            onRemoveMembers={(memberIds) =>
-              removeMembersMutation.mutate(memberIds)
-            }
+            onRemoveMembers={async (memberIds) => {
+              await removeMembersMutation.mutateAsync(memberIds)
+            }}
             onLeaveWorkspace={() => leaveWorkspaceMutation.mutate()}
             onInviteMembers={(emails, role) =>
               inviteMembersMutation.mutate({ emails, role })
@@ -92,6 +113,10 @@ export function PeoplePageClient() {
               leaveWorkspaceMutation.isPending ||
               inviteMembersMutation.isPending
             }
+            canManageMembers={canManage}
+            actorRole={activeWorkspace?.role}
+            activeTab="all"
+            exportInvitations={invitationsQuery.data ?? []}
           />
         </TabsContent>
         <TabsContent value="invited">
@@ -111,6 +136,10 @@ export function PeoplePageClient() {
                   revokeInvitationMutation.isPending ||
                   inviteMembersMutation.isPending
                 }
+                canManageMembers={canManage}
+                actorRole={activeWorkspace?.role}
+                activeTab="invited"
+                exportInvitations={invitationsQuery.data ?? []}
               />
             )}
           </div>

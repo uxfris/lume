@@ -242,4 +242,60 @@ export const workspacesRepo = {
       })
     })
   },
+
+  findInviteLinkByWorkspace(workspaceId: string) {
+    return prisma.workspaceInviteLink.findUnique({
+      where: { workspaceId },
+    })
+  },
+
+  findInviteLinkByTokenHash(tokenHash: string) {
+    return prisma.workspaceInviteLink.findUnique({
+      where: { tokenHash },
+    })
+  },
+
+  upsertInviteLink(input: {
+    workspaceId: string
+    role: WorkspaceRole
+    tokenHash: string
+    expiresAt: Date
+    createdByUserId: string
+  }) {
+    const { workspaceId, role, tokenHash, expiresAt, createdByUserId } = input
+    return prisma.workspaceInviteLink.upsert({
+      where: { workspaceId },
+      create: {
+        workspaceId,
+        role,
+        tokenHash,
+        expiresAt,
+        createdByUserId,
+      },
+      update: {
+        role,
+        tokenHash,
+        expiresAt,
+        createdByUserId,
+        revokedAt: null,
+      },
+    })
+  },
+
+  revokeInviteLink(workspaceId: string, revokedAt: Date) {
+    return prisma.workspaceInviteLink.updateMany({
+      where: { workspaceId, revokedAt: null },
+      data: { revokedAt },
+    })
+  },
+
+  createMembership(input: {
+    workspaceId: string
+    userId: string
+    role: WorkspaceRole
+  }) {
+    return prisma.workspaceMember.create({
+      data: input,
+    })
+  },
 }

@@ -5,7 +5,10 @@ import {
   encodeMeetingListCursor,
 } from "./meetings.cursor"
 import { meetingsRepo } from "./meetings.repo"
-import { userCanAccessMeeting as checkMeetingShareAccess } from "./meeting-share.service"
+import {
+  userCanAccessMeeting as checkMeetingShareAccess,
+  userCanMutateMeeting,
+} from "./meeting-share.service"
 import { meetingShareRepo } from "./meeting-share.repo"
 import {
   formatMeetingTimestamp,
@@ -108,10 +111,29 @@ export async function getMeetingById(input: {
 export async function patchMeeting(input: {
   meetingId: string
   workspaceId: string
+  userId: string
+  userEmail: string
   title?: string
   isShared?: boolean
   isStarred?: boolean
-}): Promise<{ ok: true } | { ok: false; reason: "NOT_FOUND" }> {
+}): Promise<
+  { ok: true } | { ok: false; reason: "NOT_FOUND" | "FORBIDDEN" }
+> {
+  const canMutate = await userCanMutateMeeting({
+    meetingId: input.meetingId,
+    userId: input.userId,
+    userEmail: input.userEmail,
+  })
+  if (!canMutate) {
+    const exists = await meetingsRepo.findByIdForWorkspace(
+      input.meetingId,
+      input.workspaceId
+    )
+    return exists
+      ? { ok: false, reason: "FORBIDDEN" }
+      : { ok: false, reason: "NOT_FOUND" }
+  }
+
   const data: Prisma.MeetingUpdateInput = {}
   if (input.title !== undefined) data.title = input.title
   if (input.isShared !== undefined) {
@@ -140,7 +162,26 @@ export async function patchMeeting(input: {
 export async function deleteMeeting(input: {
   meetingId: string
   workspaceId: string
-}): Promise<{ ok: true } | { ok: false; reason: "NOT_FOUND" }> {
+  userId: string
+  userEmail: string
+}): Promise<
+  { ok: true } | { ok: false; reason: "NOT_FOUND" | "FORBIDDEN" }
+> {
+  const canMutate = await userCanMutateMeeting({
+    meetingId: input.meetingId,
+    userId: input.userId,
+    userEmail: input.userEmail,
+  })
+  if (!canMutate) {
+    const exists = await meetingsRepo.findByIdForWorkspace(
+      input.meetingId,
+      input.workspaceId
+    )
+    return exists
+      ? { ok: false, reason: "FORBIDDEN" }
+      : { ok: false, reason: "NOT_FOUND" }
+  }
+
   const n = await meetingsRepo.softDelete(input.meetingId, input.workspaceId)
   return n > 0 ? { ok: true } : { ok: false, reason: "NOT_FOUND" }
 }
@@ -148,8 +189,29 @@ export async function deleteMeeting(input: {
 export async function deleteMeetings(input: {
   workspaceId: string
   meetingIds: string[]
-}): Promise<{ ok: true } | { ok: false; reason: "NOT_FOUND" }> {
+  userId: string
+  userEmail: string
+}): Promise<
+  { ok: true } | { ok: false; reason: "NOT_FOUND" | "FORBIDDEN" }
+> {
   const uniqueIds = [...new Set(input.meetingIds)]
+  for (const meetingId of uniqueIds) {
+    const canMutate = await userCanMutateMeeting({
+      meetingId,
+      userId: input.userId,
+      userEmail: input.userEmail,
+    })
+    if (!canMutate) {
+      const exists = await meetingsRepo.findByIdForWorkspace(
+        meetingId,
+        input.workspaceId
+      )
+      return exists
+        ? { ok: false, reason: "FORBIDDEN" }
+        : { ok: false, reason: "NOT_FOUND" }
+    }
+  }
+
   const result = await meetingsRepo.softDeleteMany({
     workspaceId: input.workspaceId,
     meetingIds: uniqueIds,

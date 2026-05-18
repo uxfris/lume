@@ -25,19 +25,26 @@ import {
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { FormEvent, useEffect, useState } from "react"
 import { parseInviteEmails } from "../../_lib/parse-invite-emails"
-import { ASSIGNABLE_UI_ROLES } from "../../_lib/role-utils"
+import { ASSIGNABLE_UI_ROLES, isProUiRole } from "../../_lib/role-utils"
 import { toast } from "sonner"
+import { useWorkspacePlan } from "@/hooks/use-workspace-plan"
+import { UpgradeProDialog } from "../upgrade-pro-dialog"
+import type { ApiWorkspaceRole } from "@workspace/types"
 
 export function PeopleInviteMembers({
   onInvite,
   isPending = false,
+  actorRole,
 }: {
   onInvite?: (emails: string[], role: string) => void
   isPending?: boolean
+  actorRole?: ApiWorkspaceRole
 }) {
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState("")
   const [role, setRole] = useState<string>("member")
+  const [upgradeOpen, setUpgradeOpen] = useState(false)
+  const { isStudioPro } = useWorkspacePlan()
 
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -56,8 +63,20 @@ export function PeopleInviteMembers({
     }
   }, [searchParams, pathname, router])
 
+  const handleRoleChange = (value: string) => {
+    if (!isStudioPro && isProUiRole(value)) {
+      setUpgradeOpen(true)
+      return
+    }
+    setRole(value)
+  }
+
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault()
+    if (!isStudioPro && isProUiRole(role)) {
+      setUpgradeOpen(true)
+      return
+    }
     const emails = parseInviteEmails(email)
     if (emails.length === 0) {
       toast.error("Enter at least one valid email")
@@ -69,6 +88,7 @@ export function PeopleInviteMembers({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="flex-1" size="xs">
@@ -94,7 +114,7 @@ export function PeopleInviteMembers({
           </Field>
           <Field>
             <FieldLabel>Role</FieldLabel>
-            <Select value={role} onValueChange={setRole}>
+            <Select value={role} onValueChange={handleRoleChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Choose role" />
               </SelectTrigger>
@@ -122,5 +142,7 @@ export function PeopleInviteMembers({
         </form>
       </DialogContent>
     </Dialog>
+    <UpgradeProDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} />
+    </>
   )
 }

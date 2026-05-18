@@ -42,6 +42,7 @@ model User {
   accounts                  Account[]
   memberships               WorkspaceMember[]
   invitesSent               Invitation[]               @relation("InvitedBy")
+  inviteLinksCreated        WorkspaceInviteLink[]      @relation("InviteLinkCreatedBy")
   meetings                  Meeting[]
   assignedTasks             Task[]
   calendarEvents            CalendarEvent[]
@@ -177,6 +178,7 @@ model Workspace {
 
   members        WorkspaceMember[]
   invitations    Invitation[]
+  inviteLink     WorkspaceInviteLink?
   meetings       Meeting[]
   tasks          Task[]
   calendarEvents CalendarEvent[]
@@ -245,6 +247,24 @@ model Invitation {
   @@unique([workspaceId, email])
   @@index([workspaceId])
   @@map("invitation")
+}
+
+model WorkspaceInviteLink {
+  id              String        @id @default(cuid())
+  workspaceId     String        @unique
+  role            WorkspaceRole @default(MEMBER)
+  tokenHash       String        @unique
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  createdByUserId String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User      @relation("InviteLinkCreatedBy", fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("workspace_invite_link")
 }
 
 // ─────────────────────────────────────────────

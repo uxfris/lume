@@ -2,6 +2,7 @@ import { z } from "zod"
 import {
   AcceptInvitationResponseSchema,
   ApiInviteRoleSchema,
+  ApiWorkspaceRoleSchema,
   CreateInvitationResponseSchema,
   ListWorkspacesResponseSchema,
   WorkspacePeopleInvitationTableResponseSchema,
@@ -55,7 +56,27 @@ export const memberParamsSchema = z.object({
 })
 
 export const updateMemberRoleBodySchema = z.object({
+  role: ApiWorkspaceRoleSchema,
+})
+
+export const createInviteLinkBodySchema = z.object({
+  role: ApiInviteRoleSchema.default("MEMBER"),
+})
+
+export const inviteLinkResponseSchema = z.object({
+  url: z.string().url(),
+  expiresAt: z.string(),
   role: ApiInviteRoleSchema,
+})
+
+export const inviteLinkMetadataSchema = z.object({
+  role: ApiInviteRoleSchema,
+  expiresAt: z.string(),
+  createdAt: z.string(),
+})
+
+export const inviteLinkGetResponseSchema = z.object({
+  link: inviteLinkMetadataSchema.nullable(),
 })
 
 export const listWorkspacePeopleResponseSchema =

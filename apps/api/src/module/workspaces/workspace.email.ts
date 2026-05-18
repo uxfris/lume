@@ -11,7 +11,7 @@ export async function sendWorkspaceInviteEmail(input: {
   inviterName: string
   workspaceName: string
   inviteUrl: string
-}): Promise<void> {
+}): Promise<boolean> {
   const subject = `${input.inviterName} invited you to join ${input.workspaceName}`
 
   const text = [
@@ -42,12 +42,21 @@ export async function sendWorkspaceInviteEmail(input: {
 </p>
 </div>`
 
-  await sendTransactionalEmail({
+  const result = await sendTransactionalEmail({
     to: [input.to],
     subject,
     text,
     html,
   })
+
+  if (!result.ok) {
+    console.warn(
+      `[workspace-invite] Failed to send invite email to ${input.to}: ${result.reason}`
+    )
+    return false
+  }
+
+  return true
 }
 
 function escapeHtml(value: string): string {

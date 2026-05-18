@@ -15,12 +15,16 @@ interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
     data: TData[]
     onUpdateRole?: (memberId: string, role: string) => void
-    onBulkUpdateRole?: (memberIds: string[], role: string) => void
-    onRemoveMembers?: (memberIds: string[]) => void
+    onBulkUpdateRole?: (memberIds: string[], role: string) => void | Promise<void>
+    onRemoveMembers?: (memberIds: string[]) => void | Promise<void>
     onLeaveWorkspace?: () => void
     onRevokeInvitation?: (invitationId: string) => void
     onInviteMembers?: (emails: string[], role: string) => void
     isMutating?: boolean
+    canManageMembers?: boolean
+    actorRole?: string
+    activeTab?: "all" | "invited"
+    exportInvitations?: import("@workspace/types").WorkspaceMemberInvitation[]
 }
 
 export function PeopleDataTable<TData, TValue>({
@@ -33,6 +37,10 @@ export function PeopleDataTable<TData, TValue>({
     onRevokeInvitation,
     onInviteMembers,
     isMutating = false,
+    canManageMembers = true,
+    actorRole,
+    activeTab = "all",
+    exportInvitations = [],
 }: DataTableProps<TData, TValue>) {
 
     const [tableData, setTableData] = useState(data)
@@ -83,21 +91,26 @@ export function PeopleDataTable<TData, TValue>({
             }
         },
         enableRowSelection: (row) => {
+            if (!canManageMembers) return false
             const member = row.original as WorkspaceMember
             return member.isCurrentUser !== true
         },
         meta: {
             updateRole: updateMemberRole,
-            updateMultipleRoles: (role: string) => {
+            updateMultipleRoles: async (role: string) => {
                 const memberIds = table
                     .getFilteredSelectedRowModel()
                     .rows.map((row) => (row.original as WorkspaceMember).id)
-                onBulkUpdateRole?.(memberIds, role)
+                if (memberIds.length === 0) return
+                await onBulkUpdateRole?.(memberIds, role)
                 table.resetRowSelection()
+                setSelectionMode(false)
             },
             removeMember,
             leaveWorkspace: onLeaveWorkspace,
             revokeInvitation: onRevokeInvitation,
+            canManageMembers,
+            actorRole,
         },
         globalFilterFn: (row, _columnId, filterValue) => {
             const search = String(filterValue).toLowerCase()
@@ -164,6 +177,15 @@ export function PeopleDataTable<TData, TValue>({
                 onSelectionModeChange={setSelectionMode}
                 onInviteMembers={onInviteMembers}
                 isInvitePending={isMutating}
+                canManageMembers={canManageMembers}
+                actorRole={actorRole}
+                members={
+                  activeTab === "all" ? (data as WorkspaceMember[]) : []
+                }
+                invitations={
+                  activeTab === "invited" ? exportInvitations : exportInvitations
+                }
+                activeTab={activeTab}
             />
             <div>
                 <div className="overflow-hidden rounded-md border">

@@ -20,6 +20,10 @@ import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
 import { useWorkspacesQuery } from "../workspace/_hooks/queries/use-workpsace-query"
 import { getInitial } from "@/lib/get-initial"
 import { useMemo } from "react"
+import {
+  canManageBilling,
+  canManageMembers,
+} from "@/lib/workspace-permissions"
 
 // --- matching logic ---
 function isActivePath(pathname: string, href: string, exact?: boolean) {
@@ -129,8 +133,10 @@ export function SettingSidebar({ isLayout = true }: { isLayout?: boolean }) {
         workspaceName: activeWorkspace?.name ?? "Workspace",
         workspaceFallback: getInitial(activeWorkspace?.name),
         accountName: session?.user.name ?? "Account",
+        canManageMembers: canManageMembers(activeWorkspace?.role),
+        canManageBilling: canManageBilling(activeWorkspace?.role),
       }),
-    [activeWorkspace?.name, session?.user.name]
+    [activeWorkspace?.name, activeWorkspace?.role, session?.user.name]
   )
 
   return (

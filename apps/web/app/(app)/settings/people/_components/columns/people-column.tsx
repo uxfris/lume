@@ -20,7 +20,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@workspace/ui/components/alert-dialog";
-import { WorkspaceMember } from "@workspace/types";
+import { ApiWorkspaceRole, WorkspaceMember } from "@workspace/types";
 import { useState } from "react";
 import { formatDateOnly } from "@/lib/date-format";
 import { Checkbox } from "@workspace/ui/components/checkbox";
@@ -217,9 +217,18 @@ export const peopleColumns: ColumnDef<WorkspaceMember>[] = [
         cell: ({ row, table }) => {
             const isSelf = (row.original as WorkspaceMember).isCurrentUser
             const member = row.original
+            const canManage = table.options.meta?.canManageMembers !== false
+
+            if (!canManage) {
+                return (
+                    <span className="text-sm capitalize">{formatRole(member.role)}</span>
+                )
+            }
+
             return (
                 <PeopleRoleDropdownMenu
                     assignableOnly
+                    actorRole={table.options.meta?.actorRole as ApiWorkspaceRole | undefined}
                     onSelectRole={(role) => table.options.meta?.updateRole?.(member.id, role)}
                     triggerButton={
                         <span>

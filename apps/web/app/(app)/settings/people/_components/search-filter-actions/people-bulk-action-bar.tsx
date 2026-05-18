@@ -62,7 +62,7 @@ export function PeopleBulkActionBar<TData>({
             {
                 selectedCount > 0 &&
                 <>
-                    <PeopleChangeRole table={table} />
+                    <PeopleChangeRole table={table} disabled={isMutating} />
                     <DeletePeoplesDialog
                         table={table}
                         onRemoveMembers={onRemoveMembers}

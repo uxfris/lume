@@ -48,17 +48,36 @@ export function useInviteMembersMutation() {
       if (failed.length === results.length) {
         throw (failed[0] as PromiseRejectedResult).reason
       }
+
+      const succeeded = results.filter(
+        (r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof workspaceApi.invite>>> =>
+          r.status === "fulfilled"
+      )
+      const emailNotSent = succeeded.filter((r) => !r.value.emailSent).length
+
       return {
-        invited: results.length - failed.length,
+        invited: succeeded.length,
         failed: failed.length,
+        emailNotSent,
       }
     },
-    onSuccess: ({ invited, failed }) => {
+    onSuccess: ({ invited, failed, emailNotSent }) => {
       if (invited > 0) {
         toast.success(
           invited === 1
             ? "Invitation sent"
             : `${invited} invitations sent`
+        )
+      }
+      if (emailNotSent > 0) {
+        toast.warning(
+          emailNotSent === 1
+            ? "Invite created but email could not be sent"
+            : `${emailNotSent} invites created but emails could not be sent`,
+          {
+            description:
+              "Check Resend configuration or copy the invite link from the Invited tab.",
+          }
         )
       }
       if (failed > 0) {
