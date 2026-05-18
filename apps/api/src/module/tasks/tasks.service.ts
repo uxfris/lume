@@ -1,7 +1,13 @@
 import type { Prisma } from "@workspace/database"
-import type { ActionItem, TasksGroup, UserSummary } from "@workspace/types"
+import type {
+  ActionItem,
+  TaskAIInsight,
+  TasksGroup,
+  UserSummary,
+} from "@workspace/types"
 import { meetingsRepo } from "../meetings/meetings.repo"
 import { groupTasksIntoMeetingGroups, toActionItem } from "./tasks.presenter"
+import { buildTaskAIInsight } from "./tasks.insight"
 import { tasksRepo } from "./tasks.repo"
 import { peopleRepo } from "../people/people.repo"
 import { toUserSummary } from "../people/people.presenter"
@@ -113,4 +119,32 @@ export async function deleteTask(input: {
 }): Promise<{ ok: true } | { ok: false; reason: "NOT_FOUND" }> {
   const result = await tasksRepo.remove(input.taskId, input.workspaceId)
   return result.count > 0 ? { ok: true } : { ok: false, reason: "NOT_FOUND" }
+}
+
+export async function getTaskAIInsight(
+  workspaceId: string
+): Promise<{ insight: TaskAIInsight | null }> {
+  const meeting = await tasksRepo.findLatestAnalyzedMeeting(workspaceId)
+  if (!meeting?.summary) return { insight: null }
+
+  const meetingTasks = await tasksRepo.listOpenTasksForMeeting(
+    workspaceId,
+    meeting.id
+  )
+  const openTasks =
+    meetingTasks.length > 0
+      ? meetingTasks
+      : await tasksRepo.listOpenTasksForWorkspace(workspaceId)
+
+  const segments = await tasksRepo.listTranscriptTexts(meeting.id)
+
+  const insight = buildTaskAIInsight({
+    meetingTitle: meeting.title,
+    meetingUpdatedAt: meeting.updatedAt,
+    summary: meeting.summary,
+    openTasks,
+    transcriptSegments: segments.map((segment) => segment.text),
+  })
+
+  return { insight }
 }

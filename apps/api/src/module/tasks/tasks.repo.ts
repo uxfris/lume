@@ -1,4 +1,4 @@
-import { prisma, type Prisma } from "@workspace/database"
+import { prisma, Prisma } from "@workspace/database"
 
 export const tasksRepo = {
   async listForWorkspace(input: {
@@ -71,6 +71,55 @@ export const tasksRepo = {
   remove(taskId: string, workspaceId: string) {
     return prisma.task.deleteMany({
       where: { id: taskId, workspaceId },
+    })
+  },
+
+  findLatestAnalyzedMeeting(workspaceId: string) {
+    return prisma.meeting.findFirst({
+      where: {
+        workspaceId,
+        deletedAt: null,
+        summary: { not: undefined },
+      },
+      orderBy: { updatedAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        updatedAt: true,
+        summary: true,
+      },
+    })
+  },
+
+  listOpenTasksForMeeting(workspaceId: string, meetingId: string) {
+    return prisma.task.findMany({
+      where: {
+        workspaceId,
+        meetingId,
+        isCompleted: false,
+      },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, title: true },
+    })
+  },
+
+  listOpenTasksForWorkspace(workspaceId: string) {
+    return prisma.task.findMany({
+      where: {
+        workspaceId,
+        isCompleted: false,
+        OR: [{ meetingId: null }, { meeting: { deletedAt: null } }],
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, title: true },
+    })
+  },
+
+  listTranscriptTexts(meetingId: string) {
+    return prisma.transcriptSegment.findMany({
+      where: { meetingId },
+      orderBy: { index: "asc" },
+      select: { text: true },
     })
   },
 }

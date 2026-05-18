@@ -23,3 +23,24 @@ export const TasksGroupSchema = z.object({
   tasks: z.array(ActionItemSchema),
 })
 export type TasksGroup = z.infer<typeof TasksGroupSchema>
+
+export const TaskUrgentContextSchema = z.object({
+  label: z.string(),
+  mentionCount: z.number().int().positive().optional(),
+})
+export type TaskUrgentContext = z.infer<typeof TaskUrgentContextSchema>
+
+export const TaskAIInsightSchema = z.object({
+  meetingTitle: z.string(),
+  meetingUpdatedAt: z.string(),
+  recommendedTaskTitle: z.string(),
+  confidence: z.number().int().min(0).max(100),
+  alternateTaskTitle: z.string().optional(),
+  urgentContexts: z.array(TaskUrgentContextSchema),
+})
+export type TaskAIInsight = z.infer<typeof TaskAIInsightSchema>
+
+export const TaskAIInsightResponseSchema = z.object({
+  insight: TaskAIInsightSchema.nullable(),
+})
+export type TaskAIInsightResponse = z.infer<typeof TaskAIInsightResponseSchema>

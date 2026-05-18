@@ -8,6 +8,7 @@ import {
   listTasksQuerySchema,
   listTasksResponseSchema,
   patchTaskBodySchema,
+  taskAIInsightResponseSchema,
   taskErrorSchema,
   taskIdParamsSchema,
   toggleTaskBodySchema,
@@ -50,6 +51,23 @@ export const tasksRoutes: FastifyPluginAsyncZod = async (app) => {
         currentUserId: request.user!.id,
         filter: request.query.filter,
       })
+    }
+  )
+
+  app.get(
+    "/insights",
+    {
+      preHandler: [app.verifySession, app.requireWorkspace],
+      schema: {
+        tags: ["Tasks"],
+        summary: "AI prioritization insight from the latest analyzed meeting",
+        response: {
+          200: taskAIInsightResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      return tasksService.getTaskAIInsight(request.workspace!.id)
     }
   )
 
