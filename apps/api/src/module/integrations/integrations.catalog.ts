@@ -1,6 +1,8 @@
 import type { Integration, IntegrationProviderId } from "@workspace/types"
+import { SUPPORTED_PROVIDER_IDS } from "./integrations.registry"
 
-export const SUPPORTED_INTEGRATION_IDS = ["slack", "linear"] as const satisfies readonly IntegrationProviderId[]
+export const SUPPORTED_INTEGRATION_IDS =
+  SUPPORTED_PROVIDER_IDS as readonly IntegrationProviderId[]
 
 export const INTEGRATION_CATALOG: Integration[] = [
   {

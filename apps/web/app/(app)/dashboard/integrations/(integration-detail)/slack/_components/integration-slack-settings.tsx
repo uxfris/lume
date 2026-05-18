@@ -18,7 +18,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@workspace/ui/components/dialog"
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export function IntegrationSlackSettings({
@@ -28,7 +28,12 @@ export function IntegrationSlackSettings({
 }) {
     const queryClient = useQueryClient()
     const { workspaceId } = useCurrentWorkspace()
+    const [draft, setDraft] = useState(config)
     const [channelOpen, setChannelOpen] = useState(false)
+
+    useEffect(() => {
+        setDraft(config)
+    }, [config])
 
     const channelsQuery = useQuery({
         queryKey: integrationsKeys.channels(workspaceId, "slack"),
@@ -37,28 +42,39 @@ export function IntegrationSlackSettings({
     })
 
     async function patchSettings(patch: Partial<SlackIntegrationConfig>) {
+        const previous = draft
+        setDraft((current) => ({ ...current, ...patch }))
         try {
             await integrationsApi.patchSlackSettings(patch)
             await queryClient.invalidateQueries({
                 queryKey: integrationsKeys.detail(workspaceId, "slack"),
             })
         } catch {
+            setDraft(previous)
             toast.error("Could not save settings")
         }
     }
 
     async function selectChannel(channelId: string, channelName: string) {
+        const previous = draft
+        const channelLabel = `#${channelName}`
+        setDraft((current) => ({
+            ...current,
+            defaultChannelId: channelId,
+            defaultChannelName: channelLabel,
+        }))
+        setChannelOpen(false)
         try {
             await integrationsApi.setSlackChannel({
                 channelId,
-                channelName: `#${channelName}`,
+                channelName: channelLabel,
             })
             await queryClient.invalidateQueries({
                 queryKey: integrationsKeys.detail(workspaceId, "slack"),
             })
-            setChannelOpen(false)
             toast.success("Channel updated")
         } catch {
+            setDraft(previous)
             toast.error("Could not update channel")
         }
     }
@@ -75,7 +91,7 @@ export function IntegrationSlackSettings({
                         trailing={
                             <div className="flex items-center gap-4">
                                 <Badge variant="outline">
-                                    {config.defaultChannelName ?? "Not set"}
+                                    {draft.defaultChannelName ?? "Not set"}
                                 </Badge>
                                 <Dialog open={channelOpen} onOpenChange={setChannelOpen}>
                                     <DialogTrigger asChild>
@@ -114,7 +130,7 @@ export function IntegrationSlackSettings({
                         description="Send without requiring manual approval"
                         trailing={
                             <Switch
-                                checked={config.autoPostSummaries}
+                                checked={draft.autoPostSummaries}
                                 onCheckedChange={(checked) =>
                                     patchSettings({ autoPostSummaries: checked })
                                 }
@@ -127,7 +143,7 @@ export function IntegrationSlackSettings({
                         description="Mention assigned people in the post"
                         trailing={
                             <Switch
-                                checked={config.tagActionItemOwners}
+                                checked={draft.tagActionItemOwners}
                                 onCheckedChange={(checked) =>
                                     patchSettings({ tagActionItemOwners: checked })
                                 }
@@ -140,7 +156,7 @@ export function IntegrationSlackSettings({
                         description="Also send a private copy to the meeting host"
                         trailing={
                             <Switch
-                                checked={config.sendDmToOrganizer}
+                                checked={draft.sendDmToOrganizer}
                                 onCheckedChange={(checked) =>
                                     patchSettings({ sendDmToOrganizer: checked })
                                 }
@@ -153,7 +169,7 @@ export function IntegrationSlackSettings({
                         description="Add a link to the full transcript at the end"
                         trailing={
                             <Switch
-                                checked={config.includeTranscriptLink}
+                                checked={draft.includeTranscriptLink}
                                 onCheckedChange={(checked) =>
                                     patchSettings({ includeTranscriptLink: checked })
                                 }

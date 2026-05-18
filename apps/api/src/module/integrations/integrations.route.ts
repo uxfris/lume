@@ -8,11 +8,10 @@ import {
   integrationProviderParamsSchema,
   listIntegrationsResponseSchema,
   oauthUrlResponseSchema,
-  patchLinearSettingsBodySchema,
   patchSlackChannelBodySchema,
-  patchSlackSettingsBodySchema,
 } from "./integrations.schema"
 import * as integrationsService from "./integrations.service"
+import { getIntegrationProvider } from "./integrations.registry"
 import { parseOAuthState } from "./integrations.oauth"
 
 export const integrationsRoutes: FastifyPluginAsyncZod = async (app) => {
@@ -273,16 +272,12 @@ export const integrationsRoutes: FastifyPluginAsyncZod = async (app) => {
         return reply.status(404).send({ error: "NOT_FOUND" })
       }
 
-      const result =
-        provider === "slack"
-          ? await integrationsService.patchSlackSettings(
-              request.workspace!.id,
-              patchSlackSettingsBodySchema.parse(request.body)
-            )
-          : await integrationsService.patchLinearSettings(
-              request.workspace!.id,
-              patchLinearSettingsBodySchema.parse(request.body)
-            )
+      const adapter = getIntegrationProvider(provider)
+      const result = await integrationsService.patchIntegrationSettings(
+        request.workspace!.id,
+        provider,
+        adapter.settingsPatchSchema.parse(request.body)
+      )
 
       if (!result.ok) {
         return reply.status(404).send({ error: result.error })
@@ -307,12 +302,16 @@ export const integrationsRoutes: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (request, reply) => {
-      if (request.params.provider !== "slack") {
+      const provider = integrationsService.assertSupportedProvider(
+        request.params.provider
+      )
+      if (!provider) {
         return reply.status(404).send({ error: "NOT_FOUND" })
       }
 
-      const result = await integrationsService.setSlackChannel(
+      const result = await integrationsService.setIntegrationDestination(
         request.workspace!.id,
+        provider,
         request.body.channelId,
         request.body.channelName
       )
