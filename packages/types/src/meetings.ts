@@ -1,4 +1,24 @@
 import { z } from "zod"
+import type { TiptapJSONContent } from "./meeting-analysis"
+
+/** Loose validation for Tiptap/ProseMirror JSON from the editor. */
+export const TiptapJSONContentSchema: z.ZodType<TiptapJSONContent> = z.lazy(
+  () =>
+    z.object({
+      type: z.string().optional(),
+      attrs: z.record(z.string(), z.unknown()).optional(),
+      text: z.string().optional(),
+      content: z.array(TiptapJSONContentSchema).optional(),
+      marks: z
+        .array(
+          z.object({
+            type: z.string(),
+            attrs: z.record(z.string(), z.unknown()).optional(),
+          })
+        )
+        .optional(),
+    })
+)
 
 export const MeetingStatusSchema = z.enum([
   "transcribing",
@@ -40,6 +60,10 @@ export const MeetingSchema = z.object({
   timestamp: z.string(), // display string, e.g. "10:30" or "Oct 22, 2024"
   /** ISO 8601 — used for list filtering (sort/display still use `timestamp`). */
   createdAt: z.string(),
+  /** ISO 8601 — last update time (notes, metadata, etc.). */
+  updatedAt: z.string(),
+  /** Meeting owner / host display name (detail API). */
+  hostName: z.string().optional(),
   duration: z.string(), // e.g. "28m"
   /** Raw duration for filtering; list cards still show `duration`. */
   durationSeconds: z.number().nullable(),
@@ -48,6 +72,8 @@ export const MeetingSchema = z.object({
   extraAttendees: z.number().optional(),
   /** Present when returned from meeting detail API (AI analysis). */
   keyPoints: z.array(z.string()).optional(),
+  /** Tiptap document (v2 analysis) for the meeting editor. Detail API only. */
+  document: z.custom<TiptapJSONContent>().optional(),
   channelId: z.string().nullable(),
 })
 

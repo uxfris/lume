@@ -7,6 +7,7 @@ import {
 } from "@workspace/queue"
 import { logger } from "../logger"
 import { createProcessingEventAndPublish } from "../lib/processing-events"
+import { buildMeetingSummaryV2 } from "@workspace/types"
 import { analyzeMeetingTranscript } from "../lib/openai"
 
 export async function analyzeHandler(
@@ -64,10 +65,8 @@ export async function analyzeHandler(
 
     const { analysis, costUsd } = await analyzeMeetingTranscript(transcript)
 
-    const summaryJson: Prisma.InputJsonValue = {
-      summary: analysis.summary,
-      keyPoints: analysis.keyPoints,
-      sentiment: analysis.sentiment,
+    const stored = buildMeetingSummaryV2({
+      ...analysis,
       actionItems: analysis.actionItems.map((a) => ({
         title: a.title.trim(),
         assigneeHint:
@@ -75,6 +74,13 @@ export async function analyzeHandler(
             ? a.assigneeHint.trim()
             : null,
       })),
+    })
+
+    const summaryJson: Prisma.InputJsonValue = {
+      version: stored.version,
+      doc: stored.doc as Prisma.InputJsonValue,
+      sentiment: stored.sentiment,
+      actionItems: stored.actionItems,
     }
 
     await prisma.$transaction(async (tx) => {

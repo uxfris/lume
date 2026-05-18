@@ -21,6 +21,24 @@ export type TaskListFilter =
   | "from_last_meeting"
   | "completed"
 
+export async function listMeetingTasks(input: {
+  workspaceId: string
+  meetingId: string
+}): Promise<ActionItem[] | { error: "MEETING_NOT_FOUND" }> {
+  const ok = await meetingsRepo.existsActiveInWorkspace(
+    input.meetingId,
+    input.workspaceId
+  )
+  if (!ok) return { error: "MEETING_NOT_FOUND" }
+
+  const rows = await tasksRepo.listForMeeting({
+    workspaceId: input.workspaceId,
+    meetingId: input.meetingId,
+  })
+
+  return rows.map((task) => toActionItem(task))
+}
+
 export async function listTaskGroups(input: {
   workspaceId: string
   currentUserId: string

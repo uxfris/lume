@@ -5,28 +5,13 @@ import { toast } from "sonner"
 
 import { taskApi } from "@workspace/api-client"
 
-import type { TasksGroup } from "@workspace/types"
+import type { ActionItem, TasksGroup } from "@workspace/types"
+import {
+  updateTaskCompletionInGroups,
+  updateTaskCompletionInMeetingTasks,
+} from "../../_lib/task-cache"
 import { taskKeys } from "../../_lib/task.keys"
 import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
-
-function updateTaskCompletion(
-  groups: TasksGroup[],
-  taskId: string,
-  isCompleted: boolean
-): TasksGroup[] {
-  return groups.map((group) => ({
-    ...group,
-
-    tasks: group.tasks.map((task) =>
-      task.id === taskId
-        ? {
-            ...task,
-            isCompleted,
-          }
-        : task
-    ),
-  }))
-}
 
 export type ToggleTaskPayload = {
   id: string
@@ -49,13 +34,16 @@ export function useToggleTaskMutation(): useToggleTaskMutationReturn {
       taskApi.toggle(id, isCompleted),
 
     onMutate: async ({ id, isCompleted }) => {
-      console.log(`toggle: ${id}\n${isCompleted}`)
       await queryClient.cancelQueries({
-        queryKey: taskKeys.lists(workspaceId),
+        queryKey: taskKeys.all(workspaceId),
       })
 
       const previousLists = queryClient.getQueriesData<TasksGroup[]>({
         queryKey: taskKeys.lists(workspaceId),
+      })
+
+      const previousMeetingTasks = queryClient.getQueriesData<ActionItem[]>({
+        queryKey: taskKeys.meetings(workspaceId),
       })
 
       previousLists.forEach(([queryKey, groups]) => {
@@ -63,12 +51,22 @@ export function useToggleTaskMutation(): useToggleTaskMutationReturn {
 
         queryClient.setQueryData<TasksGroup[]>(
           queryKey,
-          updateTaskCompletion(groups, id, isCompleted)
+          updateTaskCompletionInGroups(groups, id, isCompleted)
+        )
+      })
+
+      previousMeetingTasks.forEach(([queryKey, tasks]) => {
+        if (!tasks) return
+
+        queryClient.setQueryData<ActionItem[]>(
+          queryKey,
+          updateTaskCompletionInMeetingTasks(tasks, id, isCompleted)
         )
       })
 
       return {
         previousLists,
+        previousMeetingTasks,
       }
     },
 
@@ -76,11 +74,17 @@ export function useToggleTaskMutation(): useToggleTaskMutationReturn {
       context?.previousLists.forEach(([queryKey, data]) => {
         queryClient.setQueryData(queryKey, data)
       })
+
+      context?.previousMeetingTasks.forEach(([queryKey, data]) => {
+        queryClient.setQueryData(queryKey, data)
+      })
+
+      toast.error("Failed to update task.")
     },
 
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: taskKeys.lists(workspaceId),
+        queryKey: taskKeys.all(workspaceId),
       })
       queryClient.invalidateQueries({
         queryKey: taskKeys.insight(workspaceId),

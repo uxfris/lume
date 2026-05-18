@@ -5,6 +5,10 @@ import { s3 } from "./s3"
 
 const PRESIGNED_GET_TTL_SECONDS = 60 * 10
 
+export function buildMeetingAudioKey(meetingId: string): string {
+  return `meetings/${meetingId}/audio`
+}
+
 export async function createPresignedAudioDownload(key: string): Promise<string> {
   return getSignedUrl(
     s3,
@@ -14,6 +18,23 @@ export async function createPresignedAudioDownload(key: string): Promise<string>
     }),
     { expiresIn: PRESIGNED_GET_TTL_SECONDS }
   )
+}
+
+export async function uploadMeetingAudio(params: {
+  meetingId: string
+  body: Buffer
+  contentType?: string
+}): Promise<string> {
+  const key = buildMeetingAudioKey(params.meetingId)
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: env.S3_BUCKET,
+      Key: key,
+      ContentType: params.contentType ?? "audio/mpeg",
+      Body: params.body,
+    })
+  )
+  return key
 }
 
 export async function saveRawTranscriptJson(params: {

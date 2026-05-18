@@ -7,9 +7,7 @@ import {
   Document,
   Soundwave,
 } from "@solar-icons/react"
-import { Button } from "@workspace/ui/components/button"
 import { Progress } from "@workspace/ui/components/progress"
-import { toast } from "sonner"
 import { formatTimeAgoIntl } from "@/lib/date-format"
 import { Badge } from "@workspace/ui/components/badge"
 import { cn } from "@workspace/ui/lib/utils"
@@ -95,7 +93,9 @@ export function RecentUploadItem({
               {formatBytes(fileSize)} •{" "}
               {status === "PENDING_UPLOAD" && "Uploading..."}
               {status === "UPLOADED" && "Queued..."}
-              {(status === "TRANSCRIBING" || status === "ANALYZING") &&
+              {(status === "TRANSCRIBING" ||
+                status === "TRANSCRIBED" ||
+                status === "ANALYZING") &&
                 (statusText ??
                   (status === "TRANSCRIBING"
                     ? "Transcribing..."
@@ -103,14 +103,18 @@ export function RecentUploadItem({
               {status !== "PENDING_UPLOAD" &&
                 status !== "UPLOADED" &&
                 status !== "TRANSCRIBING" &&
+                status !== "TRANSCRIBED" &&
                 status !== "ANALYZING" &&
                 formatTimeAgoIntl(createdAt)}
             </span>
             {(status === "ANALYZING" ||
               status === "TRANSCRIBING" ||
+              status === "TRANSCRIBED" ||
               progress) && (
               <span className="text-xs font-semibold text-primary">
-                {status === "ANALYZING" || status === "TRANSCRIBING"
+                {status === "ANALYZING" ||
+                status === "TRANSCRIBING" ||
+                status === "TRANSCRIBED"
                   ? stage === "DIARIZE"
                     ? "Diarizing"
                     : stage === "EMBED"
@@ -127,11 +131,16 @@ export function RecentUploadItem({
             )}
           </div>
         </div>
-        {(status === "ANALYZING" || status === "TRANSCRIBING" || progress) && (
+        {(status === "ANALYZING" ||
+          status === "TRANSCRIBING" ||
+          status === "TRANSCRIBED" ||
+          progress) && (
           <Progress
             value={progress}
             indicatorClassName={cn(
-              (status === "ANALYZING" || status === "TRANSCRIBING") &&
+              (status === "ANALYZING" ||
+                status === "TRANSCRIBING" ||
+                status === "TRANSCRIBED") &&
                 "bg-primary/50"
             )}
           />
@@ -149,7 +158,8 @@ export function RecentUploadItem({
       {status !== "ANALYZING" &&
         status !== "PENDING_UPLOAD" &&
         status !== "UPLOADED" &&
-        status !== "TRANSCRIBING" && (
+        status !== "TRANSCRIBING" &&
+        status !== "TRANSCRIBED" && (
           <Badge variant="outline" className="w-fit px-1 md:px-2">
             <span>
               <CheckCircle />

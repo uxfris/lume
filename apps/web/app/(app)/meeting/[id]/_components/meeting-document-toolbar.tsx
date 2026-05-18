@@ -4,18 +4,21 @@ import { CreateChannelDialog } from "@/app/(app)/dashboard/(meetings)/meetings/_
 import { MoveMeeting } from "@/app/(app)/dashboard/_components/meetings/meeting-menu-item/move-meeting-dialog"
 import { RenameMeeting } from "@/app/(app)/dashboard/_components/meetings/meeting-menu-item/rename-meeting-dialog"
 import { ShareMeetingDialog } from "@/app/(app)/dashboard/_components/meetings/meeting-menu-item/share-meeting-dialog"
+import { buildMeetingShareUrl } from "@/app/(app)/dashboard/_lib/meeting-share"
 import { CopyButton } from "@/components/copy-button"
 import { CreditLeftCard } from "@/components/credit-left-card"
+import { formatEditedLabel } from "@/lib/date-format"
+import { routes } from "@/lib/routes"
 import { Hashtag } from "@solar-icons/react"
 import {
   AltArrowDown,
   AltArrowLeft,
   InfoCircle,
-  LockKeyhole,
   Pen,
   Share,
   Star,
 } from "@solar-icons/react/ssr"
+import { meetingApi } from "@workspace/api-client"
 import { Meeting } from "@workspace/types"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
@@ -27,21 +30,59 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@workspace/ui/components/tooltip"
+import { cn } from "@workspace/ui/lib/utils"
 import Link from "next/link"
-import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { useEffect, useMemo, useState } from "react"
+import { toast } from "sonner"
 import { MeetingDetailsDialog } from "./meeting-details-dialog"
-import { routes } from "@/lib/routes"
 
 export function MeetingDocumentToolbar({ meeting }: { meeting: Meeting }) {
+  const router = useRouter()
+
   const [openShare, setOpenShare] = useState(false)
   const [openMove, setOpenMove] = useState(false)
   const [openCreate, setOpenCreate] = useState(false)
   const [openRename, setOpenRename] = useState(false)
   const [openDetails, setOpenDetails] = useState(false)
+  const [isStarred, setIsStarred] = useState(meeting.isStarred)
+
+  useEffect(() => {
+    setIsStarred(meeting.isStarred)
+  }, [meeting.isStarred])
+
+  const meetingUrl = useMemo(() => {
+    const fromEnv = buildMeetingShareUrl(meeting.id)
+    if (fromEnv.startsWith("http")) return fromEnv
+    if (typeof window !== "undefined") {
+      return `${window.location.origin}${routes.meeting(meeting.id)}`
+    }
+    return routes.meeting(meeting.id)
+  }, [meeting.id])
 
   const createChannel = () => {
     setOpenMove(false)
     setOpenCreate(true)
+  }
+
+  const toggleStar = async () => {
+    const nextStarred = !isStarred
+    setIsStarred(nextStarred)
+    try {
+      await meetingApi.updateMeeting(meeting.id, { isStarred: nextStarred })
+      toast.success(
+        nextStarred ? "Meeting starred" : "Meeting unstarred"
+      )
+      router.refresh()
+    } catch {
+      setIsStarred(!nextStarred)
+      toast.error("Failed to update star")
+    }
   }
 
   return (
@@ -80,13 +121,9 @@ export function MeetingDocumentToolbar({ meeting }: { meeting: Meeting }) {
                   <Share />
                   Share
                 </DropdownMenuItem>
-                {/* <DropdownMenuItem>
-                                    <Restart />
-                                    Regenerate Notes
-                                </DropdownMenuItem> */}
-                <DropdownMenuItem>
-                  <Star />
-                  Star Meeting
+                <DropdownMenuItem onSelect={() => void toggleStar()}>
+                  <Star weight={isStarred ? "Bold" : "Outline"} />
+                  {isStarred ? "Remove star" : "Star Meeting"}
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setOpenRename(true)}>
                   <Pen />
@@ -100,16 +137,12 @@ export function MeetingDocumentToolbar({ meeting }: { meeting: Meeting }) {
                   <InfoCircle />
                   Details
                 </DropdownMenuItem>
-                {/* <DropdownMenuItem>
-                                    <Download />
-                                    Download
-                                </DropdownMenuItem> */}
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
           <div className="flex items-center gap-1">
             <span className="hidden px-4 text-sm font-medium text-muted-foreground-2 md:block">
-              Edited Mar 30
+              {formatEditedLabel(meeting.updatedAt)}
             </span>
             <Button
               variant="ghost"
@@ -118,10 +151,32 @@ export function MeetingDocumentToolbar({ meeting }: { meeting: Meeting }) {
             >
               Share
             </Button>
-            <CopyButton content="" />
-            <Button variant="ghost" size="icon-sm">
-              <Star />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <CopyButton content={meetingUrl} />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Copy link</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => void toggleStar()}
+                  aria-label={isStarred ? "Remove star" : "Star meeting"}
+                >
+                  <Star
+                    weight={isStarred ? "Bold" : "Outline"}
+                    className={cn(isStarred && "text-primary")}
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isStarred ? "Remove star" : "Star meeting"}</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </div>

@@ -32,6 +32,13 @@ export const taskApi = {
     return client.get<TasksGroup[]>(`/tasks?${query}`, options)
   },
 
+  async fetchMeetingTasks(
+    meetingId: string,
+    options?: RequestOptions
+  ): Promise<ActionItem[]> {
+    return client.get<ActionItem[]>(`/tasks/meeting/${meetingId}`, options)
+  },
+
   async fetchAssignees(options?: RequestOptions): Promise<UserSummary[]> {
     return client.get<UserSummary[]>("/tasks/assignees", options)
   },

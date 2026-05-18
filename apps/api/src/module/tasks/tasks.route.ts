@@ -5,8 +5,10 @@ import {
   assigneesResponseSchema,
   createTaskBodySchema,
   createTaskResponseSchema,
+  listMeetingTasksResponseSchema,
   listTasksQuerySchema,
   listTasksResponseSchema,
+  meetingIdParamsSchema,
   patchTaskBodySchema,
   taskAIInsightResponseSchema,
   taskProductivityResponseSchema,
@@ -32,6 +34,34 @@ export const tasksRoutes: FastifyPluginAsyncZod = async (app) => {
     },
     async (request) => {
       return tasksService.listAssignees(request.workspace!.id)
+    }
+  )
+
+  app.get(
+    "/meeting/:meetingId",
+    {
+      preHandler: [app.verifySession, app.requireWorkspace],
+      schema: {
+        tags: ["Tasks"],
+        summary: "Tasks for a single meeting",
+        params: meetingIdParamsSchema,
+        response: {
+          200: listMeetingTasksResponseSchema,
+          404: taskErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await tasksService.listMeetingTasks({
+        workspaceId: request.workspace!.id,
+        meetingId: request.params.meetingId,
+      })
+
+      if ("error" in result) {
+        return reply.status(404).send({ error: result.error })
+      }
+
+      return result
     }
   )
 
