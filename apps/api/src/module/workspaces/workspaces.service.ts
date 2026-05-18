@@ -1,8 +1,15 @@
 import { createHash, randomBytes } from "node:crypto"
 import type { Workspace, WorkspaceRole } from "@workspace/database"
 import { ensurePersonalWorkspace } from "@workspace/auth"
+import {
+  buildWorkspaceAvatarKey,
+  createPresignedWorkspaceAvatarUpload,
+  headUploadedObject,
+} from "../../lib/s3-predesign"
+import { buildWorkspaceAvatarApiPath } from "../../lib/workspace-avatar"
 import { resolveUserImageUrl } from "../../lib/user-avatar"
 import { workspacesRepo } from "./workspaces.repo"
+import { toWorkspaceSummary } from "./workspaces.presenter"
 import {
   buildWorkspaceInviteUrl,
   sendWorkspaceInviteEmail,
@@ -11,6 +18,14 @@ import {
 const INVITE_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000
 const MAX_SLUG_ATTEMPTS = 5
 const PRISMA_UNIQUE = "P2002"
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024
+
+const ALLOWED_AVATAR_CONTENT_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+])
 
 export type InviteRole = Exclude<WorkspaceRole, "OWNER">
 export type AssignableMemberRole = InviteRole
@@ -169,13 +184,29 @@ export async function createWorkspace(
   throw new Error("Could not allocate a unique workspace slug")
 }
 
-export async function updateWorkspaceName(
+export function normalizeWorkspaceHandle(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/^@+/, "")
+    .replace(/[^a-z0-9_-]/g, "")
+    .slice(0, 20)
+}
+
+export function buildWorkspaceAvatarImageUrl(workspaceId: string) {
+  return buildWorkspaceAvatarApiPath(workspaceId)
+}
+
+export async function updateWorkspace(
   workspaceId: string,
   userId: string,
-  name: string
+  data: { name?: string; slug?: string }
 ): Promise<
-  | { ok: true; workspace: Workspace }
-  | { ok: false; error: "NOT_FOUND" | "FORBIDDEN" }
+  | { ok: true; workspace: ReturnType<typeof toWorkspaceSummary> }
+  | {
+      ok: false
+      error: "NOT_FOUND" | "FORBIDDEN" | "SLUG_TAKEN" | "INVALID_SLUG"
+    }
 > {
   const membership = await workspacesRepo.findMembershipWithWorkspace(
     workspaceId,
@@ -187,12 +218,122 @@ export async function updateWorkspaceName(
     return { ok: false, error: "FORBIDDEN" }
   }
 
-  const workspace = await workspacesRepo.updateWorkspaceName(
-    workspaceId,
-    name.trim()
+  const updateData: { name?: string; slug?: string } = {}
+
+  if (data.name !== undefined) {
+    updateData.name = data.name.trim()
+  }
+
+  if (data.slug !== undefined) {
+    const slug = normalizeWorkspaceHandle(data.slug)
+    if (slug.length < 3) {
+      return { ok: false, error: "INVALID_SLUG" }
+    }
+
+    const existing = await workspacesRepo.findWorkspaceBySlug(slug)
+    if (existing && existing.id !== workspaceId) {
+      return { ok: false, error: "SLUG_TAKEN" }
+    }
+
+    updateData.slug = slug
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return { ok: true, workspace: toWorkspaceSummary(membership.workspace) }
+  }
+
+  try {
+    const workspace = await workspacesRepo.updateWorkspace(workspaceId, updateData)
+    return { ok: true, workspace: toWorkspaceSummary(workspace) }
+  } catch (err) {
+    const code = (err as { code?: string }).code
+    if (code === PRISMA_UNIQUE) {
+      return { ok: false, error: "SLUG_TAKEN" }
+    }
+    throw err
+  }
+}
+
+export async function presignWorkspaceAvatar(input: {
+  workspaceId: string
+  userId: string
+  contentType: string
+}): Promise<
+  | { ok: true; url: string; expiresInSeconds: number }
+  | { ok: false; error: "NOT_FOUND" | "FORBIDDEN" }
+> {
+  const membership = await workspacesRepo.findMembershipWithWorkspace(
+    input.workspaceId,
+    input.userId
   )
 
-  return { ok: true, workspace }
+  if (!membership) return { ok: false, error: "NOT_FOUND" }
+  if (membership.role !== "OWNER" && membership.role !== "ADMIN") {
+    return { ok: false, error: "FORBIDDEN" }
+  }
+
+  const result = await createPresignedWorkspaceAvatarUpload({
+    workspaceId: input.workspaceId,
+    contentType: input.contentType,
+  })
+
+  return {
+    ok: true,
+    url: result.url,
+    expiresInSeconds: result.expiresInSeconds,
+  }
+}
+
+export async function completeWorkspaceAvatar(input: {
+  workspaceId: string
+  userId: string
+}): Promise<
+  | { ok: true; workspace: ReturnType<typeof toWorkspaceSummary> }
+  | {
+      ok: false
+      error:
+        | "NOT_FOUND"
+        | "FORBIDDEN"
+        | "OBJECT_NOT_IN_S3"
+        | "FILE_TOO_LARGE"
+        | "INVALID_CONTENT_TYPE"
+    }
+> {
+  const membership = await workspacesRepo.findMembershipWithWorkspace(
+    input.workspaceId,
+    input.userId
+  )
+
+  if (!membership) return { ok: false, error: "NOT_FOUND" }
+  if (membership.role !== "OWNER" && membership.role !== "ADMIN") {
+    return { ok: false, error: "FORBIDDEN" }
+  }
+
+  const key = buildWorkspaceAvatarKey(input.workspaceId)
+
+  let head: Awaited<ReturnType<typeof headUploadedObject>>
+  try {
+    head = await headUploadedObject(key)
+  } catch {
+    return { ok: false, error: "OBJECT_NOT_IN_S3" }
+  }
+
+  if (head.contentLength == null || head.contentLength > MAX_AVATAR_BYTES) {
+    return { ok: false, error: "FILE_TOO_LARGE" }
+  }
+
+  if (
+    !head.contentType ||
+    !ALLOWED_AVATAR_CONTENT_TYPES.has(head.contentType)
+  ) {
+    return { ok: false, error: "INVALID_CONTENT_TYPE" }
+  }
+
+  const workspace = await workspacesRepo.updateWorkspace(input.workspaceId, {
+    image: buildWorkspaceAvatarApiPath(input.workspaceId),
+  })
+
+  return { ok: true, workspace: toWorkspaceSummary(workspace) }
 }
 
 export async function createOrRefreshInvitation(

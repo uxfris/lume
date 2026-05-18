@@ -28,7 +28,7 @@ export const integrationChannelsResponseSchema = z.object({
 })
 
 export const oauthUrlResponseSchema = z.object({
-  url: z.string().url(),
+  url: z.url(),
 })
 
 export const patchSlackSettingsBodySchema = slackSettingsPatchSchema

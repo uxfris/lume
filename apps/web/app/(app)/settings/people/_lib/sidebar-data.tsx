@@ -21,6 +21,7 @@ export type SidebarSection = {
 export function createSidebarSections(input: {
   workspaceName: string
   workspaceFallback: string
+  workspaceAvatarSrc?: string
   accountName: string
   canManageMembers?: boolean
   canManageBilling?: boolean
@@ -29,7 +30,10 @@ export function createSidebarSections(input: {
     {
       label: input.workspaceName,
       href: routes.settings.workspace,
-      avatar: { fallback: input.workspaceFallback },
+      avatar: {
+        src: input.workspaceAvatarSrc,
+        fallback: input.workspaceFallback,
+      },
     },
   ]
 

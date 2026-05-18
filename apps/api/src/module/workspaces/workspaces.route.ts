@@ -1,7 +1,12 @@
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod"
+import { toAbsoluteFrontendUrl } from "../../lib/app-url"
+import { streamWorkspaceAvatar } from "../../lib/workspace-avatar"
 import * as workspacesService from "./workspaces.service"
+import { toWorkspaceSummary } from "./workspaces.presenter"
 import {
   acceptInvitationResponseSchema,
+  avatarErrorSchema,
+  completeWorkspaceAvatarResponseSchema,
   createInvitationBodySchema,
   createInvitationResponseSchema,
   createWorkspaceBodySchema,
@@ -15,6 +20,8 @@ import {
   inviteLinkGetResponseSchema,
   inviteLinkResponseSchema,
   memberParamsSchema,
+  presignWorkspaceAvatarBodySchema,
+  presignWorkspaceAvatarResponseSchema,
   revokeInvitationParamsSchema,
   updateMemberRoleBodySchema,
   updateWorkspaceBodySchema,
@@ -44,9 +51,7 @@ export const workspacesRoutes: FastifyPluginAsyncZod = async (app) => {
 
       return {
         workspaces: rows.map((m) => ({
-          id: m.workspace.id,
-          name: m.workspace.name,
-          slug: m.workspace.slug,
+          ...toWorkspaceSummary(m.workspace),
           role: m.role,
           joinedAt: m.joinedAt.toISOString(),
         })),
@@ -72,11 +77,7 @@ export const workspacesRoutes: FastifyPluginAsyncZod = async (app) => {
         request.user!.id,
         request.body.name
       )
-      return reply.status(201).send({
-        id: workspace.id,
-        name: workspace.name,
-        slug: workspace.slug,
-      })
+      return reply.status(201).send(toWorkspaceSummary(workspace))
     }
   )
 
@@ -143,22 +144,78 @@ export const workspacesRoutes: FastifyPluginAsyncZod = async (app) => {
       ],
       schema: {
         tags: ["Workspaces"],
-        summary: "Update workspace name",
+        summary: "Update workspace name or handle",
         params: workspaceParamsSchema,
         body: updateWorkspaceBodySchema,
         response: {
           200: workspaceSummarySchema,
+          400: errorResponseSchema,
+          403: errorResponseSchema,
+          404: errorResponseSchema,
+          409: errorResponseSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await workspacesService.updateWorkspace(
+        request.params.id,
+        request.user!.id,
+        request.body
+      )
+
+      if (!result.ok) {
+        if (result.error === "NOT_FOUND") {
+          return reply.status(404).send({ error: "WORKSPACE_NOT_FOUND" })
+        }
+        if (result.error === "FORBIDDEN") {
+          return reply.status(403).send({ error: "FORBIDDEN" })
+        }
+        if (result.error === "SLUG_TAKEN") {
+          return reply.status(409).send({ error: "SLUG_TAKEN" })
+        }
+        return reply.status(400).send({ error: "INVALID_SLUG" })
+      }
+
+      return reply.status(200).send(result.workspace)
+    }
+  )
+
+  app.post(
+    "/:id/avatar/presign",
+    {
+      preHandler: [
+        app.verifySession,
+        app.requireWorkspaceFromParams,
+        app.requireRole(["OWNER", "ADMIN"]),
+      ],
+      config: {
+        rateLimit: {
+          max: 10,
+          timeWindow: "1 minute",
+          keyGenerator: (request) => {
+            const params = request.params as { id: string }
+            return `${request.user?.id ?? request.ip}:${params.id}`
+          },
+        },
+      },
+      schema: {
+        tags: ["Workspaces"],
+        summary: "Create a presigned S3 URL for a workspace avatar",
+        params: workspaceParamsSchema,
+        body: presignWorkspaceAvatarBodySchema,
+        response: {
+          201: presignWorkspaceAvatarResponseSchema,
           403: errorResponseSchema,
           404: errorResponseSchema,
         },
       },
     },
     async (request, reply) => {
-      const result = await workspacesService.updateWorkspaceName(
-        request.params.id,
-        request.user!.id,
-        request.body.name
-      )
+      const result = await workspacesService.presignWorkspaceAvatar({
+        workspaceId: request.params.id,
+        userId: request.user!.id,
+        contentType: request.body.contentType,
+      })
 
       if (!result.ok) {
         if (result.error === "NOT_FOUND") {
@@ -167,11 +224,86 @@ export const workspacesRoutes: FastifyPluginAsyncZod = async (app) => {
         return reply.status(403).send({ error: "FORBIDDEN" })
       }
 
-      return reply.status(200).send({
-        id: result.workspace.id,
-        name: result.workspace.name,
-        slug: result.workspace.slug,
+      return reply.status(201).send({
+        uploadUrl: result.url,
+        imageUrl: toAbsoluteFrontendUrl(
+          workspacesService.buildWorkspaceAvatarImageUrl(request.params.id)
+        ),
+        expiresInSeconds: result.expiresInSeconds,
       })
+    }
+  )
+
+  app.post(
+    "/:id/avatar/complete",
+    {
+      preHandler: [
+        app.verifySession,
+        app.requireWorkspaceFromParams,
+        app.requireRole(["OWNER", "ADMIN"]),
+      ],
+      schema: {
+        tags: ["Workspaces"],
+        summary: "Finalize workspace avatar upload",
+        params: workspaceParamsSchema,
+        response: {
+          200: completeWorkspaceAvatarResponseSchema,
+          400: avatarErrorSchema,
+          403: errorResponseSchema,
+          404: errorResponseSchema,
+          422: avatarErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await workspacesService.completeWorkspaceAvatar({
+        workspaceId: request.params.id,
+        userId: request.user!.id,
+      })
+
+      if (!result.ok) {
+        if (result.error === "NOT_FOUND") {
+          return reply.status(404).send({ error: "WORKSPACE_NOT_FOUND" })
+        }
+        if (result.error === "FORBIDDEN") {
+          return reply.status(403).send({ error: "FORBIDDEN" })
+        }
+        if (result.error === "OBJECT_NOT_IN_S3") {
+          return reply.status(422).send({ error: "OBJECT_NOT_IN_S3" })
+        }
+        if (result.error === "FILE_TOO_LARGE") {
+          return reply.status(400).send({ error: "FILE_TOO_LARGE" })
+        }
+        return reply.status(400).send({ error: "INVALID_CONTENT_TYPE" })
+      }
+
+      return reply.status(200).send(result.workspace)
+    }
+  )
+
+  app.get(
+    "/:id/avatar",
+    {
+      preHandler: [app.verifySession, app.requireWorkspaceFromParams],
+      schema: {
+        tags: ["Workspaces"],
+        summary: "Stream a workspace avatar from private object storage",
+        params: workspaceParamsSchema,
+      },
+    },
+    async (request, reply) => {
+      const streamed = await streamWorkspaceAvatar(request.params.id)
+      if (!streamed) {
+        return reply.status(404).send({ error: "AVATAR_NOT_FOUND" })
+      }
+
+      reply.header("Content-Type", streamed.contentType)
+      reply.header("Cache-Control", "private, max-age=86400")
+      if (streamed.etag) {
+        reply.header("ETag", streamed.etag)
+      }
+
+      return reply.send(streamed.body)
     }
   )
 

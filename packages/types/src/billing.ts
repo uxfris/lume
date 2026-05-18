@@ -23,7 +23,7 @@ export const BillingUsageResponseSchema = z.object({
 export type BillingUsageResponse = z.infer<typeof BillingUsageResponseSchema>
 
 export const BillingCheckoutResponseSchema = z.object({
-  url: z.string().url(),
+  url: z.url(),
 })
 
 export type BillingCheckoutResponse = z.infer<
@@ -37,7 +37,7 @@ export const BillingCheckoutBodySchema = z.object({
 export type BillingCheckoutBody = z.infer<typeof BillingCheckoutBodySchema>
 
 export const BillingPortalResponseSchema = z.object({
-  url: z.string().url(),
+  url: z.url(),
 })
 
 export type BillingPortalResponse = z.infer<typeof BillingPortalResponseSchema>

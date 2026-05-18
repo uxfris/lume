@@ -1,16 +1,44 @@
 import { z } from "zod"
 
 /** Workspace roles used by backend/domain records (uppercase Prisma enum values). */
-export const ApiWorkspaceRoleSchema = z.enum(["OWNER", "ADMIN", "MEMBER", "GUEST"])
+export const ApiWorkspaceRoleSchema = z.enum([
+  "OWNER",
+  "ADMIN",
+  "MEMBER",
+  "GUEST",
+])
 export type ApiWorkspaceRole = z.infer<typeof ApiWorkspaceRoleSchema>
 
 export const ApiInviteRoleSchema = z.enum(["ADMIN", "MEMBER", "GUEST"])
 export type ApiInviteRole = z.infer<typeof ApiInviteRoleSchema>
 
+export const WorkspaceHandleSchema = z
+  .string()
+  .min(3, "Handle must be at least 3 characters")
+  .max(20, "Handle must be at most 20 characters")
+  .regex(
+    /^[a-z0-9_-]+$/,
+    "Handle can only contain lowercase letters, numbers, underscores, and hyphens"
+  )
+
+export type WorkspaceHandle = z.infer<typeof WorkspaceHandleSchema>
+
+export const UpdateWorkspaceBodySchema = z
+  .object({
+    name: z.string().trim().min(1).max(120).optional(),
+    slug: WorkspaceHandleSchema.optional(),
+  })
+  .refine((body) => body.name !== undefined || body.slug !== undefined, {
+    message: "Provide a name or slug to update",
+  })
+
+export type UpdateWorkspaceBody = z.infer<typeof UpdateWorkspaceBodySchema>
+
 export const WorkspaceSummarySchema = z.object({
   id: z.string(),
   name: z.string(),
   slug: z.string(),
+  image: z.string().nullable(),
 })
 export type WorkspaceSummary = z.infer<typeof WorkspaceSummarySchema>
 
@@ -18,6 +46,7 @@ export const WorkspaceMembershipSchema = z.object({
   id: z.string(),
   name: z.string(),
   slug: z.string(),
+  image: z.string().nullable(),
   role: ApiWorkspaceRoleSchema,
   joinedAt: z.string(),
 })
@@ -26,7 +55,9 @@ export type WorkspaceMembership = z.infer<typeof WorkspaceMembershipSchema>
 export const ListWorkspacesResponseSchema = z.object({
   workspaces: z.array(WorkspaceMembershipSchema),
 })
-export type ListWorkspacesResponse = z.infer<typeof ListWorkspacesResponseSchema>
+export type ListWorkspacesResponse = z.infer<
+  typeof ListWorkspacesResponseSchema
+>
 
 export const CurrentUserSchema = z.object({
   id: z.string(),
@@ -51,16 +82,20 @@ export const CreateInvitationResponseSchema = z.object({
   expiresAt: z.string(),
   emailSent: z.boolean(),
 })
-export type CreateInvitationResponse = z.infer<typeof CreateInvitationResponseSchema>
+export type CreateInvitationResponse = z.infer<
+  typeof CreateInvitationResponseSchema
+>
 
 export const AcceptInvitationResponseSchema = z.object({
   workspaceId: z.string(),
   role: ApiWorkspaceRoleSchema,
 })
-export type AcceptInvitationResponse = z.infer<typeof AcceptInvitationResponseSchema>
+export type AcceptInvitationResponse = z.infer<
+  typeof AcceptInvitationResponseSchema
+>
 
 export const WorkspaceInviteLinkResponseSchema = z.object({
-  url: z.string().url(),
+  url: z.url(),
   expiresAt: z.string(),
   role: ApiInviteRoleSchema,
 })

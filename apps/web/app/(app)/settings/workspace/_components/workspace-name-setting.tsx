@@ -2,20 +2,57 @@
 
 import { Input } from "@workspace/ui/components/input"
 import { SettingSection } from "../../_components/setting-section"
-import { Badge } from "@workspace/ui/components/badge"
-import { Button } from "@workspace/ui/components/button"
-import { useState } from "react"
-import { cn } from "@workspace/ui/lib/utils"
+import { useEffect, useState } from "react"
+import { toast } from "sonner"
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
+import { canManageMembers } from "@/lib/workspace-permissions"
+import { UnsavedChangeAction } from "../../account/_components/account-name-setting"
+import { useWorkspacesQuery } from "../_hooks/queries/use-workpsace-query"
+import { useUpdateWorkspaceMutation } from "../_hooks/mutations/use-update-workspace-mutation"
+
+const MAX_NAME_LENGTH = 120
 
 export function WorkspaceNameSetting() {
-  const initialValue = "Fris's Lume"
-  const [value, setValue] = useState(initialValue)
+  const { workspaceId } = useCurrentWorkspace()
+  const { activeWorkspace } = useWorkspacesQuery({ workspaceId })
+  const updateWorkspace = useUpdateWorkspaceMutation()
 
-  const isDirty = value != initialValue
+  const [savedName, setSavedName] = useState("")
+  const [value, setValue] = useState("")
 
-  const handleCancel = () => setValue(initialValue)
+  const canEdit = canManageMembers(activeWorkspace?.role)
 
-  const handleUpdate = () => {}
+  useEffect(() => {
+    const name = activeWorkspace?.name ?? ""
+    setSavedName(name)
+    setValue(name)
+  }, [activeWorkspace?.name])
+
+  const trimmedValue = value.trim()
+  const isDirty = trimmedValue !== savedName
+  const isValid =
+    trimmedValue.length > 0 && trimmedValue.length <= MAX_NAME_LENGTH
+
+  const handleCancel = () => setValue(savedName)
+
+  const handleUpdate = async () => {
+    if (!isValid || !isDirty || !canEdit) return
+
+    try {
+      const workspace = await updateWorkspace.update({ name: trimmedValue })
+      setSavedName(workspace.name)
+      setValue(workspace.name)
+      toast.success("Updated workspace name", {
+        description: "Your workspace name has been saved.",
+      })
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to update workspace name"
+      toast.error("Failed to update workspace name", { description: message })
+    }
+  }
 
   return (
     <>
@@ -30,51 +67,23 @@ export function WorkspaceNameSetting() {
             onChange={(e) => setValue(e.target.value)}
             placeholder="Enter workspace name"
             className="h-10"
+            maxLength={MAX_NAME_LENGTH}
+            disabled={!canEdit || updateWorkspace.isPending}
           />
-          <p className="text-xs text-muted-foreground-2">14/50 characters</p>
+          <p className="text-xs text-muted-foreground-2">
+            {trimmedValue.length}/{MAX_NAME_LENGTH} characters
+          </p>
         </div>
       </SettingSection>
-      <UnsavedChangeAction
-        visible={isDirty}
-        onCancel={handleCancel}
-        onUpdate={handleUpdate}
-      />
+      {canEdit ? (
+        <UnsavedChangeAction
+          visible={isDirty}
+          loading={updateWorkspace.isPending}
+          disabled={!isValid}
+          onCancel={handleCancel}
+          onUpdate={handleUpdate}
+        />
+      ) : null}
     </>
-  )
-}
-
-export function UnsavedChangeAction({
-  visible,
-  onCancel,
-  onUpdate,
-}: {
-  visible: boolean
-  onCancel: () => void
-  onUpdate: () => void
-}) {
-  return (
-    <div
-      className={cn(
-        "fixed right-10 left-10 rounded-lg bg-popover transition-all duration-300 ease-in-out",
-        visible
-          ? "bottom-8 opacity-100"
-          : "pointer-events-none bottom-0 translate-y-full opacity-0"
-      )}
-    >
-      <div className="flex items-center justify-between px-10 py-3">
-        <Badge
-          variant="secondary"
-          className="bg-orange-200 p-3 dark:bg-orange-500"
-        >
-          Unsaved changes
-        </Badge>
-        <div className="flex gap-2">
-          <Button variant="ghost" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button onClick={onUpdate}>Update</Button>
-        </div>
-      </div>
-    </div>
   )
 }

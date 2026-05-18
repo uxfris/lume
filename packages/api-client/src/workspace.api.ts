@@ -15,9 +15,13 @@ import {
   WorkspacePeopleInvitationTableResponseSchema,
   WorkspaceInviteLinkGetResponseSchema,
   WorkspaceInviteLinkResponseSchema,
+  PresignAvatarResponseSchema,
   type WorkspaceInviteLinkGetResponse,
   type WorkspaceInviteLinkResponse,
   type ApiInviteRole,
+  type UpdateWorkspaceBody,
+  type PresignAvatarBody,
+  type PresignAvatarResponse,
 } from "@workspace/types"
 import { client } from "./client"
 
@@ -56,10 +60,30 @@ export const workspaceApi = {
     return WorkspaceSummarySchema.parse(data)
   },
 
-  async update(name: string, workspaceId: string): Promise<WorkspaceSummary> {
-    const data = await client.patch<unknown>(`/workspaces/${workspaceId}`, {
-      name,
-    })
+  async update(
+    workspaceId: string,
+    body: UpdateWorkspaceBody
+  ): Promise<WorkspaceSummary> {
+    const data = await client.patch<unknown>(`/workspaces/${workspaceId}`, body)
+    return WorkspaceSummarySchema.parse(data)
+  },
+
+  async presignAvatar(
+    workspaceId: string,
+    body: PresignAvatarBody
+  ): Promise<PresignAvatarResponse> {
+    const data = await client.post<unknown>(
+      `/workspaces/${workspaceId}/avatar/presign`,
+      body
+    )
+    return PresignAvatarResponseSchema.parse(data)
+  },
+
+  async completeAvatar(workspaceId: string): Promise<WorkspaceSummary> {
+    const data = await client.post<unknown>(
+      `/workspaces/${workspaceId}/avatar/complete`,
+      {}
+    )
     return WorkspaceSummarySchema.parse(data)
   },
 

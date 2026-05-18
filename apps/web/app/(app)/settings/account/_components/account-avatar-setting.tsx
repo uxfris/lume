@@ -57,7 +57,7 @@ export function AccountAvatarSetting() {
       className="flex-row"
     >
       <div className="relative h-10 w-10 overflow-hidden rounded-sm">
-        <Avatar className="flex h-full w-full items-center justify-center bg-primary">
+        <Avatar className="flex h-full w-full items-center justify-center">
           {image ? (
             <AvatarImage src={image} alt={name ?? "Profile avatar"} />
           ) : null}

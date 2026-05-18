@@ -407,6 +407,7 @@ export const workspace = pgTable("workspace", {
 	id: text().primaryKey().notNull(),
 	name: text().notNull(),
 	slug: text().notNull(),
+	image: text(),
 	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
 	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
 	plan: workspacePlan().default('STARTER').notNull(),

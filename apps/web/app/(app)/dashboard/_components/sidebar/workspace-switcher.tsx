@@ -1,7 +1,16 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@workspace/ui/components/avatar"
+import { cn } from "@workspace/ui/lib/utils"
+import { getInitial } from "@/lib/get-initial"
+import { resolveWorkspaceImageSrc } from "@/lib/workspace-avatar"
+import type { WorkspaceMembership } from "@workspace/types"
 
 import {
   DropdownMenu,
@@ -33,8 +42,29 @@ import { useWorkspacesQuery } from "@/app/(app)/settings/workspace/_hooks/querie
 import { useSetWorkspaceMutation } from "@/app/(app)/settings/workspace/_hooks/mutations/use-set-workspace-mutation"
 import { useRouter } from "next/navigation"
 
-function getInitial(name: string): string {
-  return name.trim().charAt(0).toUpperCase() || "W"
+function WorkspaceAvatar({
+  workspace,
+  className,
+}: {
+  workspace: Pick<WorkspaceMembership, "id" | "name" | "image">
+  className?: string
+}) {
+  const image = resolveWorkspaceImageSrc(workspace.id, workspace.image)
+
+  return (
+    <Avatar className={cn("rounded-[4px]", className)}>
+      {image ? (
+        <AvatarImage
+          src={image}
+          alt={workspace.name}
+          className="rounded-[4px] object-cover"
+        />
+      ) : null}
+      <AvatarFallback className="rounded-[4px] bg-primary text-xs font-medium text-primary-foreground">
+        {getInitial(workspace.name)}
+      </AvatarFallback>
+    </Avatar>
+  )
 }
 
 export function WorkspaceSwitcher() {
@@ -73,9 +103,16 @@ export function WorkspaceSwitcher() {
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton className="bg-background py-3">
               <div className="flex aspect-square size-8 items-center justify-center">
-                <span className="-ml-4 flex size-6 items-center justify-center rounded-[4px] bg-primary text-xs font-medium text-primary-foreground">
-                  {getInitial(activeWorkspace?.name ?? "Workspace")}
-                </span>
+                {activeWorkspace ? (
+                  <WorkspaceAvatar
+                    workspace={activeWorkspace}
+                    className="-ml-4 size-6"
+                  />
+                ) : (
+                  <span className="-ml-4 flex size-6 items-center justify-center rounded-[4px] bg-primary text-xs font-medium text-primary-foreground">
+                    W
+                  </span>
+                )}
               </div>
 
               <span className="flex-1 truncate font-medium group-data-[state=collapsed]:hidden">
@@ -89,9 +126,13 @@ export function WorkspaceSwitcher() {
           <DropdownMenuContent className="py-2 shadow-md ring-border">
             <div className="flex flex-col items-center gap-4 px-1">
               <div className="flex w-full items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-[4px] bg-primary text-primary-foreground">
-                  {getInitial(activeWorkspace?.name ?? "Workspace")}
-                </div>
+                {activeWorkspace ? (
+                  <WorkspaceAvatar workspace={activeWorkspace} className="h-9 w-9" />
+                ) : (
+                  <div className="flex h-9 w-9 items-center justify-center rounded-[4px] bg-primary text-primary-foreground text-sm font-medium">
+                    W
+                  </div>
+                )}
 
                 <div className="flex flex-col gap-0.5">
                   <span className="text-sm font-medium">
@@ -170,9 +211,7 @@ export function WorkspaceSwitcher() {
                     className="mx-1 px-2 py-2"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-[4px] bg-primary text-xs font-medium text-primary-foreground">
-                        {getInitial(item.name)}
-                      </span>
+                      <WorkspaceAvatar workspace={item} className="h-6 w-6" />
 
                       <span className="text-xs">{item.name}</span>
 

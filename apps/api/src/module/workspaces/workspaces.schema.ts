@@ -5,6 +5,9 @@ import {
   ApiWorkspaceRoleSchema,
   CreateInvitationResponseSchema,
   ListWorkspacesResponseSchema,
+  PresignAvatarBodySchema,
+  PresignAvatarResponseSchema,
+  UpdateWorkspaceBodySchema,
   WorkspacePeopleInvitationTableResponseSchema,
   WorkspacePeopleTableResponseSchema,
   WorkspaceSummarySchema,
@@ -20,8 +23,14 @@ export const workspaceParamsSchema = z.object({
   id: z.string().min(1),
 })
 
-export const updateWorkspaceBodySchema = z.object({
-  name: z.string().min(1).max(120),
+export const updateWorkspaceBodySchema = UpdateWorkspaceBodySchema
+
+export const presignWorkspaceAvatarBodySchema = PresignAvatarBodySchema
+export const presignWorkspaceAvatarResponseSchema = PresignAvatarResponseSchema
+export const completeWorkspaceAvatarResponseSchema = WorkspaceSummarySchema
+
+export const avatarErrorSchema = z.object({
+  error: z.string(),
 })
 
 export const workspaceSummarySchema = WorkspaceSummarySchema
@@ -64,7 +73,7 @@ export const createInviteLinkBodySchema = z.object({
 })
 
 export const inviteLinkResponseSchema = z.object({
-  url: z.string().url(),
+  url: z.url(),
   expiresAt: z.string(),
   role: ApiInviteRoleSchema,
 })

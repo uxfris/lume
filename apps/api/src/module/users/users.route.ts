@@ -15,6 +15,7 @@ import {
   userIdParamsSchema,
 } from "./users.schema"
 import * as usersService from "./users.service"
+import { toAbsoluteFrontendUrl } from "../../lib/app-url"
 import { streamUserAvatar } from "../../lib/user-avatar"
 
 export const userRoute: FastifyPluginAsyncZod = async (app) => {
@@ -215,7 +216,9 @@ export const userRoute: FastifyPluginAsyncZod = async (app) => {
 
       return reply.status(201).send({
         uploadUrl: result.url,
-        imageUrl: usersService.buildAvatarImageUrl(request.user!.id),
+        imageUrl: toAbsoluteFrontendUrl(
+          usersService.buildAvatarImageUrl(request.user!.id)
+        ),
         expiresInSeconds: result.expiresInSeconds,
       })
     }

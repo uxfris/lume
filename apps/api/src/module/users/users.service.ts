@@ -10,6 +10,7 @@ import {
   buildUserAvatarApiPath,
   resolveUserImageUrl,
 } from "../../lib/user-avatar"
+import { resolveWorkspaceImageUrl } from "../../lib/workspace-avatar"
 import {
   enqueueAccountDeletionJob,
   removeAccountDeletionJob,
@@ -94,6 +95,7 @@ export async function getMe(input: {
       id: item.workspace.id,
       name: item.workspace.name,
       slug: item.workspace.slug,
+      image: resolveWorkspaceImageUrl(item.workspace.id, item.workspace.image),
       role: item.role,
       joinedAt: item.joinedAt.toISOString(),
     })),

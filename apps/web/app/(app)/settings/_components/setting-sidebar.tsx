@@ -19,6 +19,7 @@ import { authClient } from "@/lib/auth-client"
 import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
 import { useWorkspacesQuery } from "../workspace/_hooks/queries/use-workpsace-query"
 import { getInitial } from "@/lib/get-initial"
+import { resolveWorkspaceImageSrc } from "@/lib/workspace-avatar"
 import { useMemo } from "react"
 import {
   canManageBilling,
@@ -132,11 +133,21 @@ export function SettingSidebar({ isLayout = true }: { isLayout?: boolean }) {
       createSidebarSections({
         workspaceName: activeWorkspace?.name ?? "Workspace",
         workspaceFallback: getInitial(activeWorkspace?.name),
+        workspaceAvatarSrc:
+          workspaceId != null
+            ? resolveWorkspaceImageSrc(workspaceId, activeWorkspace?.image)
+            : undefined,
         accountName: session?.user.name ?? "Account",
         canManageMembers: canManageMembers(activeWorkspace?.role),
         canManageBilling: canManageBilling(activeWorkspace?.role),
       }),
-    [activeWorkspace?.name, activeWorkspace?.role, session?.user.name]
+    [
+      activeWorkspace?.name,
+      activeWorkspace?.image,
+      activeWorkspace?.role,
+      session?.user.name,
+      workspaceId,
+    ]
   )
 
   return (

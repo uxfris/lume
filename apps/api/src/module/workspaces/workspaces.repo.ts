@@ -77,6 +77,23 @@ export const workspacesRepo = {
     })
   },
 
+  updateWorkspace(
+    workspaceId: string,
+    data: { name?: string; slug?: string; image?: string | null }
+  ) {
+    return prisma.workspace.update({
+      where: { id: workspaceId },
+      data,
+    })
+  },
+
+  findWorkspaceBySlug(slug: string) {
+    return prisma.workspace.findUnique({
+      where: { slug },
+      select: { id: true },
+    })
+  },
+
   findUserByEmail(email: string) {
     return prisma.user.findUnique({
       where: { email },

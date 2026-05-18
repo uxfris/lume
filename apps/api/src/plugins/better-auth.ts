@@ -51,7 +51,8 @@ export default fp(async (app) => {
       // Tighter limit on auth endpoints: deters credential stuffing /
       // password-spray. Counts per-IP via @fastify/rate-limit defaults.
       rateLimit: {
-        max: 5,
+        // get-session is polled on focus/mount; 5/min was blocking normal app usage.
+        max: env.NODE_ENV === "development" ? 120 : 40,
         timeWindow: "1 minute",
       },
     },
