@@ -2,6 +2,7 @@ import { z } from "zod"
 import {
   ActionItemSchema,
   TaskAIInsightResponseSchema,
+  TaskProductivityResponseSchema,
   TasksGroupSchema,
   UserSummarySchema,
 } from "@workspace/types"
@@ -45,3 +46,5 @@ export const taskErrorSchema = z.object({
 export const createTaskResponseSchema = ActionItemSchema
 
 export const taskAIInsightResponseSchema = TaskAIInsightResponseSchema
+
+export const taskProductivityResponseSchema = TaskProductivityResponseSchema

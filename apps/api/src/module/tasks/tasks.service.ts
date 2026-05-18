@@ -2,12 +2,14 @@ import type { Prisma } from "@workspace/database"
 import type {
   ActionItem,
   TaskAIInsight,
+  TaskProductivityStats,
   TasksGroup,
   UserSummary,
 } from "@workspace/types"
 import { meetingsRepo } from "../meetings/meetings.repo"
 import { groupTasksIntoMeetingGroups, toActionItem } from "./tasks.presenter"
 import { buildTaskAIInsight } from "./tasks.insight"
+import { buildTaskProductivityStats } from "./tasks.productivity"
 import { tasksRepo } from "./tasks.repo"
 import { peopleRepo } from "../people/people.repo"
 import { toUserSummary } from "../people/people.presenter"
@@ -147,4 +149,28 @@ export async function getTaskAIInsight(
   })
 
   return { insight }
+}
+
+const PRODUCTIVITY_LOOKBACK_DAYS = 14
+
+export async function getTaskProductivity(
+  workspaceId: string
+): Promise<{ stats: TaskProductivityStats | null }> {
+  const since = new Date(
+    Date.now() - PRODUCTIVITY_LOOKBACK_DAYS * 24 * 60 * 60 * 1000
+  )
+
+  const [created, resolved, recentCompleted] = await Promise.all([
+    tasksRepo.countWorkspaceTasks(workspaceId),
+    tasksRepo.countWorkspaceResolvedTasks(workspaceId),
+    tasksRepo.listRecentlyCompletedTasks(workspaceId, since),
+  ])
+
+  const stats = buildTaskProductivityStats({
+    created,
+    resolved,
+    recentCompleted,
+  })
+
+  return { stats }
 }

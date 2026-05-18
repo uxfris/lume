@@ -39,6 +39,9 @@ export function useDeleteTaskMutation() {
       queryClient.invalidateQueries({
         queryKey: taskKeys.insight(workspaceId),
       })
+      queryClient.invalidateQueries({
+        queryKey: taskKeys.productivity(workspaceId),
+      })
     },
   })
 

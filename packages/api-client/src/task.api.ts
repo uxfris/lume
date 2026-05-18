@@ -1,6 +1,7 @@
 import type {
   ActionItem,
   TaskAIInsightResponse,
+  TaskProductivityResponse,
   TasksGroup,
   UserSummary,
 } from "@workspace/types"
@@ -37,6 +38,12 @@ export const taskApi = {
     options?: RequestOptions
   ): Promise<TaskAIInsightResponse> {
     return client.get<TaskAIInsightResponse>("/tasks/insights", options)
+  },
+
+  async fetchProductivity(
+    options?: RequestOptions
+  ): Promise<TaskProductivityResponse> {
+    return client.get<TaskProductivityResponse>("/tasks/productivity", options)
   },
 
   async toggle(

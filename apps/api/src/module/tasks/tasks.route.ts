@@ -9,6 +9,7 @@ import {
   listTasksResponseSchema,
   patchTaskBodySchema,
   taskAIInsightResponseSchema,
+  taskProductivityResponseSchema,
   taskErrorSchema,
   taskIdParamsSchema,
   toggleTaskBodySchema,
@@ -68,6 +69,23 @@ export const tasksRoutes: FastifyPluginAsyncZod = async (app) => {
     },
     async (request) => {
       return tasksService.getTaskAIInsight(request.workspace!.id)
+    }
+  )
+
+  app.get(
+    "/productivity",
+    {
+      preHandler: [app.verifySession, app.requireWorkspace],
+      schema: {
+        tags: ["Tasks"],
+        summary: "Workspace task productivity totals and weekly pace",
+        response: {
+          200: taskProductivityResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      return tasksService.getTaskProductivity(request.workspace!.id)
     }
   )
 

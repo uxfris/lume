@@ -44,3 +44,17 @@ export const TaskAIInsightResponseSchema = z.object({
   insight: TaskAIInsightSchema.nullable(),
 })
 export type TaskAIInsightResponse = z.infer<typeof TaskAIInsightResponseSchema>
+
+export const TaskProductivityStatsSchema = z.object({
+  resolved: z.number().int().min(0),
+  created: z.number().int().min(0),
+  pacePercent: z.number().int().optional(),
+})
+export type TaskProductivityStats = z.infer<typeof TaskProductivityStatsSchema>
+
+export const TaskProductivityResponseSchema = z.object({
+  stats: TaskProductivityStatsSchema.nullable(),
+})
+export type TaskProductivityResponse = z.infer<
+  typeof TaskProductivityResponseSchema
+>

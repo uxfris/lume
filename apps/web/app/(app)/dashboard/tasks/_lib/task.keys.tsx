@@ -11,4 +11,7 @@ export const taskKeys = {
 
   insight: (workspaceId: string | null) =>
     [...taskKeys.all(workspaceId), "insight"] as const,
+
+  productivity: (workspaceId: string | null) =>
+    [...taskKeys.all(workspaceId), "productivity"] as const,
 }

@@ -122,4 +122,40 @@ export const tasksRepo = {
       select: { text: true },
     })
   },
+
+  workspaceTaskWhere(workspaceId: string): Prisma.TaskWhereInput {
+    return {
+      workspaceId,
+      OR: [{ meetingId: null }, { meeting: { deletedAt: null } }],
+    }
+  },
+
+  countWorkspaceTasks(workspaceId: string) {
+    return prisma.task.count({
+      where: this.workspaceTaskWhere(workspaceId),
+    })
+  },
+
+  countWorkspaceResolvedTasks(workspaceId: string) {
+    return prisma.task.count({
+      where: {
+        ...this.workspaceTaskWhere(workspaceId),
+        isCompleted: true,
+      },
+    })
+  },
+
+  listRecentlyCompletedTasks(workspaceId: string, since: Date) {
+    return prisma.task.findMany({
+      where: {
+        ...this.workspaceTaskWhere(workspaceId),
+        isCompleted: true,
+        updatedAt: { gte: since },
+      },
+      select: {
+        createdAt: true,
+        updatedAt: true,
+      },
+    })
+  },
 }
