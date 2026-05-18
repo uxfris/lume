@@ -2,6 +2,21 @@ import { SlackIntegrationConfigSchema } from "@workspace/types"
 
 const SLACK_API = "https://slack.com/api"
 
+async function joinSlackPublicChannel(accessToken: string, channelId: string) {
+  const res = await fetch(`${SLACK_API}/conversations.join`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ channel: channelId }),
+  })
+  const data = (await res.json()) as { ok?: boolean; error?: string }
+  if (!data.ok && data.error !== "already_in_channel") {
+    throw new Error(data.error ?? "SLACK_JOIN_FAILED")
+  }
+}
+
 type MeetingSummary = {
   summary?: string
   keyPoints?: string[]
@@ -45,6 +60,8 @@ export async function postSlackMeetingSummary(input: {
   if (config.includeTranscriptLink) {
     lines.push("", `<${input.meetingUrl}|View meeting in Lume>`)
   }
+
+  await joinSlackPublicChannel(input.accessToken, input.channelId)
 
   const res = await fetch(`${SLACK_API}/chat.postMessage`, {
     method: "POST",

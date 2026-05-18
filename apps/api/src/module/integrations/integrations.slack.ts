@@ -50,11 +50,12 @@ export async function exchangeSlackCode(code: string, redirectUri: string) {
 }
 
 export async function listSlackChannels(accessToken: string) {
-  console.log(accessToken.slice(0, 5))
   const channels: Array<{ id: string; name: string }> = []
 
   for (const type of ["public_channel", "private_channel"] as const) {
+    const memberOnly = type === "private_channel"
     let cursor: string | undefined
+
     do {
       const params = new URLSearchParams({
         types: type,
@@ -73,14 +74,12 @@ export async function listSlackChannels(accessToken: string) {
         error?: string
       }
 
-      console.log(data)
-
       if (!data.ok) {
         throw new Error(data.error ?? "SLACK_CHANNELS_FAILED")
       }
 
       for (const ch of data.channels ?? []) {
-        if (ch.is_member !== false) {
+        if (!memberOnly || ch.is_member === true) {
           channels.push({ id: ch.id, name: ch.name })
         }
       }
@@ -91,16 +90,26 @@ export async function listSlackChannels(accessToken: string) {
   return channels.sort((a, b) => a.name.localeCompare(b.name))
 }
 
+export async function joinSlackPublicChannel(
+  accessToken: string,
+  channelId: string
+): Promise<boolean> {
+  const res = await fetch(`${SLACK_API}/conversations.join`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ channel: channelId }),
+  })
+  const data = (await res.json()) as { ok?: boolean; error?: string }
+  if (data.ok) return true
+  return data.error === "already_in_channel"
+}
+
 export async function verifySlackChannelAccess(
   accessToken: string,
   channelId: string
 ): Promise<boolean> {
-  const res = await fetch(
-    `${SLACK_API}/conversations.info?channel=${channelId}`,
-    {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }
-  )
-  const data = (await res.json()) as { ok?: boolean }
-  return Boolean(data.ok)
+  return joinSlackPublicChannel(accessToken, channelId)
 }

@@ -25,6 +25,7 @@ import {
 import {
   defaultSlackConfig,
   exchangeSlackCode,
+  joinSlackPublicChannel,
   listSlackChannels,
   verifySlackChannelAccess,
 } from "./integrations.slack"
@@ -167,6 +168,7 @@ export function getOAuthAuthorizeUrl(input: {
 
     const scopes = [
       "channels:read",
+      "channels:join",
       "groups:read",
       "chat:write",
       "incoming-webhook",
@@ -209,10 +211,19 @@ export async function completeOAuthCallback(input: {
   try {
     if (parsed.provider === "slack") {
       const tokens = await exchangeSlackCode(input.code, redirectUri)
+      let channelAccessOk = true
+      if (tokens.defaultChannelId) {
+        channelAccessOk = await joinSlackPublicChannel(
+          tokens.accessToken,
+          tokens.defaultChannelId
+        ).catch(() => false)
+      }
+
       const config = {
         ...defaultSlackConfig(),
         defaultChannelId: tokens.defaultChannelId,
         defaultChannelName: tokens.defaultChannelName,
+        channelAccessOk,
       }
 
       await integrationsRepo.upsertConnection({
@@ -313,7 +324,7 @@ export async function setSlackChannel(
     return { ok: false as const, error: "NOT_CONNECTED" }
   }
 
-  const channelAccessOk = await verifySlackChannelAccess(row.accessToken, channelId).catch(
+  const channelAccessOk = await joinSlackPublicChannel(row.accessToken, channelId).catch(
     () => false
   )
 
