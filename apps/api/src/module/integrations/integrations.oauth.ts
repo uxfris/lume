@@ -12,7 +12,9 @@ type OAuthStatePayload = {
 }
 
 function signPayload(encoded: string): string {
-  return createHmac("sha256", env.BETTER_AUTH_SECRET).update(encoded).digest("base64url")
+  return createHmac("sha256", env.BETTER_AUTH_SECRET)
+    .update(encoded)
+    .digest("base64url")
 }
 
 export function createOAuthState(input: {
@@ -50,5 +52,5 @@ export function parseOAuthState(state: string): OAuthStatePayload | null {
 }
 
 export function integrationOAuthRedirectUri(): string {
-  return `${env.APP_URL.replace(/\/$/, "")}/integrations/oauth/callback`
+  return `${env.API_URL.replace(/\/$/, "")}/integrations/oauth/callback`
 }

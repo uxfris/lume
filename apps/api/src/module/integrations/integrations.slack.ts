@@ -50,6 +50,7 @@ export async function exchangeSlackCode(code: string, redirectUri: string) {
 }
 
 export async function listSlackChannels(accessToken: string) {
+  console.log(accessToken.slice(0, 5))
   const channels: Array<{ id: string; name: string }> = []
 
   for (const type of ["public_channel", "private_channel"] as const) {
@@ -72,6 +73,8 @@ export async function listSlackChannels(accessToken: string) {
         error?: string
       }
 
+      console.log(data)
+
       if (!data.ok) {
         throw new Error(data.error ?? "SLACK_CHANNELS_FAILED")
       }
@@ -92,9 +95,12 @@ export async function verifySlackChannelAccess(
   accessToken: string,
   channelId: string
 ): Promise<boolean> {
-  const res = await fetch(`${SLACK_API}/conversations.info?channel=${channelId}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  })
+  const res = await fetch(
+    `${SLACK_API}/conversations.info?channel=${channelId}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }
+  )
   const data = (await res.json()) as { ok?: boolean }
   return Boolean(data.ok)
 }
