@@ -1,10 +1,3 @@
-// next.config.mjs
-
-// const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
-
-// // Normalize trailing slash
-// const normalizedApiUrl = API_URL.replace(/\/$/, "")
-
 // Phase 12 — Security headers
 const cspDirectives = [
   "default-src 'self'",
