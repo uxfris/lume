@@ -19,6 +19,8 @@ export function dbMeetingStatusToUiStatus(
   return "analyzing"
 }
 
-export function isTerminalUiMeetingStatus(status: Meeting["status"]): boolean {
+export function isTerminalUiMeetingStatus(
+  status: Meeting["status"]
+): status is "processed" | "failed" {
   return status === "processed" || status === "failed"
 }

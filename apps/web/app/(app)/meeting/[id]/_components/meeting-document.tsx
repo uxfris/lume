@@ -1,8 +1,12 @@
 "use client"
 
-import { Meeting } from "@workspace/types"
+import { routes } from "@/lib/routes"
 import { useMeetingStatusEvents } from "@/app/(app)/dashboard/_hooks/use-meeting-status-events"
 import { isTerminalUiMeetingStatus } from "@/lib/meeting-status"
+import { DangerTriangle } from "@solar-icons/react"
+import { Meeting } from "@workspace/types"
+import { Button } from "@workspace/ui/components/button"
+import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
 import { MeetingDocumentActionItem } from "./meeting-document-action-item"
 import { MeetingDocumentTranscript } from "./meeting-document-transcript"
@@ -10,11 +14,12 @@ import { MeetingMediaPlayerBar } from "./meeting-media-player-bar"
 import { MeetingPlaybackShell } from "./meeting-playback-shell"
 import { MeetingEditor } from "./editor/meeting-editor"
 
-const LOADING_MESSAGE: Record<Meeting["status"], string> = {
+const LOADING_MESSAGE: Record<
+  Exclude<Meeting["status"], "processed" | "failed">,
+  string
+> = {
   transcribing: "Transcribing your meeting…",
   analyzing: "Generating summary…",
-  processed: "",
-  failed: "",
 }
 
 function BouncingDots() {
@@ -27,7 +32,11 @@ function BouncingDots() {
   )
 }
 
-function MeetingDocumentLoading({ status }: { status: Meeting["status"] }) {
+function MeetingDocumentLoading({
+  status,
+}: {
+  status: Exclude<Meeting["status"], "processed" | "failed">
+}) {
   return (
     <div
       className="flex min-h-48 flex-col items-center justify-center gap-3 py-16"
@@ -38,6 +47,29 @@ function MeetingDocumentLoading({ status }: { status: Meeting["status"] }) {
       <p className="text-sm font-medium text-primary">
         {LOADING_MESSAGE[status] || "Processing your meeting…"}
       </p>
+    </div>
+  )
+}
+
+function MeetingDocumentFailed({ source }: { source: Meeting["source"] }) {
+  const description =
+    source === "upload"
+      ? "We couldn't generate a transcript or summary for this file. Try uploading it again."
+      : "We couldn't generate a transcript or summary for this recording."
+
+  return (
+    <div
+      className="flex min-h-48 flex-col items-center justify-center gap-3 py-16 text-center"
+      role="alert"
+    >
+      <DangerTriangle size={32} className="text-destructive" aria-hidden />
+      <p className="text-sm font-medium text-foreground">Processing failed</p>
+      <p className="max-w-sm text-sm text-muted-foreground">{description}</p>
+      {source === "upload" ? (
+        <Button asChild variant="outline" size="sm" className="mt-2">
+          <Link href={routes.dashboard.uploads}>Go to uploads</Link>
+        </Button>
+      ) : null}
     </div>
   )
 }
@@ -61,10 +93,14 @@ export function MeetingBody({ meeting: initialMeeting }: { meeting: Meeting }) {
     onMeetingUpdate: handleMeetingUpdate,
   })
 
-  const isLoading = !isTerminalUiMeetingStatus(meeting.status)
+  const { status, source } = meeting
 
-  if (isLoading) {
-    return <MeetingDocumentLoading status={meeting.status} />
+  if (status === "failed") {
+    return <MeetingDocumentFailed source={source} />
+  }
+
+  if (!isTerminalUiMeetingStatus(status)) {
+    return <MeetingDocumentLoading status={status} />
   }
 
   return (
