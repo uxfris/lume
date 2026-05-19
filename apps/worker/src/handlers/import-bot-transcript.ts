@@ -19,117 +19,15 @@ import {
   getMixedAudioDownloadUrlForBot,
   getTranscriptDownloadUrlById,
   WorkerRecallError,
-  type RecallTranscriptParticipantBlock,
 } from "../lib/recall"
+import {
+  flattenRecallTranscript,
+  type FlatSegment,
+} from "../lib/recall-transcript-flatten"
 import {
   buildMeetingAudioKey,
   uploadMeetingAudio,
 } from "../lib/s3-presign"
-
-interface FlatSegment {
-  index: number
-  participantExternalId: string | null
-  participantName: string | null
-  participantEmail: string | null
-  participantIsHost: boolean | null
-  participantPlatform: string | null
-  participantExtraData: unknown
-  languageCode: string | null
-  text: string
-  startMs: number
-  endMs: number
-  words: Array<{
-    text: string
-    startMs: number
-    endMs: number
-    position: number
-  }>
-}
-
-/**
- * Recall delivers transcripts as one block per participant, each containing
- * a flat list of words with relative-second timestamps. To match our
- * existing `TranscriptSegment` shape we:
- *
- *   1. group consecutive words from the same participant into utterances
- *      whenever there's a >1.5s gap between words, and
- *   2. concatenate them with single spaces.
- *
- * The result is then sorted globally by start time so analyze sees a
- * sensible chronological transcript.
- */
-function flattenRecallTranscript(
-  blocks: RecallTranscriptParticipantBlock[]
-): FlatSegment[] {
-  const SEGMENT_GAP_MS = 1500
-  const tentative: Array<Omit<FlatSegment, "index">> = []
-
-  for (const block of blocks) {
-    const participantExternalId =
-      block.participant.id != null ? String(block.participant.id) : null
-    const participantName = block.participant.name?.trim() || null
-    let buffer: Array<{ text: string; startMs: number; endMs: number }> = []
-    let bufferStartMs: number | null = null
-    let bufferEndMs: number | null = null
-
-    const flush = () => {
-      if (buffer.length === 0 || bufferStartMs == null || bufferEndMs == null) {
-        return
-      }
-      tentative.push({
-        participantExternalId,
-        participantName,
-        participantEmail: block.participant.email ?? null,
-        participantIsHost: block.participant.is_host ?? null,
-        participantPlatform: block.participant.platform ?? null,
-        participantExtraData: block.participant.extra_data ?? null,
-        languageCode: block.language_code ?? null,
-        text: buffer
-          .map((w) => w.text)
-          .join(" ")
-          .replace(/\s+/g, " ")
-          .trim(),
-        startMs: Math.max(0, Math.round(bufferStartMs)),
-        endMs: Math.max(0, Math.round(bufferEndMs)),
-        words: buffer.map((w, position) => ({
-          text: w.text,
-          startMs: Math.max(0, Math.round(w.startMs)),
-          endMs: Math.max(0, Math.round(w.endMs)),
-          position,
-        })),
-      })
-      buffer = []
-      bufferStartMs = null
-      bufferEndMs = null
-    }
-
-    for (const word of block.words) {
-      const wordStartMs = (word.start_timestamp.relative ?? 0) * 1000
-      const wordEndMs =
-        (word.end_timestamp?.relative ?? word.start_timestamp.relative ?? 0) *
-        1000
-
-      if (
-        buffer.length > 0 &&
-        bufferEndMs != null &&
-        wordStartMs - bufferEndMs > SEGMENT_GAP_MS
-      ) {
-        flush()
-      }
-
-      buffer.push({ text: word.text, startMs: wordStartMs, endMs: wordEndMs })
-      if (bufferStartMs == null) bufferStartMs = wordStartMs
-      bufferEndMs = wordEndMs
-    }
-    flush()
-  }
-
-  // Sort globally so consumers see a chronological transcript even when
-  // Recall returns one block per speaker.
-  tentative.sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs)
-
-  return tentative.map((segment, index) => ({ index, ...segment }))
-}
 
 function maxEndMs(segments: FlatSegment[]): number {
   let max = 0
