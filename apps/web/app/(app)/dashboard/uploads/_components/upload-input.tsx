@@ -32,7 +32,7 @@ export function UploadInput({
           </h1>
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground md:text-sm">
-              Browse MP3, M4A, WAV, MP4, WEBM, or PDF files
+              Browse MP3, M4A, WAV, MP4, or WEBM files
             </p>
             <p className="text-xs text-muted-foreground md:text-sm">
               Upload runs directly to storage, then queues processing
@@ -44,7 +44,7 @@ export function UploadInput({
           ref={inputRef}
           type="file"
           className="hidden"
-          accept="audio/*,video/*,application/pdf"
+          accept="audio/*,video/*"
           onChange={handleSelectFile}
         />
         <Button size="xl" onClick={() => inputRef.current?.click()}>
