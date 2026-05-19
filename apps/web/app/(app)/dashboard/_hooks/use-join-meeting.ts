@@ -53,9 +53,10 @@ export function useJoinMeeting({
     mutationFn: async (data: JoinMeetingPayload) => {
       const finalUrl = meetingUrl ?? data.url
 
+      const title = data.name?.trim()
       const result = await botsApi.startBotMeeting({
         meetingUrl: finalUrl,
-        title: data.name,
+        ...(title ? { title } : {}),
       })
 
       trackPendingBotMeeting(result.meetingId)

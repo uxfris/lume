@@ -11,5 +11,8 @@ export const joinMeetingSchema = z.object({
         val.includes("https://zoom.us"),
       "Only Google Meet, Microsoft Teams, and Zoom link are allowed"
     ),
-  name: z.string().optional(),
+  name: z.preprocess(
+    (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
+    z.string().min(1).max(200).optional()
+  ),
 })

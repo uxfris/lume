@@ -36,7 +36,10 @@ export const StartBotMeetingBodySchema = z.object({
   /** Optional ISO 8601 timestamp for scheduled bots. */
   scheduledAt: z.iso.datetime().optional(),
   /** Optional override for the meeting title; defaults to the platform name. */
-  title: z.string().min(1).max(200).optional(),
+  title: z.preprocess(
+    (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
+    z.string().min(1).max(200).optional()
+  ),
 })
 export type StartBotMeetingBody = z.infer<typeof StartBotMeetingBodySchema>
 
