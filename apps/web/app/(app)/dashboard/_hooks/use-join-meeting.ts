@@ -1,9 +1,10 @@
 import z from "zod"
 import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useEffect } from "react"
+import { useEffect, type ReactNode } from "react"
 import { useMutation } from "@tanstack/react-query"
 import { botsApi } from "@workspace/api-client"
+import { useQuotaExceededDialog } from "@/hooks/use-quota-exceeded-dialog"
 import { joinMeetingSchema } from "../_components/live-sync/join-meeting-schema"
 import { usePendingBotMeetingIds } from "../_stores/pending-bot-meeting-ids-store"
 
@@ -13,7 +14,8 @@ type UseJoinMeetingReturn = {
   form: UseFormReturn<JoinMeetingPayload>
   joinMeeting: (payload: JoinMeetingPayload) => Promise<string>
   loading: boolean
-  error: Error | null
+  error: unknown
+  quotaExceededDialog: ReactNode
 }
 
 export function useJoinMeeting({
@@ -25,6 +27,7 @@ export function useJoinMeeting({
   meetingUrl: string | undefined
   onSuccess: (meetingUrl: string) => void
 }): UseJoinMeetingReturn {
+  const { showIfQuotaExceeded, quotaExceededDialog } = useQuotaExceededDialog()
   const trackPendingBotMeeting = usePendingBotMeetingIds((s) => s.add)
 
   const form = useForm<JoinMeetingPayload>({
@@ -63,6 +66,9 @@ export function useJoinMeeting({
     onSuccess: (finalUrl) => {
       onSuccess(finalUrl)
     },
+    onError: (error) => {
+      showIfQuotaExceeded(error)
+    },
   })
 
   return {
@@ -70,5 +76,6 @@ export function useJoinMeeting({
     joinMeeting: mutation.mutateAsync,
     loading: mutation.isPending,
     error: mutation.error,
+    quotaExceededDialog,
   }
 }

@@ -12,6 +12,7 @@ import { Input } from "@workspace/ui/components/input"
 import { Separator } from "@workspace/ui/components/separator"
 import { Field, FieldLabel } from "@workspace/ui/components/field"
 import { Spinner } from "@workspace/ui/components/spinner"
+import { isQuotaExceededError } from "@/lib/quota-errors"
 import { useJoinMeeting } from "../../_hooks/use-join-meeting"
 
 type JoinMeetingDialogProps = {
@@ -27,13 +28,16 @@ export function JoinMeetingDialog({
   onSuccess,
   meetingUrl,
 }: JoinMeetingDialogProps) {
-  const { form, joinMeeting, loading, error } = useJoinMeeting({
+  const { form, joinMeeting, loading, error, quotaExceededDialog } =
+    useJoinMeeting({
     open,
     onSuccess,
     meetingUrl,
   })
 
   return (
+    <>
+      {quotaExceededDialog}
     <Dialog
       open={open}
       onOpenChange={(nextOpen) => {
@@ -90,7 +94,7 @@ export function JoinMeetingDialog({
             />
           </Field>
 
-          {error && (
+          {error && !isQuotaExceededError(error) && (
             <p className="text-sm text-destructive">Failed to join meeting</p>
           )}
 
@@ -110,5 +114,6 @@ export function JoinMeetingDialog({
         </form>
       </DialogContent>
     </Dialog>
+    </>
   )
 }

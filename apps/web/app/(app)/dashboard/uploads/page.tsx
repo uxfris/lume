@@ -13,19 +13,23 @@ export default function Uploads() {
     progressByMeetingId,
     stageByMeetingId,
     loading,
+    quotaExceededDialog,
   } = useUpload()
   return (
-    <div className="flex flex-col gap-8 overflow-y-auto px-4 pt-0 pb-12 md:p-10">
-      <div className="flex flex-col gap-4 md:flex-row md:gap-8">
-        <UploadInput onUploadFile={handleUploadFile} />
-        {/* <FetchFromLink onFetchFromLink={handleFetchFromLink} /> */}
+    <>
+      {quotaExceededDialog}
+      <div className="flex flex-col gap-8 overflow-y-auto px-4 pt-0 pb-12 md:p-10">
+        <div className="flex flex-col gap-4 md:flex-row md:gap-8">
+          <UploadInput onUploadFile={handleUploadFile} />
+          {/* <FetchFromLink onFetchFromLink={handleFetchFromLink} /> */}
+        </div>
+        <RecentUploads
+          uploads={displayUploads}
+          progressByMeetingId={progressByMeetingId}
+          stageByMeetingId={stageByMeetingId}
+          loading={loading}
+        />
       </div>
-      <RecentUploads
-        uploads={displayUploads}
-        progressByMeetingId={progressByMeetingId}
-        stageByMeetingId={stageByMeetingId}
-        loading={loading}
-      />
-    </div>
+    </>
   )
 }

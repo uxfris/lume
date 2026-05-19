@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useCurrentWorkspace } from "@/hooks/use-current-workspace"
+import { useQuotaExceededDialog } from "@/hooks/use-quota-exceeded-dialog"
 
 type InFlightUpload = {
   meetingId: string
@@ -37,8 +38,21 @@ function deriveTitle(fileName: string): string {
   return withoutExt.length > 0 ? withoutExt : "Untitled meeting"
 }
 
+function getApiErrorDetail(error: unknown): string | null {
+  if (
+    error &&
+    typeof error === "object" &&
+    "detail" in error &&
+    typeof (error as ApiError).detail === "string"
+  ) {
+    return (error as ApiError).detail
+  }
+  return null
+}
+
 export function useUpload() {
   const { workspaceId } = useCurrentWorkspace()
+  const { showIfQuotaExceeded, quotaExceededDialog } = useQuotaExceededDialog()
 
   const queryClient = useQueryClient()
 
@@ -177,23 +191,17 @@ export function useUpload() {
           }
         })
 
-        const apiDetail =
-          error &&
-          typeof error === "object" &&
-          "detail" in error &&
-          typeof (error as ApiError).detail === "string"
-            ? (error as ApiError).detail
-            : null
+        if (showIfQuotaExceeded(error)) return
 
         toast.error(
-          apiDetail ||
+          getApiErrorDetail(error) ||
             (error instanceof Error
               ? error.message
               : "Import failed. Check the URL and try again.")
         )
       }
     },
-    [queryClient, workspaceId]
+    [queryClient, showIfQuotaExceeded, workspaceId]
   )
 
   const handleUploadFile = useCallback(
@@ -280,14 +288,17 @@ export function useUpload() {
           })
         }
 
+        if (showIfQuotaExceeded(error)) return
+
         toast.error(
-          error instanceof Error
-            ? error.message
-            : "Upload failed. Please retry."
+          getApiErrorDetail(error) ||
+            (error instanceof Error
+              ? error.message
+              : "Upload failed. Please retry.")
         )
       }
     },
-    [queryClient]
+    [queryClient, showIfQuotaExceeded, workspaceId]
   )
 
   const displayUploads = useMemo(() => {
@@ -329,5 +340,6 @@ export function useUpload() {
     progressByMeetingId,
     stageByMeetingId,
     loading: isLoading,
+    quotaExceededDialog,
   }
 }
