@@ -26,7 +26,7 @@ export function RecentUploads({
     <div className="space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Queue & Recent Uploads</h2>
-        {uploads.length !== 0 && <Button variant="ghost">Clear History</Button>}
+        {/* {uploads.length !== 0 && <Button variant="ghost">Clear History</Button>} */}
       </div>
       <Card className="px-0 py-2 md:px-2 md:py-3">
         <CardContent className="px-2">
