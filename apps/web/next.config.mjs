@@ -5,14 +5,22 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 // Normalize trailing slash
 const normalizedApiUrl = API_URL.replace(/\/$/, "")
 
-// Phase 12 — Security headers
+// Presigned S3 PUT (uploads, avatars) and GET (meeting playback) hit the bucket host directly.
+const s3BaseUrl = process.env.NEXT_PUBLIC_S3_BASE_URL?.replace(/\/$/, "")
+const s3Origins = [s3BaseUrl, "https://*.s3.us-east-1.amazonaws.com"]
+  .filter(Boolean)
+  .join(" ")
+
+// Enforcing CSP (not Report-Only): frame-ancestors is ignored in report-only mode,
+// and Safari does not apply report-only policies without a report-to endpoint.
 const cspDirectives = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  `connect-src 'self' ${normalizedApiUrl} https://api.stripe.com`,
+  `connect-src 'self' ${normalizedApiUrl} https://api.stripe.com ${s3Origins}`,
+  `media-src 'self' blob: ${s3Origins}`,
   "frame-src https://js.stripe.com https://hooks.stripe.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
@@ -33,7 +41,7 @@ const securityHeaders = [
     value: "max-age=63072000; includeSubDomains; preload",
   },
   {
-    key: "Content-Security-Policy-Report-Only",
+    key: "Content-Security-Policy",
     value: cspDirectives,
   },
 ]
