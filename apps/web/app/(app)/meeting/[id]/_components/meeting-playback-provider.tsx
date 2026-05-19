@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react"
 import type { Conversation, Sentence } from "@workspace/types"
+import { cn } from "@workspace/ui/lib/utils"
 import { useMeetingAudioQuery } from "../_hooks/queries/use-meeting-audio-query"
 import { useMeetingConversationQuery } from "../_hooks/queries/use-meeting-conversation-query"
 
@@ -25,6 +26,8 @@ type MeetingPlaybackContextValue = {
   durationMs: number
   isPlaying: boolean
   playbackRate: number
+  isFullscreen: boolean
+  toggleFullscreen: () => void
   togglePlay: () => void
   seekToMs: (ms: number) => void
   skipPrevious: () => void
@@ -50,6 +53,8 @@ export function MeetingPlaybackProvider({
   children: ReactNode
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const fullscreenRef = useRef<HTMLDivElement | null>(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const [currentTimeMs, setCurrentTimeMs] = useState(0)
   const [durationMs, setDurationMs] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -109,6 +114,27 @@ export function MeetingPlaybackProvider({
     if (!audio) return
     audio.volume = volume
   }, [volume])
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === fullscreenRef.current)
+    }
+
+    document.addEventListener("fullscreenchange", onFullscreenChange)
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange)
+  }, [])
+
+  const toggleFullscreen = useCallback(() => {
+    const container = fullscreenRef.current
+    if (!container) return
+
+    if (document.fullscreenElement === container) {
+      void document.exitFullscreen().catch(() => {})
+      return
+    }
+
+    void container.requestFullscreen().catch(() => {})
+  }, [])
 
   const seekToMs = useCallback((ms: number) => {
     const audio = audioRef.current
@@ -182,6 +208,8 @@ export function MeetingPlaybackProvider({
       durationMs,
       isPlaying,
       playbackRate,
+      isFullscreen,
+      toggleFullscreen,
       togglePlay,
       seekToMs,
       skipPrevious,
@@ -201,6 +229,8 @@ export function MeetingPlaybackProvider({
       durationMs,
       isPlaying,
       playbackRate,
+      isFullscreen,
+      toggleFullscreen,
       togglePlay,
       seekToMs,
       skipPrevious,
@@ -214,7 +244,15 @@ export function MeetingPlaybackProvider({
   return (
     <MeetingPlaybackContext.Provider value={value}>
       <audio ref={audioRef} preload="metadata" className="hidden" />
-      {children}
+      <div
+        ref={fullscreenRef}
+        className={cn(
+          isFullscreen &&
+            "mx-auto flex min-h-dvh w-full max-w-[700px] flex-col overflow-y-auto bg-card px-4 pt-6 md:px-6"
+        )}
+      >
+        {children}
+      </div>
     </MeetingPlaybackContext.Provider>
   )
 }

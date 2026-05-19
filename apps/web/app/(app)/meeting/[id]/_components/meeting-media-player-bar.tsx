@@ -46,6 +46,8 @@ export function MeetingMediaPlayerBar() {
     skipNext,
     setPlaybackRate,
     setVolume,
+    isFullscreen,
+    toggleFullscreen,
   } = useMeetingPlayback()
 
   const progress =
@@ -151,7 +153,14 @@ export function MeetingMediaPlayerBar() {
           >
             {playbackRate === 1 ? "1X" : `${playbackRate}X`}
           </Button>
-          <Button size="xs" variant="outline" type="button" disabled>
+          <Button
+            size="xs"
+            variant="outline"
+            type="button"
+            disabled={!hasAudio}
+            aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+            onClick={toggleFullscreen}
+          >
             <FullScreen />
           </Button>
         </div>
