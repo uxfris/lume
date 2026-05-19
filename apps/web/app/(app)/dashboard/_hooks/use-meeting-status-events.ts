@@ -16,6 +16,8 @@ type ProcessingEventPayload = {
 
 type UseMeetingStatusEventsOptions = {
   meetings: Array<{ id: string; status: Meeting["status"] }>
+  /** Always subscribe to these IDs (live strip, scheduled bots, etc.). */
+  watchMeetingIds?: string[]
   onMeetingUpdate: (
     meetingId: string,
     meeting: Meeting | Partial<Meeting>
@@ -26,6 +28,7 @@ type UseMeetingStatusEventsOptions = {
 
 export function useMeetingStatusEvents({
   meetings,
+  watchMeetingIds = [],
   onMeetingUpdate,
   onDbStatusChange,
 }: UseMeetingStatusEventsOptions) {
@@ -35,18 +38,23 @@ export function useMeetingStatusEvents({
   onMeetingUpdateRef.current = onMeetingUpdate
   onDbStatusChangeRef.current = onDbStatusChange
 
-  const pendingIdsKey = useMemo(() => {
-    return meetings
+  const watchIdsKey = useMemo(
+    () => [...watchMeetingIds].sort().join(","),
+    [watchMeetingIds]
+  )
+
+  const subscribedIdsKey = useMemo(() => {
+    const fromMeetings = meetings
       .filter((m) => !isTerminalUiMeetingStatus(m.status))
       .map((m) => m.id)
-      .sort()
-      .join(",")
-  }, [meetings])
+    const watched = watchIdsKey ? watchIdsKey.split(",") : []
+    return [...new Set([...fromMeetings, ...watched])].sort().join(",")
+  }, [meetings, watchIdsKey])
 
   useEffect(() => {
-    if (!pendingIdsKey) return
+    if (!subscribedIdsKey) return
 
-    const meetingIds = pendingIdsKey.split(",")
+    const meetingIds = subscribedIdsKey.split(",")
     const baseApiUrl = "/api"
 
     const streams = meetingIds.map((meetingId) => {
@@ -82,5 +90,5 @@ export function useMeetingStatusEvents({
     return () => {
       for (const source of streams) source.close()
     }
-  }, [pendingIdsKey])
+  }, [subscribedIdsKey])
 }

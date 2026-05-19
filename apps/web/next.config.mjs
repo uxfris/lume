@@ -1,3 +1,10 @@
+// next.config.mjs
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
+
+// Normalize trailing slash
+const normalizedApiUrl = API_URL.replace(/\/$/, "")
+
 // Phase 12 — Security headers
 const cspDirectives = [
   "default-src 'self'",
@@ -5,7 +12,7 @@ const cspDirectives = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  `connect-src 'self' https://lume-api-production.up.railway.app https://api.stripe.com`,
+  `connect-src 'self' ${normalizedApiUrl} https://api.stripe.com`,
   "frame-src https://js.stripe.com https://hooks.stripe.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
@@ -54,12 +61,11 @@ const nextConfig = {
     return [
       {
         source: "/api/auth/:path*",
-        destination:
-          "https://lume-api-production.up.railway.app/api/auth/:path*",
+        destination: `${normalizedApiUrl}/api/auth/:path*`,
       },
       {
         source: "/api/:path*",
-        destination: "https://lume-api-production.up.railway.app/:path*",
+        destination: `${normalizedApiUrl}/:path*`,
       },
     ]
   },

@@ -5,6 +5,7 @@ import { useEffect } from "react"
 import { useMutation } from "@tanstack/react-query"
 import { botsApi } from "@workspace/api-client"
 import { joinMeetingSchema } from "../_components/live-sync/join-meeting-schema"
+import { usePendingBotMeetingIds } from "../_stores/pending-bot-meeting-ids-store"
 
 type JoinMeetingPayload = z.infer<typeof joinMeetingSchema>
 
@@ -24,6 +25,8 @@ export function useJoinMeeting({
   meetingUrl: string | undefined
   onSuccess: (meetingUrl: string) => void
 }): UseJoinMeetingReturn {
+  const trackPendingBotMeeting = usePendingBotMeetingIds((s) => s.add)
+
   const form = useForm<JoinMeetingPayload>({
     resolver: zodResolver(joinMeetingSchema),
     defaultValues: {
@@ -47,10 +50,12 @@ export function useJoinMeeting({
     mutationFn: async (data: JoinMeetingPayload) => {
       const finalUrl = meetingUrl ?? data.url
 
-      await botsApi.startBotMeeting({
+      const result = await botsApi.startBotMeeting({
         meetingUrl: finalUrl,
         title: data.name,
       })
+
+      trackPendingBotMeeting(result.meetingId)
 
       return finalUrl
     },
