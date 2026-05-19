@@ -7,7 +7,7 @@ import { useEffect, useState } from "react"
 import { PeopleSearchFilterAction } from "./search-filter-actions/people-filter-search-action"
 import { formatDateOnly } from "@/lib/date-format"
 import { PeopleBulkActionBar } from "./search-filter-actions/people-bulk-action-bar"
-import { WorkspaceMember } from "@workspace/types"
+import { ApiWorkspaceRole, WorkspaceMember } from "@workspace/types"
 import { cn } from "@workspace/ui/lib/utils"
 
 
@@ -22,7 +22,7 @@ interface DataTableProps<TData, TValue> {
     onInviteMembers?: (emails: string[], role: string) => void
     isMutating?: boolean
     canManageMembers?: boolean
-    actorRole?: string
+    actorRole?: ApiWorkspaceRole
     activeTab?: "all" | "invited"
     exportInvitations?: import("@workspace/types").WorkspaceMemberInvitation[]
 }
