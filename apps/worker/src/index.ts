@@ -23,7 +23,9 @@ import { deleteAccountHandler } from "./handlers/delete-account"
 import { sweepDueAccountDeletions } from "./lib/account-deletion-sweeper"
 import { deliverIntegrationsHandler } from "./handlers/deliver-integrations"
 
-const healthServer = startHealthServer(env.WORKER_HEALTH_PORT)
+// Railway probes `PORT` for healthchecks; local dev uses WORKER_HEALTH_PORT.
+const healthPort = Number(process.env.PORT) || env.WORKER_HEALTH_PORT
+const healthServer = startHealthServer(healthPort)
 
 const transcribeWorker = createWorker(QueueName.Transcribe, transcribeHandler)
 const diarizeWorker = createWorker(QueueName.Diarize, diarizeHandler)

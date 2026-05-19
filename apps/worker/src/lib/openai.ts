@@ -1,5 +1,11 @@
 import OpenAI from "openai"
-import pLimit from "p-limit"
+import pLimitImport from "p-limit"
+
+/** Works with both tsx (ESM) and the CJS bundle's `__toESM` interop. */
+const pLimit =
+  typeof pLimitImport === "function"
+    ? pLimitImport
+    : (pLimitImport as { default: typeof pLimitImport }).default
 import {
   MeetingAnalysisContentSchema,
   type MeetingAnalysisContent,
