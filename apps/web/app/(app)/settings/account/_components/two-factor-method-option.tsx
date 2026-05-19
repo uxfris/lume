@@ -10,7 +10,8 @@ type Props = {
   description: string
   badge?: string
   highlighted?: boolean
-  onClick: () => void
+  unavailable?: boolean
+  onClick?: () => void
 }
 
 export function TwoFactorMethodOption({
@@ -19,18 +20,22 @@ export function TwoFactorMethodOption({
   description,
   badge,
   highlighted,
+  unavailable,
   onClick,
 }: Props) {
   return (
     <button
       type="button"
+      disabled={unavailable}
       onClick={onClick}
       className={cn(
         "flex w-full items-start gap-3 rounded-md border p-4 text-left transition-colors",
         highlighted
           ? "border-ring bg-secondary/30"
           : "border-border hover:border-ring hover:bg-secondary/50",
-        "focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        "focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+        unavailable &&
+          "cursor-not-allowed opacity-50 hover:border-border hover:bg-transparent"
       )}
     >
       <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-secondary">

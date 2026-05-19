@@ -43,7 +43,6 @@ export function TwoFactorSetupDialog({
         onOpenChange={(nextOpen) => {
           if (!nextOpen) closeFlow()
         }}
-        onSelectPhone={() => setActiveDialog("phone")}
         onSelectAuthenticator={() => setActiveDialog("authenticator")}
       />
       <TwoFactorPhoneSetupDialog

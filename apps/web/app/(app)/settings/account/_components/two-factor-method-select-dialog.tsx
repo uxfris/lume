@@ -12,14 +12,12 @@ type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSelectAuthenticator: () => void
-  onSelectPhone: () => void
 }
 
 export function TwoFactorMethodSelectDialog({
   open,
   onOpenChange,
   onSelectAuthenticator,
-  onSelectPhone,
 }: Props) {
   return (
     <TwoFactorFullscreenShell
@@ -48,7 +46,8 @@ export function TwoFactorMethodSelectDialog({
           icon={<Smartphone className="size-5" />}
           title="Phone"
           description="Receive codes via SMS."
-          onClick={onSelectPhone}
+          badge="Unavailable"
+          unavailable
         />
       </div>
     </TwoFactorFullscreenShell>
