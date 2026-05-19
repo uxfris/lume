@@ -94,7 +94,7 @@ export function JoinMeetingDialog({
             />
           </Field>
 
-          {error && !isQuotaExceededError(error) && (
+          {error != null && !isQuotaExceededError(error) && (
             <p className="text-sm text-destructive">Failed to join meeting</p>
           )}
 
