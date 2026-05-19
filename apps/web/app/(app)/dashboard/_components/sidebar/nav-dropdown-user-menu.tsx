@@ -44,6 +44,7 @@ import { resolveUserImageSrc } from "@/lib/user-avatar"
 export function DropdownUserMenu({ className }: { className?: string }) {
   const { theme, setTheme } = useTheme()
   const router = useRouter()
+  const { setWorkspaceId } = useCurrentWorkspace()
 
   const { data: session } = authClient.useSession()
   const avatarSrc = session?.user.id
@@ -54,8 +55,8 @@ export function DropdownUserMenu({ className }: { className?: string }) {
     await authClient.signOut({
       fetchOptions: {
         onSuccess: () => {
-          useCurrentWorkspace().setWorkspaceId(null)
-          router.push(routes.authentication)
+          setWorkspaceId(null)
+          router.push(routes.home)
         },
       },
     })
