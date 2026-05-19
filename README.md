@@ -259,6 +259,7 @@ Incident playbooks: **[`docs/runbooks/`](docs/runbooks/)**.
 
 | Doc | Description |
 |-----|-------------|
+| [`docs/architecture-decisions.md`](docs/architecture-decisions.md) | ADRs: why each major technical choice was made |
 | [`docs/project-brief.md`](docs/project-brief.md) | Product context, stack rationale, pipeline flows |
 | [`docs/deployment.md`](docs/deployment.md) | Production deploy checklist |
 | [`docs/runbooks/`](docs/runbooks/) | On-call playbooks (worker stuck, OpenAI outage, Whisper OOM) |
