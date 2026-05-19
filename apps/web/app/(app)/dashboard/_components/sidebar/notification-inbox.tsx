@@ -106,7 +106,7 @@ export function NotificationInbox() {
       </PopoverTrigger>
       <PopoverContent
         side="top"
-        align="end"
+        align="start"
         className="w-80 p-0"
         sideOffset={8}
       >
@@ -137,11 +137,13 @@ export function NotificationInbox() {
             </p>
           ) : (
             notifications.map((item) => (
-              <NotificationRow
-                key={item.id}
-                item={item}
-                onRead={(id) => markRead.mutate(id)}
-              />
+              <div className="py-0.5">
+                <NotificationRow
+                  key={item.id}
+                  item={item}
+                  onRead={(id) => markRead.mutate(id)}
+                />
+              </div>
             ))
           )}
         </div>
