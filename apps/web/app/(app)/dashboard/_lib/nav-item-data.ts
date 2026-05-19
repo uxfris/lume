@@ -8,8 +8,8 @@ import {
   UsersGroupRounded,
   Widget,
 } from "@solar-icons/react"
-import { NavItem } from "../_types/nav-item.ts"
-import { routes } from "@/lib/routes.ts"
+import { NavItem } from "../_types/nav-item"
+import { routes } from "@/lib/routes"
 
 const navMain: NavItem[] = [
   {
