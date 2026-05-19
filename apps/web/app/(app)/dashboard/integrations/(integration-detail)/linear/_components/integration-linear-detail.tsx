@@ -13,6 +13,7 @@ import { IntegrationDisconnectCard } from "../../_components/integration-disconn
 import { IntegrationLinearSettings } from "./integration-linear-settings";
 import { IntegrationLinearStatCard } from "./integration-linear-stat-card";
 import { IntegrationRecentActivityCard } from "../../_components/integration-recent-activity";
+import { IntegrationDetailSkeleton } from "../../_components/integration-detail-skeleton";
 import {
     useIntegrationActivityQuery,
     useIntegrationDetailQuery,
@@ -62,11 +63,7 @@ export function IntegrationLinearDetail() {
     const linearConfig = LinearIntegrationConfigSchema.parse(detail?.linearConfig ?? {})
 
     if (detailQuery.isLoading || !detail) {
-        return (
-            <div className="p-4 md:p-10">
-                <p className="text-sm text-muted-foreground">Loading…</p>
-            </div>
-        )
+        return <IntegrationDetailSkeleton />
     }
 
     return (

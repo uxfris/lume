@@ -16,6 +16,7 @@ import { AssigneesProvider } from "./_hooks/use-task-assigness"
 import type { TaskListFilter } from "@workspace/api-client"
 import { useTasksQuery } from "./_hooks/queries/use-tasks-query"
 import { useMembersQuery } from "../../settings/people/_hooks/queries/use-members-query"
+import { TasksTabPanelSkeleton } from "./_components/tasks-loading-skeleton"
 
 function TasksTabPanel({ filter }: { filter: TaskListFilter }) {
   const { data: groups = [], isLoading, isError } = useTasksQuery(filter)
@@ -23,13 +24,7 @@ function TasksTabPanel({ filter }: { filter: TaskListFilter }) {
   const { data: assignees = [] } = useMembersQuery()
 
   if (isLoading) {
-    return (
-      <div className="flex w-full flex-col overflow-hidden lg:flex-row">
-        <div className="min-w-0 flex-1 overflow-y-auto px-4 pt-7 pb-36 md:no-scrollbar md:px-10">
-          <p className="text-sm text-muted-foreground">Loading tasks...</p>
-        </div>
-      </div>
-    )
+    return <TasksTabPanelSkeleton />
   }
 
   if (isError) {

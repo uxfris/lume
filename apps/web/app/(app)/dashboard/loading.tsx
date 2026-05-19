@@ -1,5 +1,5 @@
-import GlobalLoading from "@/components/global-loading"
+import { DashboardPageSkeleton } from "./_components/loading/dashboard-page-skeleton"
 
-export default function Loading() {
-  return <GlobalLoading />
+export default function DashboardLoading() {
+  return <DashboardPageSkeleton />
 }

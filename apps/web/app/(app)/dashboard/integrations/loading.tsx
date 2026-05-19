@@ -1,5 +1,5 @@
-import GlobalLoading from "@/components/global-loading"
+import { IntegrationsPageSkeleton } from "./_components/integrations-loading-skeleton"
 
-export default function Loading() {
-  return <GlobalLoading />
+export default function IntegrationsLoading() {
+  return <IntegrationsPageSkeleton />
 }

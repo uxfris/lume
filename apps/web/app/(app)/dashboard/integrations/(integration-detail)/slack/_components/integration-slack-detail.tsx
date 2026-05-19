@@ -14,6 +14,7 @@ import { IntegrationSlackIssueCard } from "./integration-slack-issue-card";
 import { IntegrationSlackSettings } from "./integration-slack-settings";
 import { IntegrationSlackPreview } from "./integration-slack-preview";
 import { IntegrationRecentActivityCard } from "../../_components/integration-recent-activity";
+import { IntegrationDetailSkeleton } from "../../_components/integration-detail-skeleton";
 import {
     useIntegrationActivityQuery,
     useIntegrationDetailQuery,
@@ -73,11 +74,7 @@ export function IntegrationSlackDetail() {
     }
 
     if (detailQuery.isLoading || !detail) {
-        return (
-            <div className="p-4 md:p-10">
-                <p className="text-sm text-muted-foreground">Loading…</p>
-            </div>
-        )
+        return <IntegrationDetailSkeleton showPreview />
     }
 
     return (

@@ -1,5 +1,5 @@
-import GlobalLoading from "@/components/global-loading"
+import { MeetingsPageSkeleton } from "../_components/meetings-page-skeleton"
 
-export default function Loading() {
-  return <GlobalLoading />
+export default function SharedWithMeMeetingsLoading() {
+  return <MeetingsPageSkeleton />
 }
