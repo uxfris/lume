@@ -129,6 +129,11 @@ export function SearchDialog({
               RECENT MEETINGS
             </h3>
             <div className="flex flex-1 flex-col gap-5 overflow-y-auto">
+              {recentMeetings.length === 0 && (
+                <div className="flex h-full w-full items-center justify-center">
+                  No recent activity yet
+                </div>
+              )}
               {recentMeetings.map((meeting) => (
                 <div
                   key={meeting.id}
