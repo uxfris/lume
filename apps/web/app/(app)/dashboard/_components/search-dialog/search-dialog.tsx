@@ -104,8 +104,6 @@ export function SearchDialog({
     }
   }, [debounceQuery])
 
-  console.log(results)
-
   return (
     <Dialog open={openSearch} onOpenChange={onOpenSearchChange}>
       <DialogContent className="flex h-[80vh] flex-col sm:max-w-xl">

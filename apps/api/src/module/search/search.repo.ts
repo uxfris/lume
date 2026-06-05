@@ -38,13 +38,15 @@ export const searchRepo = {
     minScore: number
   }): Promise<RankedRow[]> {
     const q = input.query.trim()
+    // Use word_similarity / <% (not similarity / %): full-string similarity is too
+    // low when the query is a single word inside a longer title.
     return prisma.$queryRaw<RankedRow[]>`
       SELECT
         m.id AS "meetingId",
         NULL::text AS "chunkId",
         GREATEST(
-          similarity(m.title, ${q}),
-          COALESCE(MAX(similarity(ts.text, ${q})), 0)
+          word_similarity(${q}, m.title),
+          COALESCE(MAX(word_similarity(${q}, ts.text)), 0)
         ) AS score
       FROM "meeting" m
       LEFT JOIN "transcript_segment" ts ON ts."meetingId" = m.id
@@ -52,13 +54,13 @@ export const searchRepo = {
         m."workspaceId" = ${input.workspaceId}
         AND m."deletedAt" IS NULL
         AND (
-          m.title % ${q}
-          OR ts.text % ${q}
+          ${q} <% m.title
+          OR ts.text IS NOT NULL AND ${q} <% ts.text
         )
       GROUP BY m.id
       HAVING GREATEST(
-        similarity(m.title, ${q}),
-        COALESCE(MAX(similarity(ts.text, ${q})), 0)
+        word_similarity(${q}, m.title),
+        COALESCE(MAX(word_similarity(${q}, ts.text)), 0)
       ) >= ${input.minScore}
       ORDER BY score DESC
       LIMIT ${input.limit}

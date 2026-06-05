@@ -16,19 +16,13 @@ export function HomeLogoBar() {
               key={platform.name}
               className="flex items-center gap-2 text-sm font-medium text-muted-foreground"
             >
-              {"icon" in platform ? (
-                <Image
-                  src={platform.icon}
-                  alt=""
-                  width={24}
-                  height={24}
-                  className="size-6 opacity-80"
-                />
-              ) : (
-                <span className="flex size-6 items-center justify-center rounded-sm bg-muted text-xs font-semibold text-foreground">
-                  {platform.initial}
-                </span>
-              )}
+              <Image
+                src={platform.icon}
+                alt=""
+                width={24}
+                height={24}
+                className="size-6 opacity-80"
+              />
               <span>{platform.name}</span>
             </li>
           ))}

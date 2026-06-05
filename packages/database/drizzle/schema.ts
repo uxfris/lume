@@ -1,7 +1,9 @@
-import { pgTable, uniqueIndex, foreignKey, text, timestamp, varchar, integer, index, boolean, jsonb, vector, pgEnum } from "drizzle-orm/pg-core"
+import { pgTable, varchar, timestamp, text, integer, foreignKey, index, uniqueIndex, jsonb, boolean, vector, pgEnum } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 export const channelType = pgEnum("ChannelType", ['PUBLIC', 'PRIVATE'])
+export const integrationActivityStatus = pgEnum("IntegrationActivityStatus", ['SUCCEEDED', 'FAILED'])
+export const integrationProvider = pgEnum("IntegrationProvider", ['SLACK', 'LINEAR'])
 export const meetingGeneralAccess = pgEnum("MeetingGeneralAccess", ['RESTRICTED', 'WORKSPACE', 'LINK'])
 export const meetingPlatform = pgEnum("MeetingPlatform", ['ZOOM', 'GOOGLE_MEET', 'MICROSOFT_TEAMS', 'OTHER'])
 export const meetingShareRole = pgEnum("MeetingShareRole", ['VIEWER', 'EDITOR'])
@@ -14,28 +16,16 @@ export const workspacePlan = pgEnum("WorkspacePlan", ['STARTER', 'STUDIO_PRO'])
 export const workspaceRole = pgEnum("WorkspaceRole", ['OWNER', 'ADMIN', 'MEMBER', 'GUEST'])
 
 
-export const channel = pgTable("Channel", {
-	id: text().primaryKey().notNull(),
-	name: text().notNull(),
-	description: text(),
-	type: channelType().default('PUBLIC').notNull(),
-	workspaceId: text().notNull(),
-	creatorId: text().notNull(),
-	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
-	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
-}, (table) => [
-	uniqueIndex("Channel_workspaceId_name_key").using("btree", table.workspaceId.asc().nullsLast().op("text_ops"), table.name.asc().nullsLast().op("text_ops")),
-	foreignKey({
-			columns: [table.workspaceId],
-			foreignColumns: [workspace.id],
-			name: "Channel_workspaceId_fkey"
-		}).onUpdate("cascade").onDelete("cascade"),
-	foreignKey({
-			columns: [table.creatorId],
-			foreignColumns: [user.id],
-			name: "Channel_creatorId_fkey"
-		}).onUpdate("cascade").onDelete("restrict"),
-]);
+export const prismaMigrations = pgTable("_prisma_migrations", {
+	id: varchar({ length: 36 }).primaryKey().notNull(),
+	checksum: varchar({ length: 64 }).notNull(),
+	finishedAt: timestamp("finished_at", { withTimezone: true, mode: 'string' }),
+	migrationName: varchar("migration_name", { length: 255 }).notNull(),
+	logs: text(),
+	rolledBackAt: timestamp("rolled_back_at", { withTimezone: true, mode: 'string' }),
+	startedAt: timestamp("started_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	appliedStepsCount: integer("applied_steps_count").default(0).notNull(),
+});
 
 export const account = pgTable("account", {
 	id: text().primaryKey().notNull(),
@@ -58,17 +48,6 @@ export const account = pgTable("account", {
 			name: "account_userId_fkey"
 		}).onUpdate("cascade").onDelete("cascade"),
 ]);
-
-export const prismaMigrations = pgTable("_prisma_migrations", {
-	id: varchar({ length: 36 }).primaryKey().notNull(),
-	checksum: varchar({ length: 64 }).notNull(),
-	finishedAt: timestamp("finished_at", { withTimezone: true, mode: 'string' }),
-	migrationName: varchar("migration_name", { length: 255 }).notNull(),
-	logs: text(),
-	rolledBackAt: timestamp("rolled_back_at", { withTimezone: true, mode: 'string' }),
-	startedAt: timestamp("started_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	appliedStepsCount: integer("applied_steps_count").default(0).notNull(),
-});
 
 export const workspaceMember = pgTable("workspace_member", {
 	id: text().primaryKey().notNull(),
@@ -131,84 +110,21 @@ export const invitation = pgTable("invitation", {
 		}).onUpdate("cascade").onDelete("cascade"),
 ]);
 
-export const meetingShare = pgTable("meeting_share", {
+export const processingEvent = pgTable("processing_event", {
 	id: text().primaryKey().notNull(),
 	meetingId: text().notNull(),
-	email: text().notNull(),
-	userId: text(),
-	role: meetingShareRole().default('VIEWER').notNull(),
-	invitedByUserId: text().notNull(),
+	stage: processingStage().notNull(),
+	status: processingEventStatus().notNull(),
+	message: text(),
+	metadata: jsonb(),
 	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
-	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
 }, (table) => [
-	index("meeting_share_email_idx").using("btree", table.email.asc().nullsLast().op("text_ops")),
-	uniqueIndex("meeting_share_meetingId_email_key").using("btree", table.meetingId.asc().nullsLast().op("text_ops"), table.email.asc().nullsLast().op("text_ops")),
-	index("meeting_share_userId_idx").using("btree", table.userId.asc().nullsLast().op("text_ops")),
+	index("processing_event_meetingId_createdAt_idx").using("btree", table.meetingId.asc().nullsLast().op("text_ops"), table.createdAt.asc().nullsLast().op("text_ops")),
 	foreignKey({
 			columns: [table.meetingId],
 			foreignColumns: [meeting.id],
-			name: "meeting_share_meetingId_fkey"
+			name: "processing_event_meetingId_fkey"
 		}).onUpdate("cascade").onDelete("cascade"),
-	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [user.id],
-			name: "meeting_share_userId_fkey"
-		}).onUpdate("cascade").onDelete("set null"),
-	foreignKey({
-			columns: [table.invitedByUserId],
-			foreignColumns: [user.id],
-			name: "meeting_share_invitedByUserId_fkey"
-		}).onUpdate("cascade").onDelete("cascade"),
-]);
-
-export const userNotificationPreference = pgTable("user_notification_preference", {
-	userId: text().primaryKey().notNull(),
-	pushEnabled: boolean().default(true).notNull(),
-	meetingSummaries: boolean().default(true).notNull(),
-	insightReports: boolean().default(true).notNull(),
-	collaborationAlerts: boolean().default(true).notNull(),
-	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
-	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
-}, (table) => [
-	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [user.id],
-			name: "user_notification_preference_userId_fkey"
-		}).onUpdate("cascade").onDelete("cascade"),
-]);
-
-export const notification = pgTable("notification", {
-	id: text().primaryKey().notNull(),
-	userId: text().notNull(),
-	type: notificationType().notNull(),
-	title: text().notNull(),
-	body: text().notNull(),
-	href: text(),
-	readAt: timestamp({ precision: 3, mode: 'string' }),
-	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
-}, (table) => [
-	index("notification_userId_readAt_createdAt_idx").using("btree", table.userId.asc().nullsLast().op("text_ops"), table.readAt.asc().nullsLast().op("text_ops"), table.createdAt.asc().nullsLast().op("text_ops")),
-	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [user.id],
-			name: "notification_userId_fkey"
-		}).onUpdate("cascade").onDelete("cascade"),
-]);
-
-export const user = pgTable("user", {
-	id: text().primaryKey().notNull(),
-	name: text().notNull(),
-	email: text().notNull(),
-	emailVerified: boolean().notNull(),
-	image: text(),
-	createdAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
-	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
-	scheduledDeletionAt: timestamp({ precision: 3, mode: 'string' }),
-	deletionReason: text(),
-}, (table) => [
-	uniqueIndex("user_email_key").using("btree", table.email.asc().nullsLast().op("text_ops")),
-	index("user_id_idx").using("btree", table.id.asc().nullsLast().op("text_ops")),
-	index("user_scheduledDeletionAt_idx").using("btree", table.scheduledDeletionAt.asc().nullsLast().op("timestamp_ops")),
 ]);
 
 export const session = pgTable("session", {
@@ -231,23 +147,6 @@ export const session = pgTable("session", {
 		}).onUpdate("cascade").onDelete("cascade"),
 ]);
 
-export const processingEvent = pgTable("processing_event", {
-	id: text().primaryKey().notNull(),
-	meetingId: text().notNull(),
-	stage: processingStage().notNull(),
-	status: processingEventStatus().notNull(),
-	message: text(),
-	metadata: jsonb(),
-	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
-}, (table) => [
-	index("processing_event_meetingId_createdAt_idx").using("btree", table.meetingId.asc().nullsLast().op("text_ops"), table.createdAt.asc().nullsLast().op("text_ops")),
-	foreignKey({
-			columns: [table.meetingId],
-			foreignColumns: [meeting.id],
-			name: "processing_event_meetingId_fkey"
-		}).onUpdate("cascade").onDelete("cascade"),
-]);
-
 export const task = pgTable("task", {
 	id: text().primaryKey().notNull(),
 	workspaceId: text().notNull(),
@@ -260,7 +159,7 @@ export const task = pgTable("task", {
 	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
 }, (table) => [
 	index("task_meetingId_idx").using("btree", table.meetingId.asc().nullsLast().op("text_ops")),
-	index("task_workspaceId_isCompleted_createdAt_idx").using("btree", table.workspaceId.asc().nullsLast().op("timestamp_ops"), table.isCompleted.asc().nullsLast().op("timestamp_ops"), table.createdAt.desc().nullsFirst().op("text_ops")),
+	index("task_workspaceId_isCompleted_createdAt_idx").using("btree", table.workspaceId.asc().nullsLast().op("text_ops"), table.isCompleted.asc().nullsLast().op("text_ops"), table.createdAt.desc().nullsFirst().op("text_ops")),
 	foreignKey({
 			columns: [table.workspaceId],
 			foreignColumns: [workspace.id],
@@ -276,55 +175,6 @@ export const task = pgTable("task", {
 			foreignColumns: [user.id],
 			name: "task_assigneeId_fkey"
 		}).onUpdate("cascade").onDelete("set null"),
-]);
-
-export const meeting = pgTable("meeting", {
-	id: text().primaryKey().notNull(),
-	workspaceId: text().notNull(),
-	userId: text().notNull(),
-	title: text().notNull(),
-	source: meetingSource().default('UPLOAD').notNull(),
-	status: meetingStatus().default('PENDING_UPLOAD').notNull(),
-	audioKey: text(),
-	fileName: text(),
-	fileType: text(),
-	fileSize: integer(),
-	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
-	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
-	durationSeconds: integer(),
-	language: text(),
-	summary: jsonb(),
-	deletedAt: timestamp({ precision: 3, mode: 'string' }),
-	isShared: boolean().default(false).notNull(),
-	meetingUrl: text(),
-	platform: meetingPlatform(),
-	externalBotId: text(),
-	scheduledAt: timestamp({ precision: 3, mode: 'string' }),
-	billingUsageRecorded: boolean().default(false).notNull(),
-	isStarred: boolean().default(false).notNull(),
-	channelId: text(),
-	generalAccess: meetingGeneralAccess().default('RESTRICTED').notNull(),
-}, (table) => [
-	uniqueIndex("meeting_audioKey_key").using("btree", table.audioKey.asc().nullsLast().op("text_ops")),
-	uniqueIndex("meeting_externalBotId_key").using("btree", table.externalBotId.asc().nullsLast().op("text_ops")),
-	index("meeting_userId_idx").using("btree", table.userId.asc().nullsLast().op("text_ops")),
-	index("meeting_workspaceId_createdAt_idx").using("btree", table.workspaceId.asc().nullsLast().op("timestamp_ops"), table.createdAt.desc().nullsFirst().op("text_ops")),
-	index("meeting_workspaceId_deletedAt_createdAt_idx").using("btree", table.workspaceId.asc().nullsLast().op("timestamp_ops"), table.deletedAt.asc().nullsLast().op("text_ops"), table.createdAt.desc().nullsFirst().op("text_ops")),
-	foreignKey({
-			columns: [table.channelId],
-			foreignColumns: [channel.id],
-			name: "meeting_channelId_fkey"
-		}).onUpdate("cascade").onDelete("set null"),
-	foreignKey({
-			columns: [table.workspaceId],
-			foreignColumns: [workspace.id],
-			name: "meeting_workspaceId_fkey"
-		}).onUpdate("cascade").onDelete("cascade"),
-	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [user.id],
-			name: "meeting_userId_fkey"
-		}).onUpdate("cascade").onDelete("restrict"),
 ]);
 
 export const meetingChunk = pgTable("meeting_chunk", {
@@ -372,7 +222,7 @@ export const transcriptSegment = pgTable("transcript_segment", {
 	languageCode: text(),
 	participantId: text(),
 }, (table) => [
-	uniqueIndex("transcript_segment_meetingId_index_key").using("btree", table.meetingId.asc().nullsLast().op("int4_ops"), table.index.asc().nullsLast().op("int4_ops")),
+	uniqueIndex("transcript_segment_meetingId_index_key").using("btree", table.meetingId.asc().nullsLast().op("int4_ops"), table.index.asc().nullsLast().op("text_ops")),
 	index("transcript_segment_meetingId_startMs_idx").using("btree", table.meetingId.asc().nullsLast().op("text_ops"), table.startMs.asc().nullsLast().op("int4_ops")),
 	index("transcript_segment_participantId_idx").using("btree", table.participantId.asc().nullsLast().op("text_ops")),
 	foreignKey({
@@ -387,37 +237,86 @@ export const transcriptSegment = pgTable("transcript_segment", {
 		}).onUpdate("cascade").onDelete("set null"),
 ]);
 
-export const recallCalendarConnection = pgTable("recall_calendar_connection", {
+export const transcriptWord = pgTable("transcript_word", {
 	id: text().primaryKey().notNull(),
-	userId: text().notNull(),
-	provider: text().notNull(),
-	recallCalendarId: text().notNull(),
+	segmentId: text().notNull(),
+	text: text().notNull(),
+	startMs: integer().notNull(),
+	endMs: integer().notNull(),
+	position: integer().notNull(),
 	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
-	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
 }, (table) => [
-	uniqueIndex("recall_calendar_connection_userId_provider_key").using("btree", table.userId.asc().nullsLast().op("text_ops"), table.provider.asc().nullsLast().op("text_ops")),
+	index("transcript_word_segmentId_position_idx").using("btree", table.segmentId.asc().nullsLast().op("text_ops"), table.position.asc().nullsLast().op("text_ops")),
+	index("transcript_word_segmentId_startMs_idx").using("btree", table.segmentId.asc().nullsLast().op("int4_ops"), table.startMs.asc().nullsLast().op("int4_ops")),
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [user.id],
-			name: "recall_calendar_connection_userId_fkey"
+			columns: [table.segmentId],
+			foreignColumns: [transcriptSegment.id],
+			name: "transcript_word_segmentId_fkey"
 		}).onUpdate("cascade").onDelete("cascade"),
 ]);
 
-export const workspace = pgTable("workspace", {
+export const meetingTranscriptRaw = pgTable("meeting_transcript_raw", {
 	id: text().primaryKey().notNull(),
-	name: text().notNull(),
-	slug: text().notNull(),
-	image: text(),
+	meetingId: text().notNull(),
+	provider: text().notNull(),
+	payload: jsonb().notNull(),
+	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (table) => [
+	uniqueIndex("meeting_transcript_raw_meetingId_key").using("btree", table.meetingId.asc().nullsLast().op("text_ops")),
+	foreignKey({
+			columns: [table.meetingId],
+			foreignColumns: [meeting.id],
+			name: "meeting_transcript_raw_meetingId_fkey"
+		}).onUpdate("cascade").onDelete("cascade"),
+]);
+
+export const meeting = pgTable("meeting", {
+	id: text().primaryKey().notNull(),
+	workspaceId: text().notNull(),
+	userId: text().notNull(),
+	title: text().notNull(),
+	source: meetingSource().default('UPLOAD').notNull(),
+	status: meetingStatus().default('PENDING_UPLOAD').notNull(),
+	audioKey: text(),
+	fileName: text(),
+	fileType: text(),
+	fileSize: integer(),
 	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
 	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
-	plan: workspacePlan().default('STARTER').notNull(),
-	stripeCustomerId: text(),
-	stripeSubscriptionId: text(),
-	subscriptionPeriodEnd: timestamp({ precision: 3, mode: 'string' }),
+	durationSeconds: integer(),
+	language: text(),
+	summary: jsonb(),
+	deletedAt: timestamp({ precision: 3, mode: 'string' }),
+	isShared: boolean().default(false).notNull(),
+	meetingUrl: text(),
+	platform: meetingPlatform(),
+	externalBotId: text(),
+	scheduledAt: timestamp({ precision: 3, mode: 'string' }),
+	billingUsageRecorded: boolean().default(false).notNull(),
+	isStarred: boolean().default(false).notNull(),
+	channelId: text(),
+	generalAccess: meetingGeneralAccess().default('RESTRICTED').notNull(),
 }, (table) => [
-	uniqueIndex("workspace_slug_key").using("btree", table.slug.asc().nullsLast().op("text_ops")),
-	uniqueIndex("workspace_stripeCustomerId_key").using("btree", table.stripeCustomerId.asc().nullsLast().op("text_ops")),
-	uniqueIndex("workspace_stripeSubscriptionId_key").using("btree", table.stripeSubscriptionId.asc().nullsLast().op("text_ops")),
+	uniqueIndex("meeting_audioKey_key").using("btree", table.audioKey.asc().nullsLast().op("text_ops")),
+	uniqueIndex("meeting_externalBotId_key").using("btree", table.externalBotId.asc().nullsLast().op("text_ops")),
+	index("meeting_userId_idx").using("btree", table.userId.asc().nullsLast().op("text_ops")),
+	index("meeting_workspaceId_createdAt_idx").using("btree", table.workspaceId.asc().nullsLast().op("text_ops"), table.createdAt.desc().nullsFirst().op("text_ops")),
+	index("meeting_workspaceId_deletedAt_createdAt_idx").using("btree", table.workspaceId.asc().nullsLast().op("timestamp_ops"), table.deletedAt.asc().nullsLast().op("text_ops"), table.createdAt.desc().nullsFirst().op("text_ops")),
+	foreignKey({
+			columns: [table.workspaceId],
+			foreignColumns: [workspace.id],
+			name: "meeting_workspaceId_fkey"
+		}).onUpdate("cascade").onDelete("cascade"),
+	foreignKey({
+			columns: [table.userId],
+			foreignColumns: [user.id],
+			name: "meeting_userId_fkey"
+		}).onUpdate("cascade").onDelete("restrict"),
+	foreignKey({
+			columns: [table.channelId],
+			foreignColumns: [channel.id],
+			name: "meeting_channelId_fkey"
+		}).onUpdate("cascade").onDelete("set null"),
 ]);
 
 export const meetingParticipant = pgTable("meeting_participant", {
@@ -442,36 +341,36 @@ export const meetingParticipant = pgTable("meeting_participant", {
 		}).onUpdate("cascade").onDelete("cascade"),
 ]);
 
-export const transcriptWord = pgTable("transcript_word", {
+export const workspace = pgTable("workspace", {
 	id: text().primaryKey().notNull(),
-	segmentId: text().notNull(),
-	text: text().notNull(),
-	startMs: integer().notNull(),
-	endMs: integer().notNull(),
-	position: integer().notNull(),
+	name: text().notNull(),
+	slug: text().notNull(),
 	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+	plan: workspacePlan().default('STARTER').notNull(),
+	stripeCustomerId: text(),
+	stripeSubscriptionId: text(),
+	subscriptionPeriodEnd: timestamp({ precision: 3, mode: 'string' }),
+	image: text(),
 }, (table) => [
-	index("transcript_word_segmentId_position_idx").using("btree", table.segmentId.asc().nullsLast().op("int4_ops"), table.position.asc().nullsLast().op("int4_ops")),
-	index("transcript_word_segmentId_startMs_idx").using("btree", table.segmentId.asc().nullsLast().op("int4_ops"), table.startMs.asc().nullsLast().op("int4_ops")),
-	foreignKey({
-			columns: [table.segmentId],
-			foreignColumns: [transcriptSegment.id],
-			name: "transcript_word_segmentId_fkey"
-		}).onUpdate("cascade").onDelete("cascade"),
+	uniqueIndex("workspace_slug_key").using("btree", table.slug.asc().nullsLast().op("text_ops")),
+	uniqueIndex("workspace_stripeCustomerId_key").using("btree", table.stripeCustomerId.asc().nullsLast().op("text_ops")),
+	uniqueIndex("workspace_stripeSubscriptionId_key").using("btree", table.stripeSubscriptionId.asc().nullsLast().op("text_ops")),
 ]);
 
-export const meetingTranscriptRaw = pgTable("meeting_transcript_raw", {
+export const recallCalendarConnection = pgTable("recall_calendar_connection", {
 	id: text().primaryKey().notNull(),
-	meetingId: text().notNull(),
+	userId: text().notNull(),
 	provider: text().notNull(),
-	payload: jsonb().notNull(),
+	recallCalendarId: text().notNull(),
 	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
 }, (table) => [
-	uniqueIndex("meeting_transcript_raw_meetingId_key").using("btree", table.meetingId.asc().nullsLast().op("text_ops")),
+	uniqueIndex("recall_calendar_connection_userId_provider_key").using("btree", table.userId.asc().nullsLast().op("text_ops"), table.provider.asc().nullsLast().op("text_ops")),
 	foreignKey({
-			columns: [table.meetingId],
-			foreignColumns: [meeting.id],
-			name: "meeting_transcript_raw_meetingId_fkey"
+			columns: [table.userId],
+			foreignColumns: [user.id],
+			name: "recall_calendar_connection_userId_fkey"
 		}).onUpdate("cascade").onDelete("cascade"),
 ]);
 
@@ -522,5 +421,200 @@ export const usageCounter = pgTable("usage_counter", {
 			columns: [table.workspaceId],
 			foreignColumns: [workspace.id],
 			name: "usage_counter_workspaceId_fkey"
+		}).onUpdate("cascade").onDelete("cascade"),
+]);
+
+export const channel = pgTable("Channel", {
+	id: text().primaryKey().notNull(),
+	name: text().notNull(),
+	description: text(),
+	type: channelType().default('PUBLIC').notNull(),
+	workspaceId: text().notNull(),
+	creatorId: text().notNull(),
+	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+}, (table) => [
+	uniqueIndex("Channel_workspaceId_name_key").using("btree", table.workspaceId.asc().nullsLast().op("text_ops"), table.name.asc().nullsLast().op("text_ops")),
+	foreignKey({
+			columns: [table.workspaceId],
+			foreignColumns: [workspace.id],
+			name: "Channel_workspaceId_fkey"
+		}).onUpdate("cascade").onDelete("cascade"),
+	foreignKey({
+			columns: [table.creatorId],
+			foreignColumns: [user.id],
+			name: "Channel_creatorId_fkey"
+		}).onUpdate("cascade").onDelete("restrict"),
+]);
+
+export const integrationActivity = pgTable("integration_activity", {
+	id: text().primaryKey().notNull(),
+	workspaceId: text().notNull(),
+	provider: integrationProvider().notNull(),
+	meetingId: text(),
+	status: integrationActivityStatus().notNull(),
+	title: text().notNull(),
+	description: text(),
+	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (table) => [
+	index("integration_activity_workspaceId_provider_createdAt_idx").using("btree", table.workspaceId.asc().nullsLast().op("timestamp_ops"), table.provider.asc().nullsLast().op("timestamp_ops"), table.createdAt.desc().nullsFirst().op("text_ops")),
+	foreignKey({
+			columns: [table.workspaceId],
+			foreignColumns: [workspace.id],
+			name: "integration_activity_workspaceId_fkey"
+		}).onUpdate("cascade").onDelete("cascade"),
+	foreignKey({
+			columns: [table.meetingId],
+			foreignColumns: [meeting.id],
+			name: "integration_activity_meetingId_fkey"
+		}).onUpdate("cascade").onDelete("set null"),
+]);
+
+export const meetingShare = pgTable("meeting_share", {
+	id: text().primaryKey().notNull(),
+	meetingId: text().notNull(),
+	email: text().notNull(),
+	userId: text(),
+	role: meetingShareRole().default('VIEWER').notNull(),
+	invitedByUserId: text().notNull(),
+	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+}, (table) => [
+	index("meeting_share_email_idx").using("btree", table.email.asc().nullsLast().op("text_ops")),
+	uniqueIndex("meeting_share_meetingId_email_key").using("btree", table.meetingId.asc().nullsLast().op("text_ops"), table.email.asc().nullsLast().op("text_ops")),
+	index("meeting_share_userId_idx").using("btree", table.userId.asc().nullsLast().op("text_ops")),
+	foreignKey({
+			columns: [table.meetingId],
+			foreignColumns: [meeting.id],
+			name: "meeting_share_meetingId_fkey"
+		}).onUpdate("cascade").onDelete("cascade"),
+	foreignKey({
+			columns: [table.userId],
+			foreignColumns: [user.id],
+			name: "meeting_share_userId_fkey"
+		}).onUpdate("cascade").onDelete("set null"),
+	foreignKey({
+			columns: [table.invitedByUserId],
+			foreignColumns: [user.id],
+			name: "meeting_share_invitedByUserId_fkey"
+		}).onUpdate("cascade").onDelete("cascade"),
+]);
+
+export const workspaceIntegration = pgTable("workspace_integration", {
+	id: text().primaryKey().notNull(),
+	workspaceId: text().notNull(),
+	provider: integrationProvider().notNull(),
+	accessToken: text(),
+	refreshToken: text(),
+	externalAccountId: text(),
+	externalAccountName: text(),
+	connectedByUserId: text(),
+	connectedAt: timestamp({ precision: 3, mode: 'string' }),
+	config: jsonb().default({}).notNull(),
+	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+}, (table) => [
+	index("workspace_integration_workspaceId_idx").using("btree", table.workspaceId.asc().nullsLast().op("text_ops")),
+	uniqueIndex("workspace_integration_workspaceId_provider_key").using("btree", table.workspaceId.asc().nullsLast().op("text_ops"), table.provider.asc().nullsLast().op("text_ops")),
+	foreignKey({
+			columns: [table.workspaceId],
+			foreignColumns: [workspace.id],
+			name: "workspace_integration_workspaceId_fkey"
+		}).onUpdate("cascade").onDelete("cascade"),
+]);
+
+export const userNotificationPreference = pgTable("user_notification_preference", {
+	userId: text().primaryKey().notNull(),
+	pushEnabled: boolean().default(true).notNull(),
+	meetingSummaries: boolean().default(true).notNull(),
+	insightReports: boolean().default(true).notNull(),
+	collaborationAlerts: boolean().default(true).notNull(),
+	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+}, (table) => [
+	foreignKey({
+			columns: [table.userId],
+			foreignColumns: [user.id],
+			name: "user_notification_preference_userId_fkey"
+		}).onUpdate("cascade").onDelete("cascade"),
+]);
+
+export const notification = pgTable("notification", {
+	id: text().primaryKey().notNull(),
+	userId: text().notNull(),
+	type: notificationType().notNull(),
+	title: text().notNull(),
+	body: text().notNull(),
+	href: text(),
+	readAt: timestamp({ precision: 3, mode: 'string' }),
+	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (table) => [
+	index("notification_userId_readAt_createdAt_idx").using("btree", table.userId.asc().nullsLast().op("text_ops"), table.readAt.asc().nullsLast().op("timestamp_ops"), table.createdAt.asc().nullsLast().op("text_ops")),
+	foreignKey({
+			columns: [table.userId],
+			foreignColumns: [user.id],
+			name: "notification_userId_fkey"
+		}).onUpdate("cascade").onDelete("cascade"),
+]);
+
+export const user = pgTable("user", {
+	id: text().primaryKey().notNull(),
+	name: text().notNull(),
+	email: text().notNull(),
+	emailVerified: boolean().notNull(),
+	image: text(),
+	createdAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+	scheduledDeletionAt: timestamp({ precision: 3, mode: 'string' }),
+	deletionReason: text(),
+	twoFactorEnabled: boolean().default(false).notNull(),
+	phoneNumber: text(),
+	phoneNumberVerified: boolean().default(false).notNull(),
+}, (table) => [
+	uniqueIndex("user_email_key").using("btree", table.email.asc().nullsLast().op("text_ops")),
+	index("user_id_idx").using("btree", table.id.asc().nullsLast().op("text_ops")),
+	uniqueIndex("user_phoneNumber_key").using("btree", table.phoneNumber.asc().nullsLast().op("text_ops")),
+	index("user_scheduledDeletionAt_idx").using("btree", table.scheduledDeletionAt.asc().nullsLast().op("timestamp_ops")),
+]);
+
+export const twoFactor = pgTable("twoFactor", {
+	id: text().primaryKey().notNull(),
+	secret: text().notNull(),
+	backupCodes: text().notNull(),
+	userId: text().notNull(),
+	verified: boolean().default(true).notNull(),
+}, (table) => [
+	index("twoFactor_userId_idx").using("btree", table.userId.asc().nullsLast().op("text_ops")),
+	uniqueIndex("twoFactor_userId_key").using("btree", table.userId.asc().nullsLast().op("text_ops")),
+	foreignKey({
+			columns: [table.userId],
+			foreignColumns: [user.id],
+			name: "twoFactor_userId_fkey"
+		}).onUpdate("cascade").onDelete("cascade"),
+]);
+
+export const workspaceInviteLink = pgTable("workspace_invite_link", {
+	id: text().primaryKey().notNull(),
+	workspaceId: text().notNull(),
+	role: workspaceRole().default('MEMBER').notNull(),
+	tokenHash: text().notNull(),
+	expiresAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+	revokedAt: timestamp({ precision: 3, mode: 'string' }),
+	createdByUserId: text().notNull(),
+	createdAt: timestamp({ precision: 3, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+	updatedAt: timestamp({ precision: 3, mode: 'string' }).notNull(),
+}, (table) => [
+	uniqueIndex("workspace_invite_link_tokenHash_key").using("btree", table.tokenHash.asc().nullsLast().op("text_ops")),
+	index("workspace_invite_link_workspaceId_idx").using("btree", table.workspaceId.asc().nullsLast().op("text_ops")),
+	uniqueIndex("workspace_invite_link_workspaceId_key").using("btree", table.workspaceId.asc().nullsLast().op("text_ops")),
+	foreignKey({
+			columns: [table.workspaceId],
+			foreignColumns: [workspace.id],
+			name: "workspace_invite_link_workspaceId_fkey"
+		}).onUpdate("cascade").onDelete("cascade"),
+	foreignKey({
+			columns: [table.createdByUserId],
+			foreignColumns: [user.id],
+			name: "workspace_invite_link_createdByUserId_fkey"
 		}).onUpdate("cascade").onDelete("cascade"),
 ]);

@@ -11,7 +11,7 @@ export const HOME_COPY = {
   logoBar: {
     label: "Works with the calls you already have",
     platforms: [
-      { name: "Zoom", initial: "Z" },
+      { name: "Zoom", icon: "/vectors/zoomus.svg" },
       { name: "Google Meet", icon: "/vectors/google.svg" },
       { name: "Microsoft Teams", icon: "/vectors/microsoft.svg" },
     ],
@@ -154,4 +154,3 @@ export const HOME_COPY = {
     reassurance: "No credit card required",
   },
 } as const
-
