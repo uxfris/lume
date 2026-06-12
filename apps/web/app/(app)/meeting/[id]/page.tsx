@@ -10,7 +10,16 @@ type PageProps = {
 }
 
 export default async function MeetingDetailPage({ params }: PageProps) {
-  const { id } = await params
+  const resolvedParams = await params
+  console.log("👉 VERCEL RECEIVED PARAMS:", resolvedParams)
+
+  const id = resolvedParams.id // or resolvedParams.meetingId depending on folder name
+
+  if (!id || id === "undefined") {
+    console.error("❌ Aborting fetch: ID is missing or undefined!")
+    notFound()
+  }
+
   const { cookie, workspaceId } = await getServerApiFetchOptions()
 
   let meeting
