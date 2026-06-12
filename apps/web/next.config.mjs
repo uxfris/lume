@@ -48,6 +48,7 @@ const securityHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  serverExternalPackages: ["jsdom"],
   images: {
     remotePatterns: [
       {
